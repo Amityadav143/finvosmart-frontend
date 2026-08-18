@@ -1,0 +1,404 @@
+/*
+ * FINVOSMART — India's Business Operating System
+ * Copyright (c) 2025-2026 Navgrow Engineering Service Pvt. Ltd.
+ * CIN: U29302WB2025PTC281015
+ * All rights reserved. Proprietary and confidential.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FINVOSMART — Design System v1.1
+   Navgrow Engineering Service Pvt. Ltd.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Fonts are loaded via next/font in layout.tsx (self-hosted, non-blocking).
+   They expose CSS variables --font-geist, --font-geist-mono, --font-instrument-serif. */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Dark Theme ─────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-base:            #09101d;
+  --bg-surface:         #0e1628;
+  --bg-card:            #131e32;
+  --bg-elevated:        #182540;
+  --bg-hover:           rgba(255,255,255,0.03);
+  --bg-input:           rgba(255,255,255,0.05);
+  --border:             rgba(255,255,255,0.07);
+  --border-strong:      rgba(255,255,255,0.13);
+  --border-focus:       rgba(245,158,11,0.5);
+  --gold:               #f59e0b;
+  --gold-light:         #fcd34d;
+  --gold-dark:          #b45309;
+  --gold-muted:         rgba(245,158,11,0.08);
+  --text-primary:       #eef2fc;
+  --text-secondary:     #8ea4c4;
+  --text-muted:         #3f5478;
+  --text-on-gold:       #0a0f1a;
+  --scrollbar:          rgba(255,255,255,0.08);
+  --shadow-card:        0 1px 0 rgba(255,255,255,0.04), 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-md:          0 4px 20px rgba(0,0,0,0.45);
+  --shadow-lg:          0 16px 48px rgba(0,0,0,0.55);
+  --shadow-gold:        0 0 0 1px rgba(245,158,11,0.25), 0 8px 24px rgba(245,158,11,0.12);
+  --btn-primary-bg:     linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --btn-primary-shadow: 0 4px 14px rgba(245,158,11,0.35);
+}
+
+/* ── Light Theme ────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base:            #f5f1e8;
+  --bg-surface:         #fdfaf4;
+  --bg-card:            #ffffff;
+  --bg-elevated:        #ffffff;
+  --bg-hover:           rgba(0,0,0,0.03);
+  --bg-input:           rgba(0,0,0,0.04);
+  --border:             rgba(0,0,0,0.08);
+  --border-strong:      rgba(0,0,0,0.13);
+  --border-focus:       rgba(180,83,9,0.4);
+  --gold:               #b45309;
+  --gold-light:         #d97706;
+  --gold-dark:          #92400e;
+  --gold-muted:         rgba(180,83,9,0.06);
+  --text-primary:       #1a1208;
+  --text-secondary:     #6b5634;
+  --text-muted:         #a08c6e;
+  --text-on-gold:       #fefcf8;
+  --scrollbar:          rgba(0,0,0,0.12);
+  --shadow-card:        0 1px 0 rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.07);
+  --shadow-md:          0 4px 20px rgba(0,0,0,0.1);
+  --shadow-lg:          0 16px 48px rgba(0,0,0,0.14);
+  --shadow-gold:        0 0 0 1px rgba(180,83,9,0.2), 0 8px 24px rgba(180,83,9,0.1);
+  --btn-primary-bg:     linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  --btn-primary-shadow: 0 4px 14px rgba(180,83,9,0.28);
+}
+
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; }
+body {
+  font-family: var(--font-geist), system-ui, -apple-system, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 8px; }
+
+/* ── Typography ─────────────────────────────────────────────────────────── */
+.font-serif, h1.page-title { font-family: var(--font-instrument-serif), Georgia, serif; }
+.font-mono                  { font-family: var(--font-geist-mono), monospace; }
+code, pre                   { font-family: var(--font-geist-mono), monospace; }
+
+/* ── Layout Components ──────────────────────────────────────────────────── */
+@layer components {
+
+  /* Page structure */
+  .page-title {
+    @apply font-serif text-2xl;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    font-weight: 400;
+  }
+  .page-subtitle {
+    @apply text-sm mt-0.5;
+    color: var(--text-muted);
+  }
+  .section-title {
+    @apply text-base font-semibold mb-4;
+    color: var(--text-primary);
+  }
+
+  /* Card */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+  }
+  .card-sm { @apply card; padding: 14px; border-radius: 10px; }
+  .card-hover {
+    @apply card;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-strong);
+  }
+
+  /* Form inputs */
+  .input {
+    @apply w-full rounded-lg text-sm transition-all outline-none;
+    padding: 0 12px;
+    height: 40px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+    font-family: inherit;
+  }
+  .input:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.08);
+  }
+  .input::placeholder { color: var(--text-muted); }
+  textarea.input { height: auto; padding: 10px 12px; }
+  select.input { cursor: pointer; }
+
+  .label {
+    @apply block text-xs font-medium mb-1.5;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+  }
+  .label-required::after { content: ' *'; color: #ef4444; }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-all;
+    padding: 0 20px;
+    height: 38px;
+    background: var(--btn-primary-bg);
+    color: var(--text-on-gold);
+    box-shadow: var(--btn-primary-shadow);
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .btn-primary:hover  { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:active { opacity: 1; transform: none; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all;
+    padding: 0 16px;
+    height: 38px;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-strong);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 rounded-lg text-sm font-medium transition-all;
+    padding: 0 12px;
+    height: 36px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  .btn-icon {
+    @apply inline-flex items-center justify-center rounded-lg transition-all flex-shrink-0;
+    width: 36px;
+    height: 36px;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 50;
+    display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto;
+  }
+  .modal-content {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto;
+  }
+
+
+  /* Table */
+  .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); }
+  .table-header {
+    @apply text-left font-semibold;
+    padding: 11px 16px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .table-row {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+  }
+  .table-row:hover { background: var(--bg-hover); }
+  .table-row:last-child { border-bottom: none; }
+  .table-cell { padding: 12px 16px; font-size: 13.5px; color: var(--text-secondary); vertical-align: middle; }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full font-semibold;
+    padding: 3px 10px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  /* Utility */
+  .text-gold-grad {
+    background: var(--btn-primary-bg);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .notif-dot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    border: 2px solid var(--bg-surface);
+  }
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-elevated) 50%, var(--bg-hover) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease infinite;
+    border-radius: 6px;
+  }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* Stat cards — used on Dashboard KPI cards */
+  .stat-card {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .stat-card:hover {
+    border-color: var(--accent, var(--gold));
+    transform: translateY(-1px);
+  }
+
+  /* Metric value — large number display in stat cards */
+  .metric-value {
+    font-family: var(--font-instrument-serif), Georgia, serif;
+    font-size: clamp(26px, 3vw, 34px);
+    font-weight: 400;
+    line-height: 1.1;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+
+}
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
+@keyframes shimmer   { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes slideUp   { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes float     { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes spin      { to { transform: rotate(360deg); } }
+
+.page-enter    { animation: fadeIn 0.25s ease; }
+.slide-up      { animation: slideUp 0.35s cubic-bezier(0.16,1,0.3,1); 
+  /* Danger button — used in security page and destructive actions */
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    background: rgba(220, 38, 38, 0.1);
+    color: #DC2626;
+  }
+  .btn-danger:hover {
+    background: rgba(220, 38, 38, 0.18);
+    border-color: rgba(220, 38, 38, 0.5);
+  }
+  .btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Label required marker */
+  .label-required::after {
+    content: ' *';
+    color: #DC2626;
+  }
+
+  /* Animate spin utility */
+  .animate-spin {
+    animation: spin 0.7s linear infinite;
+  }
+
+  /* ── Responsive visibility utilities ──────────────────────────────────── */
+  /* Used by MarketingNav and other responsive layouts. Desktop-first:
+     show desktop nav by default, reveal the mobile controls under 960px.
+     960px (not 860) keeps the full 7-link nav from crowding on small laptops. */
+  .mobile-only { display: none !important; }
+  .hidden-mobile { display: flex; }
+
+  @media (max-width: 960px) {
+    .hidden-mobile { display: none !important; }
+    .mobile-only { display: flex !important; }
+  }
+
+  /* ── Reusable responsive grids (auto-collapse on small screens) ────────── */
+  /* Apply alongside an inline `display:grid`. These override the inline
+     grid-template-columns at each breakpoint via !important. */
+  .auto-grid-2, .auto-grid-3, .auto-grid-4 { display: grid; }
+  @media (max-width: 1024px) {
+    .auto-grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
+    .auto-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+  @media (max-width: 720px) {
+    .auto-grid-2 { grid-template-columns: 1fr !important; }
+    .auto-grid-3 { grid-template-columns: 1fr !important; }
+    .auto-grid-4 { grid-template-columns: 1fr !important; }
+  }
+
+  /* ── Keyboard accessibility: visible focus ring ────────────────────────── */
+  /* Only shows for keyboard navigation (`:focus-visible`), never on mouse
+     click, so it aids keyboard users without adding visual noise for others. */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+}
+
+/* ── Reduced motion: respect the user's OS-level preference ─────────────── */
+/* Users who ask for less motion (vestibular sensitivity, etc.) get near-instant
+   transitions instead of animations, across the whole app. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
