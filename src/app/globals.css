@@ -389,6 +389,53 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
     border-radius: 4px;
   }
 
+  /* ── Global mobile safety net ──────────────────────────────────────────── */
+  /* These rules make the whole app usable on phones without editing every page.
+     They target the common patterns that break on narrow screens. */
+
+  /* 1. Any <table> stays readable by scrolling horizontally inside its container
+        rather than forcing the whole page wider than the viewport. */
+  @media (max-width: 768px) {
+    .card table, main table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; max-width: 100%; }
+  }
+
+  /* 2. Tailwind fixed multi-column grids (grid-cols-2/3/4/5/6) collapse sensibly
+        on small screens so stat cards and tiles don't get crushed. Utility
+        classes like md:grid-cols-* still win at their own breakpoints because
+        they carry a media query; these only apply on small screens. */
+  @media (max-width: 640px) {
+    .grid.grid-cols-2,
+    .grid.grid-cols-3,
+    .grid.grid-cols-4,
+    .grid.grid-cols-5,
+    .grid.grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  }
+  @media (max-width: 460px) {
+    .grid.grid-cols-3,
+    .grid.grid-cols-4,
+    .grid.grid-cols-5,
+    .grid.grid-cols-6 { grid-template-columns: 1fr !important; }
+  }
+
+  /* 3. Nothing should force horizontal page scroll: cap oversized fixed widths
+        and let flex rows wrap on small screens. */
+  @media (max-width: 640px) {
+    main [style*="min-width"] { min-width: 0 !important; }
+    main .flex.items-center.justify-between { flex-wrap: wrap; gap: 12px; }
+  }
+
+  /* 4. Comfortable tap targets and no accidental zoom on input focus (iOS zooms
+        when an input's font-size is under 16px). */
+  @media (max-width: 768px) {
+    input, select, textarea { font-size: 16px !important; }
+    button, .btn-icon, a.btn { min-height: 40px; }
+  }
+
+}
+
+/* Prevent the whole document from ever scrolling sideways on mobile. */
+@media (max-width: 768px) {
+  html, body { max-width: 100%; overflow-x: hidden; }
 }
 
 /* ── Reduced motion: respect the user's OS-level preference ─────────────── */

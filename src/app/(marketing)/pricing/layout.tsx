@@ -5,23 +5,21 @@
  * CIN: U29302WB2025PTC281015
  *
  * All rights reserved. This source code is proprietary and confidential.
- * Unauthorized copying, distribution, modification, or use of this file,
- * via any medium, is strictly prohibited without prior written permission.
  */
 
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Pricing — Plans from ₹3,999/mo',
-  description: 'Simple, transparent, India-priced ERP plans. Starter ₹3,999, Growth ₹10,399, Enterprise ₹23,999 per month. One subscription for HRMS, Finance, GST Invoicing, CRM and AI — no per-module fees. Start your free trial.',
+  title: 'Pricing — Simple, Transparent, India-Priced',
+  description: 'One subscription for everything — no per-module fees. FINVOSMART plans start at ₹3,999/mo. Compare Starter, Growth and Enterprise, or build a custom plan. 14-day free trial, no credit card.',
   alternates: { canonical: '/pricing' },
   openGraph: {
-    title: 'Finvosmart Pricing — Plans from ₹3,999/mo',
-    description: 'Transparent, India-priced ERP plans. One subscription for everything — HRMS, Finance, GST Invoicing, CRM and AI.',
-    url: 'https://finvosmart.com/pricing',
+    title: 'FINVOSMART Pricing — One Plan for Everything',
+    description: 'Transparent, India-priced plans from ₹3,999/mo. No per-module fees. Start free for 14 days.',
+    url: '/pricing',
   },
 }
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return children
 }

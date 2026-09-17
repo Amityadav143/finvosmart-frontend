@@ -17,34 +17,19 @@ import { useAuthStore } from '@/lib/store/slices/authStore'
 import { authApi } from '@/lib/api/auth'
 import { useTheme } from '@/lib/context/ThemeContext'
 import toast from 'react-hot-toast'
-import { Zap, Eye, EyeOff, ArrowRight, Sun, Moon, ChevronDown } from 'lucide-react'
-
-/* ── Test accounts for quick login ────────────────────────────────────── */
-const TEST_ACCOUNTS = [
-  { label: 'Super Admin',   email: 'admin@nvgrow.in',      role: 'SUPER_ADMIN',   color: '#f59e0b', company: 'NVGROW001' },
-  { label: 'Manager',       email: 'manager@nvgrow.in',    role: 'MANAGER',       color: '#8b5cf6', company: 'NVGROW001' },
-  { label: 'HR Admin',      email: 'hr@nvgrow.in',         role: 'HR_ADMIN',      color: '#ec4899', company: 'NVGROW001' },
-  { label: 'Finance Admin', email: 'finance@nvgrow.in',    role: 'FINANCE_ADMIN', color: '#22c55e', company: 'NVGROW001' },
-  { label: 'Accountant',    email: 'accountant@nvgrow.in', role: 'ACCOUNTANT',    color: '#0d9488', company: 'NVGROW001' },
-  { label: 'Sales Exec',    email: 'sales@nvgrow.in',      role: 'SALES_EXEC',    color: '#ea580c', company: 'NVGROW001' },
-  { label: 'Employee',      email: 'employee@nvgrow.in',   role: 'EMPLOYEE',      color: '#64748b', company: 'NVGROW001' },
-  { label: 'Viewer',        email: 'viewer@nvgrow.in',     role: 'VIEWER',        color: '#94a3b8', company: 'NVGROW001' },
-  { label: 'Starter Plan',  email: 'admin@testco.in',      role: 'COMPANY_ADMIN', color: '#3b82f6', company: 'TESTCO001' },
-  { label: 'Growth Plan',   email: 'admin@demogrow.in',    role: 'COMPANY_ADMIN', color: '#7c3aed', company: 'DEMOGROW'  },
-]
+import { Zap, Eye, EyeOff, ArrowRight, Sun, Moon } from 'lucide-react'
 
 export default function LoginPage() {
   const router   = useRouter()
   const { setAuth } = useAuthStore()
   const { toggle, isDark } = useTheme()
 
-  const [form, setForm]       = useState({ email: '', password: 'Admin@123', companyCode: 'NVGROW001' })
+  const [form, setForm]       = useState({ email: '', password: '', companyCode: '' })
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'login'|'mfa'>('login')
   const [mfaSession, setMfaSession] = useState('')
   const [mfaCode, setMfaCode] = useState('')
   const [showPwd, setShowPwd] = useState(false)
-  const [showDemo, setShowDemo] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [welcomeNew, setWelcomeNew] = useState(false)
 
@@ -60,20 +45,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true)
-    // New visitors arriving from a "Start Free Trial" CTA get a friendly welcome
-    // and the demo accounts expanded so they can try the product instantly.
+    // New visitors arriving from a "Start Free Trial" CTA get a friendly welcome.
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       if (params.get('register') === '1' || params.get('trial') === '1') {
         setWelcomeNew(true)
-        setShowDemo(true)
       }
     }
   }, [])
-
-  const quickLogin = (acc: typeof TEST_ACCOUNTS[0]) => {
-    setForm({ email: acc.email, password: 'Test@1234', companyCode: acc.company })
-  }
 
   const finishLogin = (auth: any) => {
     // Multi-company users get a chooser instead of tokens
@@ -217,7 +196,7 @@ export default function LoginPage() {
             <div style={{ marginBottom: '20px', padding: '14px 16px', borderRadius: '12px', background: 'var(--gold-muted)', border: '1px solid var(--border-strong)' }}>
               <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gold)', marginBottom: '3px' }}>👋 Welcome to FINVOSMART!</div>
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Want to explore first? Try a demo account below — no setup needed. To start your own trial, contact our team from the <Link href="/contact" style={{ color: 'var(--gold)', textDecoration: 'none', fontWeight: 500 }}>Contact page</Link>.
+                Sign in with the credentials provided to you. To start your own trial, contact our team from the <Link href="/contact" style={{ color: 'var(--gold)', textDecoration: 'none', fontWeight: 500 }}>Contact page</Link>.
               </div>
             </div>
           )}
@@ -410,62 +389,6 @@ export default function LoginPage() {
             </div>
           )}
           </>
-          )}
-
-          {/* Demo accounts */}
-          {tab === 'password' && step === 'login' && companyChoices.length === 0 && (
-          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
-            <button
-              type="button"
-              onClick={() => setShowDemo(v => !v)}
-              className="w-full flex items-center justify-between text-sm"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit', padding: '4px 0' }}
-            >
-              <span>Test accounts for role & plan testing</span>
-              <ChevronDown
-                size={14}
-                style={{ transform: showDemo ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
-              />
-            </button>
-
-            {showDemo && (
-              <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                {TEST_ACCOUNTS.map(acc => (
-                  <button
-                    key={acc.email}
-                    type="button"
-                    onClick={() => quickLogin(acc)}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      border: `1px solid ${form.email === acc.email ? acc.color : 'var(--border)'}`,
-                      background: form.email === acc.email ? `${acc.color}10` : 'var(--bg-surface)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontFamily: 'inherit',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={(e: any) => { (e.currentTarget as HTMLElement).style.borderColor = acc.color }}
-                    onMouseLeave={(e: any) => { if (form.email !== acc.email) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: acc.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{acc.label}</span>
-                    </div>
-                    <p style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginLeft: '12px' }}>
-                      {acc.company} · Test@1234
-                    </p>
-                  </button>
-                ))}
-                <div
-                  style={{ gridColumn: '1 / -1', padding: '8px 10px', borderRadius: '8px', background: 'var(--gold-muted)', border: '1px solid var(--border-strong)', fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.6 }}
-                >
-                  💡 Click any account to pre-fill the form, then click <strong style={{ color: 'var(--gold)' }}>Sign In</strong> to login.
-                  <br />Super Admin password: <code style={{ color: 'var(--gold)', fontFamily: 'monospace' }}>Admin@123</code> · All others: <code style={{ color: 'var(--gold)', fontFamily: 'monospace' }}>Test@1234</code>
-                </div>
-              </div>
-            )}
-          </div>
           )}
         </div>
 

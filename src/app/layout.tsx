@@ -9,7 +9,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Providers } from './providers'
 import { Inter, JetBrains_Mono, Instrument_Serif } from 'next/font/google'
@@ -32,11 +32,18 @@ const geistMono = JetBrains_Mono({
 })
 const instrumentSerif = Instrument_Serif({
   subsets: ['latin'],
-  weight: ['400'],
-  style: ['normal', 'italic'],
+  weight: '400',
+  style: 'normal',
   variable: '--font-instrument-serif',
   display: 'swap',
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#1A1B4B',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://finvosmart.com'),
