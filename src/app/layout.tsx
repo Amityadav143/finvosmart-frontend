@@ -36,6 +36,12 @@ const instrumentSerif = Instrument_Serif({
   style: 'normal',
   variable: '--font-instrument-serif',
   display: 'swap',
+  // Instrument Serif ships without the fallback-metric data Next.js looks for,
+  // which triggers a harmless "Failed to find font override values" warning at
+  // build time. Providing an explicit fallback and disabling the automatic
+  // fallback-metric adjustment silences the warning without changing the look.
+  fallback: ['Georgia', 'serif'],
+  adjustFontFallback: false,
 })
 
 export const viewport: Viewport = {
@@ -48,17 +54,17 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://finvosmart.com'),
   title: {
-    default: "Finvosmart by Navgrow — India's Business Operating System",
-    template: '%s | Finvosmart by Navgrow',
+    default: "Finvosmart — India's Business Operating System",
+    template: '%s | Finvosmart',
   },
-  description: "Finvosmart by Navgrow is India's most complete cloud ERP — HRMS, Finance, GST Invoicing, CRM, AI Cash Flow and WhatsApp Billing in one platform. Replace Tally, Zoho and 5 more apps. Start free.",
-  applicationName: 'Finvosmart by Navgrow',
+  description: "Finvosmart is India's most complete cloud ERP — HRMS, Finance, GST Invoicing, CRM, AI Cash Flow and WhatsApp Billing in one platform. Replace Tally, Zoho and 5 more apps. Start free.",
+  applicationName: 'Finvosmart',
   authors: [{ name: 'Navgrow Engineering Service Pvt. Ltd.', url: 'https://finvosmart.com' }],
   creator: 'Navgrow Engineering Service Pvt. Ltd.',
   publisher: 'Navgrow Engineering Service Pvt. Ltd.',
   category: 'Business Software',
   keywords: [
-    'Finvosmart', 'Finvosmart by Navgrow', 'ERP software India', 'best ERP for Indian SME',
+    'Finvosmart', 'Finvosmart ERP', 'ERP software India', 'best ERP for Indian SME',
     'GST billing software', 'GST invoicing software', 'e-invoicing software', 'e-way bill software',
     'HRMS software India', 'payroll software India', 'TDS software', 'accounting software India',
     'Tally alternative', 'Zoho alternative', 'Busy alternative', 'cloud ERP India',
@@ -71,22 +77,22 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_IN',
-    siteName: 'Finvosmart by Navgrow',
-    title: "Finvosmart by Navgrow — India's Business Operating System",
+    siteName: 'Finvosmart',
+    title: "Finvosmart — India's Business Operating System",
     description: "One cloud platform for HRMS, Finance, GST Invoicing, CRM and AI. Built for Indian businesses. Replace Tally, Zoho and 5 more apps.",
     url: 'https://finvosmart.com',
     images: [{
       url: '/og-image.png',
       width: 1200,
       height: 630,
-      alt: 'Finvosmart by Navgrow — India\'s Business Operating System',
+      alt: 'Finvosmart — India\'s Business Operating System',
     }],
   },
   twitter: {
     card: 'summary_large_image',
     site: '@finvosmart',
     creator: '@finvosmart',
-    title: "Finvosmart by Navgrow — India's Business Operating System",
+    title: "Finvosmart — India's Business Operating System",
     description: "One cloud platform for HRMS, Finance, GST Invoicing, CRM and AI. Built for Indian businesses.",
     images: ['/og-image.png'],
   },

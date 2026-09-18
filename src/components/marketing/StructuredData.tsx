@@ -18,7 +18,7 @@ const BASE_URL = 'https://finvosmart.com'
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'Finvosmart by Navgrow',
+  name: 'Finvosmart',
   legalName: 'Navgrow Engineering Service Pvt. Ltd.',
   url: BASE_URL,
   logo: `${BASE_URL}/logo.png`,
@@ -47,7 +47,7 @@ const organizationSchema = {
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'Finvosmart by Navgrow',
+  name: 'Finvosmart',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web, iOS, Android',
   description: "All-in-one cloud ERP for Indian businesses: HRMS, Finance, GST Invoicing, CRM, Inventory, AI Cash Flow and WhatsApp Billing.",
@@ -93,7 +93,7 @@ const softwareSchema = {
 const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
-  name: 'Finvosmart by Navgrow',
+  name: 'Finvosmart',
   url: BASE_URL,
   potentialAction: {
     '@type': 'SearchAction',

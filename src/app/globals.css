@@ -159,7 +159,10 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
 
   /* Buttons */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-all;
+    @apply gap-2 rounded-lg text-sm font-semibold transition-all;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 0 20px;
     height: 38px;
     background: var(--btn-primary-bg);
@@ -175,7 +178,10 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all;
+    @apply gap-2 rounded-lg text-sm font-medium transition-all;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 0 16px;
     height: 38px;
     background: var(--bg-elevated);
@@ -188,7 +194,9 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
   .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
 
   .btn-ghost {
-    @apply inline-flex items-center gap-2 rounded-lg text-sm font-medium transition-all;
+    @apply gap-2 rounded-lg text-sm font-medium transition-all;
+    display: inline-flex;
+    align-items: center;
     padding: 0 12px;
     height: 36px;
     background: transparent;
@@ -200,7 +208,11 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
   .btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
 
   .btn-icon {
-    @apply inline-flex items-center justify-center rounded-lg transition-all flex-shrink-0;
+    @apply rounded-lg transition-all;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     width: 36px;
     height: 36px;
     background: var(--bg-elevated);
@@ -243,7 +255,9 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
 
   /* Badges */
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full font-semibold;
+    @apply gap-1 rounded-full font-semibold;
+    display: inline-flex;
+    align-items: center;
     padding: 3px 10px;
     font-size: 11px;
     white-space: nowrap;
