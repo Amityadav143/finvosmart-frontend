@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // NOTE: This project is deployed manually on a VPS (not Docker), so it uses the
+  // default Next.js build output and is served with `next start`. `next start`
+  // serves the compiled CSS/JS and the public/ folder automatically — no separate
+  // "copy the static folder" step, which is what previously caused CSS to 404 on
+  // the server. (If you ever switch to Docker, re-enable `output: 'standalone'`
+  // and have the Dockerfile copy .next/static + public into the standalone dir.)
 
   // Production builds should not be blocked by lint warnings or non-critical type
   // notes. CI runs `npm run lint` / `tsc --noEmit` separately as quality gates.
