@@ -23,7 +23,7 @@ export const crmApi = {
     list: async (): Promise<Lead[]> => (await api.get<ApiResponse<Lead[]>>('/crm/leads')).data.data ?? [],
     create: async (d: Partial<Lead>) => (await api.post<ApiResponse<Lead>>('/crm/leads', d)).data.data!,
     updateStatus: async (id: string, status: string) =>
-      (await api.patch<ApiResponse<Lead>>(`/crm/leads/${id}/status`, { status })).data.data!,
+      (await api.patch<ApiResponse<Lead>>(`/crm/leads/${id}/status`, null, { params: { status } })).data.data!,
     pipeline: async (): Promise<Record<string,number>> =>
       (await api.get<ApiResponse<Record<string,number>>>('/crm/leads/pipeline')).data.data ?? {},
   },

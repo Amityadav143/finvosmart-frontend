@@ -15,7 +15,10 @@ import type { ApiResponse, Subscription } from '@/types'
 export const subscriptionsApi = {
   list: async (): Promise<Subscription[]> => (await api.get<ApiResponse<Subscription[]>>('/subscriptions')).data.data ?? [],
   create: async (d: Partial<Subscription> & { startDate: string }) =>
-    (await api.post<ApiResponse<Subscription>>('/subscriptions', d)).data.data!,
+    (await api.post<ApiResponse<Subscription>>('/subscriptions', null, { params: {
+      customerId: d.customerId, description: d.description, amount: d.amount,
+      frequency: d.frequency, startDate: d.startDate,
+    } })).data.data!,
   pause:  async (id: string) => (await api.patch(`/subscriptions/${id}/pause`)).data,
   resume: async (id: string) => (await api.patch(`/subscriptions/${id}/resume`)).data,
   cancel: async (id: string) => (await api.patch(`/subscriptions/${id}/cancel`)).data,

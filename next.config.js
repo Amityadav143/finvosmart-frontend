@@ -63,18 +63,16 @@ const nextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       },
+      // NOTE: no rule for /_next/static — Next.js already serves its content-hashed
+      // build files with long-lived immutable caching. Re-declaring it here could also
+      // attach a year-long cache to an error response for a missing file.
       {
-        // Long-lived immutable caching for static assets and Next chunks.
-        source: '/_next/static/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
-      },
-      {
-        // Cache public images/fonts aggressively.
+        // Files in public/ (logo, favicon, OG image) do NOT have hashed names, so they
+        // must not be `immutable`: a replaced logo would never update in browsers, and
+        // a broken response could stick for a year. Cache for a day, then revalidate.
         source: '/:all*(svg|jpg|jpeg|png|webp|avif|ico|woff|woff2)',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+          { key: 'Cache-Control', value: 'public, max-age=86400, must-revalidate' },
         ],
       },
     ]

@@ -100,7 +100,7 @@ export default function LeavePage() {
       <DataTable columns={columns} data={pending ?? []} loading={isLoading} keyExtractor={l => l.id} emptyMessage="No pending leave applications" />
 
       <Modal open={showApply} onClose={() => setShowApply(false)} title="Apply for Leave">
-        <form onSubmit={e => { e.preventDefault(); applyMutation.mutate({ ...form, leaveTypeId: '00000000-0000-0000-0000-000000000001' }) }} className="space-y-4">
+        <form onSubmit={e => { e.preventDefault(); applyMutation.mutate({ ...form }) }} className="space-y-4">
           <div><label className="label">Leave Type</label>
             <select className="input h-10" value={form.leaveTypeName} onChange={e => setForm(f => ({...f, leaveTypeName: e.target.value}))}>
               <option>Annual Leave</option><option>Sick Leave</option><option>Casual Leave</option><option>Maternity Leave</option>

@@ -86,7 +86,7 @@ export default function EmployeesPage() {
   const exportEmployees = async () => {
     try {
       const { api } = await import('@/lib/api/client')
-      const res = await api.get('/hrms/employees?size=1000')
+      const res = await api.get('/employees?size=1000')
       const emps = res.data.data?.content ?? []
       const rows = ['Name,Email,Phone,Department,Designation,Status,Join Date']
       emps.forEach((e: any) => rows.push(

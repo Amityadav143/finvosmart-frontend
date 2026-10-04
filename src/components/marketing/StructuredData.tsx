@@ -21,7 +21,7 @@ const organizationSchema = {
   name: 'Finvosmart',
   legalName: 'Navgrow Engineering Service Pvt. Ltd.',
   url: BASE_URL,
-  logo: `${BASE_URL}/logo.png`,
+  logo: `${BASE_URL}/android-chrome-512x512.png`,
   description: "India's most complete cloud ERP platform — HRMS, Finance, GST Invoicing, CRM, AI and WhatsApp Billing in one system.",
   foundingDate: '2025',
   address: {

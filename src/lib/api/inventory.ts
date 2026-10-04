@@ -19,7 +19,8 @@ export const inventoryApi = {
     create: async (d: Partial<InventoryItem>) => (await api.post<ApiResponse<InventoryItem>>('/inventory/items', d)).data.data!,
     update: async (id: string, d: Partial<InventoryItem>) => (await api.put<ApiResponse<InventoryItem>>(`/inventory/items/${id}`, d)).data.data!,
     adjust: async (id: string, qty: number, type: string, ref?: string) =>
-      (await api.post(`/inventory/items/${id}/adjust`, { quantity: qty, movementType: type, referenceNumber: ref })).data,
+      // Backend reads these as query params named qty / type / remarks.
+      (await api.post(`/inventory/items/${id}/adjust`, null, { params: { qty, type, ...(ref ? { remarks: ref } : {}) } })).data,
   },
   movements: {
     list: async (p: { page?: number; size?: number; itemId?: string; type?: string } = {}) =>
