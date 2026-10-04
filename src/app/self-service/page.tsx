@@ -64,7 +64,10 @@ export default function SelfServicePage() {
   })
 
   const applyLeave = useMutation({
-    mutationFn: () => api.post('/hrms/leave', leaveForm),
+    mutationFn: () => api.post('/leaves/apply', {
+      leaveTypeName: leaveForm.type, fromDate: leaveForm.startDate,
+      toDate: leaveForm.endDate, reason: leaveForm.reason,
+    }),
     onSuccess: () => { toast.success('Leave application submitted'); setLeave(f => ({ ...f, startDate: '', endDate: '', reason: '' })) },
     onError:   (e: any) => toast.error(e?.response?.data?.error ?? 'Failed to apply for leave'),
   })

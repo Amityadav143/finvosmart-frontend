@@ -18,7 +18,7 @@ export const invoicingApi = {
   get: async (id: string) => (await api.get<ApiResponse<Invoice>>(`/invoices/${id}`)).data.data!,
   create: async (d: Partial<Invoice>) => (await api.post<ApiResponse<Invoice>>('/invoices', d)).data.data!,
   updateStatus: async (id: string, status: string) =>
-    (await api.patch<ApiResponse<Invoice>>(`/invoices/${id}/status`, { status })).data.data!,
+    (await api.patch<ApiResponse<Invoice>>(`/invoices/${id}/status`, null, { params: { status } })).data.data!,
   stats: async (): Promise<InvoiceStats> => (await api.get<ApiResponse<InvoiceStats>>('/invoices/dashboard/stats')).data.data!,
   sendWhatsApp: async (invoiceId: string, phone: string) =>
     (await api.post('/whatsapp/invoices/send', { invoiceId, recipientPhone: phone, includePaymentLink: true })).data,

@@ -379,10 +379,16 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
   /* Apply alongside an inline `display:grid`. These override the inline
      grid-template-columns at each breakpoint via !important. */
   .auto-grid-2, .auto-grid-3, .auto-grid-4 { display: grid; }
+  /* Tablet: 4-col → 2-col, 3-col → 2-col */
   @media (max-width: 1024px) {
     .auto-grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
     .auto-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
   }
+  /* Small tablet / large phone: 2-col pairs start collapsing */
+  @media (max-width: 860px) {
+    .auto-grid-2 { grid-template-columns: 1fr !important; gap: 32px !important; }
+  }
+  /* Phone: everything is a single column */
   @media (max-width: 720px) {
     .auto-grid-2 { grid-template-columns: 1fr !important; }
     .auto-grid-3 { grid-template-columns: 1fr !important; }
@@ -450,6 +456,49 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
 /* Prevent the whole document from ever scrolling sideways on mobile. */
 @media (max-width: 768px) {
   html, body { max-width: 100%; overflow-x: hidden; }
+}
+
+/* ── Marketing pages: mobile layout layer ───────────────────────────────────
+   The marketing pages (about, contact, pricing, custom-plan, features, landing)
+   use large desktop section padding and inline multi-column grids. This layer
+   makes them reflow cleanly on phones. It lives outside @layer so it reliably
+   overrides inline styles at these breakpoints. */
+
+/* Tablet and below: trim the big vertical section padding. */
+@media (max-width: 900px) {
+  main section { padding-top: 48px !important; padding-bottom: 48px !important; }
+}
+
+/* Phone: tighten horizontal gutters and stack ANY inline 2-col grid that might
+   not carry an auto-grid class, so nothing stays side-by-side on a narrow screen. */
+@media (max-width: 680px) {
+  /* Section inner containers: smaller side gutter, never wider than the screen. */
+  main section > div { padding-left: 18px !important; padding-right: 18px !important; max-width: 100% !important; }
+
+  /* Catch-all: any grid inside a marketing section collapses to one column.
+     (Covers inline gridTemplateColumns that isn't an auto-grid-* class.) */
+  main section [style*="grid-template-columns"],
+  main section [style*="gridTemplateColumns"] { grid-template-columns: 1fr !important; }
+
+  /* Flex rows that were side-by-side wrap instead of overflowing. */
+  main section [style*="display: flex"]:not([style*="column"]) { flex-wrap: wrap; }
+
+  /* Reduce oversized hero/heading text so it fits a phone screen, and make sure
+     long words (e.g. "Finvosmart") wrap instead of overflowing the viewport. */
+  main h1 { font-size: clamp(28px, 7.5vw, 40px) !important; line-height: 1.12 !important; overflow-wrap: break-word; word-break: break-word; }
+  main h2 { font-size: clamp(22px, 5.5vw, 30px) !important; line-height: 1.18 !important; overflow-wrap: break-word; }
+  main p, main span, main a, main li { overflow-wrap: break-word; }
+
+  /* Big gaps between grid items shrink on phones. */
+  main section [style*="gap: 72px"],
+  main section [style*="gap: 64px"],
+  main section [style*="gap: 56px"] { gap: 28px !important; }
+}
+
+/* Very small phones: make sure cards and padded boxes don't overflow. */
+@media (max-width: 400px) {
+  main section > div { padding-left: 14px !important; padding-right: 14px !important; }
+  .card { padding: 16px !important; }
 }
 
 /* ── Reduced motion: respect the user's OS-level preference ─────────────── */

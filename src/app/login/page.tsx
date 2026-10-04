@@ -10,12 +10,13 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { authApi } from '@/lib/api/auth'
 import { useTheme } from '@/lib/context/ThemeContext'
+import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
 import toast from 'react-hot-toast'
 import { Zap, Eye, EyeOff, ArrowRight, Sun, Moon } from 'lucide-react'
 
@@ -71,6 +72,25 @@ export default function LoginPage() {
     return true
   }
 
+  // ── Google sign-in (GIS) ───────────────────────────────────────────────
+  // When Google returns an ID token, exchange it for a FINVOSMART session.
+  const google = useGoogleSignIn(async (idToken: string) => {
+    setLoading(true)
+    try {
+      const auth = await authApi.google(idToken, form.companyCode || undefined)
+      finishLogin(auth)
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error ?? 'Google sign-in failed')
+    } finally { setLoading(false) }
+  })
+
+  // Show Google's official button in the Social tab once GIS has loaded.
+  const googleBtnRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (tab === 'social' && google.ready) google.renderButton(googleBtnRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, google.ready])
+
   // ── OTP handlers ───────────────────────────────────────────────────────
   const sendOtp = async () => {
     if (!otpId) { toast.error(otpChannel === 'SMS' ? 'Enter your mobile number' : 'Enter your email'); return }
@@ -98,20 +118,27 @@ export default function LoginPage() {
 
   // ── Social handlers ────────────────────────────────────────────────────
   const socialLogin = async (provider: string) => {
-    setLoading(true)
     try {
-      // In production a provider SDK (Google Identity Services, MSAL, etc.) returns a
-      // verified token/profile. Here we surface a clear message when not configured.
-      if (provider === 'GOOGLE' && (window as any).google?.accounts?.id) {
+      if (provider === 'GOOGLE') {
+        if (!google.configured) {
+          toast.error('Google sign-in isn\'t configured on this environment. Set NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable it.')
+          return
+        }
+        if (!google.ready) {
+          toast('Google sign-in is still loading — please try again in a moment.')
+          return
+        }
         toast('Opening Google sign-in…')
-        // The GIS callback (configured at app init) will call authApi.google(idToken)
-        ;(window as any).google.accounts.id.prompt()
+        google.prompt()   // GIS callback (set above) exchanges the token and logs in
         return
       }
+      // Microsoft / Apple / LinkedIn: their SDKs plug in the same way (MSAL, Apple JS,
+      // LinkedIn OAuth) and call authApi.social(provider, profile). Until a given
+      // provider's credentials are added, show a clear message rather than a dead button.
       toast.error(`${provider.charAt(0) + provider.slice(1).toLowerCase()} sign-in isn't configured on this environment yet. Add the provider credentials to enable it.`)
     } catch (err: any) {
       toast.error(err?.response?.data?.error ?? 'Social sign-in failed')
-    } finally { setLoading(false) }
+    }
   }
 
   const chooseCompany = async (code: string) => {
@@ -369,12 +396,15 @@ export default function LoginPage() {
               <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
                 Continue with your existing account. You must already be invited to a company.
               </p>
+              {google.ready && (
+                <div ref={googleBtnRef} style={{ display: 'flex', justifyContent: 'center', minHeight: '44px' }} />
+              )}
               {([
                 ['GOOGLE','Continue with Google','#ffffff','#1f1f1f','#dadce0'],
                 ['MICROSOFT','Continue with Microsoft','#ffffff','#1f1f1f','#dadce0'],
                 ['APPLE','Continue with Apple','#000000','#ffffff','#000000'],
                 ['LINKEDIN','Continue with LinkedIn','#0a66c2','#ffffff','#0a66c2'],
-              ] as const).map(([id,label,bg,fg,bd]) => (
+              ] as const).filter(([id]) => !(id === 'GOOGLE' && google.ready)).map(([id,label,bg,fg,bd]) => (
                 <button key={id} type="button" onClick={() => socialLogin(id)} disabled={loading}
                   className="w-full flex items-center justify-center gap-2.5"
                   style={{ height: '44px', borderRadius: '10px', background: bg, color: fg,

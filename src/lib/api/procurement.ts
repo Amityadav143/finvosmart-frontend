@@ -18,8 +18,9 @@ export const procurementApi = {
       (await api.get<ApiResponse<PageResponse<PurchaseOrder>>>('/procurement/purchase-orders', { params: p })).data.data!,
     create: async (d: Partial<PurchaseOrder>) => (await api.post<ApiResponse<PurchaseOrder>>('/procurement/purchase-orders', d)).data.data!,
     updateStatus: async (id: string, status: string) =>
-      (await api.patch(`/procurement/purchase-orders/${id}/status`, { status })).data,
-    approve: async (id: string) => (await api.post(`/procurement/purchase-orders/${id}/approve`)).data,
+      (await api.patch(`/procurement/purchase-orders/${id}/status`, null, { params: { status } })).data,
+    // The backend approves via the status endpoint (there is no /approve route).
+    approve: async (id: string) => (await api.patch(`/procurement/purchase-orders/${id}/status`, null, { params: { status: 'APPROVED' } })).data,
   },
   vendors: {
     list: async (p: { page?: number; size?: number; q?: string } = {}) =>

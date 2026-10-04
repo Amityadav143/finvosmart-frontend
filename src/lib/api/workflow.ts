@@ -18,5 +18,5 @@ export const workflowApi = {
   approve: async (id: string, remarks?: string) =>
     (await api.post(`/workflow/instances/${id}/approve`, { remarks })).data,
   reject: async (id: string, remarks: string) =>
-    (await api.post(`/workflow/instances/${id}/reject`, { remarks })).data,
+    (await api.post(`/workflow/instances/${id}/reject`, null, { params: { remarks } })).data,
 }
