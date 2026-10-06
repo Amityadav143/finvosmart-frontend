@@ -12,7 +12,7 @@
 import axios, { AxiosInstance } from 'axios'
 import { getAccessToken, getRefreshToken } from '@/lib/store/slices/authStore'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 let refreshPromise: Promise<string | null> | null = null
 
