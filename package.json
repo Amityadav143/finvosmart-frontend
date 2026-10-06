@@ -2,7 +2,7 @@
   "name": "finvosmart",
   "version": "1.1.0",
   "private": true,
-  "description": "FINVOSMART \u2014 India's Business Operating System. Enterprise ERP + HRMS + Invoicing by Nvgrow Engineering Service Pvt. Ltd.",
+  "description": "FINVOSMART — India's Business Operating System. Enterprise ERP + HRMS + Invoicing by Nvgrow Engineering Service Pvt. Ltd.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,31 +11,35 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "next": "14.0.4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "@hookform/resolvers": "^3.3.2",
     "@tanstack/react-query": "^5.13.4",
     "axios": "^1.6.2",
-    "zustand": "^4.4.7",
-    "react-hook-form": "^7.49.2",
-    "zod": "^3.22.4",
-    "@hookform/resolvers": "^3.3.2",
-    "recharts": "^2.10.3",
-    "date-fns": "^2.30.0",
     "clsx": "^2.0.0",
-    "tailwind-merge": "^2.1.0",
+    "date-fns": "^2.30.0",
     "lucide-react": "^0.294.0",
-    "react-hot-toast": "^2.4.1"
+    "next": "^16.3.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.49.2",
+    "react-hot-toast": "^2.4.1",
+    "recharts": "^2.10.3",
+    "tailwind-merge": "^2.1.0",
+    "zod": "^3.22.4",
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "typescript": "^5.3.3",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^20.10.5",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
-    "tailwindcss": "^3.4.0",
     "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.32",
     "eslint": "^8.56.0",
-    "eslint-config-next": "14.0.4"
+    "eslint-config-next": "14.0.4",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3"
+  },
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true
   }
 }

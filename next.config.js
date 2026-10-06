@@ -27,9 +27,11 @@ const nextConfig = {
 
   // Production builds should not be blocked by lint warnings or non-critical type
   // notes. CI runs `npm run lint` / `tsc --noEmit` separately as quality gates.
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+ // eslint: {
+ //   ignoreDuringBuilds: true,
+ // },
+// Silence the Turbopack collision check:
+  turbopack: {},
   typescript: {
     // Type-checking runs as a separate CI gate (`npm run type-check`). Keeping it out
     // of `next build` prevents a single type note from blocking a deployable image,
@@ -55,7 +57,7 @@ const nextConfig = {
   },
 
   env: {
-    NEXT_PUBLIC_API_URL:   process.env.NEXT_PUBLIC_API_URL   || 'http://localhost:8080/api/v1',
+    NEXT_PUBLIC_API_URL:   process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_APP_NAME:  'FINVOSMART',
     NEXT_PUBLIC_VERSION:   '1.0.0',
     NEXT_PUBLIC_APP_DESC:  "India's Business Operating System",
