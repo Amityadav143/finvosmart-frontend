@@ -114,7 +114,7 @@ export default function MarketingNav() {
             >
               Sign In
             </Link>
-            <Link href="/login?register=1" style={{
+            <Link href="/register" style={{
               padding: '9px 20px', borderRadius: '8px',
               fontSize: '14px', fontWeight: 600,
               textDecoration: 'none', color: 'var(--text-on-gold)',
@@ -180,7 +180,7 @@ export default function MarketingNav() {
               textAlign: 'center', fontSize: '15px', textDecoration: 'none',
               border: '1px solid var(--border-strong)', color: 'var(--text-secondary)',
             }}>Sign In</Link>
-            <Link href="/login?register=1" onClick={() => setMenuOpen(false)} style={{
+            <Link href="/register" onClick={() => setMenuOpen(false)} style={{
               display: 'block', padding: '12px', borderRadius: '8px',
               textAlign: 'center', fontSize: '15px', fontWeight: 600,
               textDecoration: 'none', color: 'var(--text-on-gold)',

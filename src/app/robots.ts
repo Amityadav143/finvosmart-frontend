@@ -10,48 +10,19 @@
  */
 
 import type { MetadataRoute } from 'next'
-
-const BASE_URL = 'https://finvosmart.com'
+import { SITE } from '@/lib/seo'
 
 /**
- * robots.txt — tells crawlers to index the public marketing site but stay out
- * of the authenticated application, API and auth routes (which carry no SEO
- * value and shouldn't appear in search results). Points to the sitemap.
+ * Only the API is blocked. Signed-in app screens (dashboard, hrms, …) are NOT
+ * listed here: a URL blocked in robots.txt can still be indexed from links —
+ * just without a description ("No information is available for this page").
+ * Instead they send an `X-Robots-Tag: noindex` header (see next.config.js),
+ * which crawlers can only read if they're allowed to fetch the page.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [
-      {
-        userAgent: '*',
-        allow: '/',
-        disallow: [
-          '/api/',
-          '/dashboard',
-          '/hrms/',
-          '/finance/',
-          '/invoicing',
-          '/procurement/',
-          '/inventory/',
-          '/crm/',
-          '/settings/',
-          '/ai/',
-          '/onboarding',
-          '/login',
-          '/reports',
-          '/marketplace',
-          '/ca-workspace',
-          '/timesheet',
-          '/assets',
-          '/contracts',
-          '/performance',
-          '/expense-claims',
-          '/bank-import',
-          '/bulk-operations',
-          '/gst-export',
-        ],
-      },
-    ],
-    sitemap: `${BASE_URL}/sitemap.xml`,
-    host: BASE_URL,
+    rules: [{ userAgent: '*', allow: '/', disallow: ['/api/'] }],
+    sitemap: `${SITE.url}/sitemap.xml`,
+    host: SITE.url,
   }
 }

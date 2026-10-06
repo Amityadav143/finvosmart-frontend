@@ -10,17 +10,13 @@
  */
 
 import type { Metadata } from 'next'
-import { JsonLd } from '@/components/seo/JsonLd'
-import { breadcrumbSchema, pageMetadata } from '@/lib/seo'
+import { pageMetadata } from '@/lib/seo'
 
-// Title, description, canonical and social preview come from src/lib/seo.ts.
-export const metadata: Metadata = pageMetadata('about')
+// The login page is linked from the homepage, so it gets its own title and
+// description instead of inheriting the homepage's (which made two URLs show
+// identical snippets). People do search "finvosmart login".
+export const metadata: Metadata = pageMetadata('login')
 
-export default function AboutLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <JsonLd nodes={[breadcrumbSchema('about')]} />
-      {children}
-    </>
-  )
+export default function LoginLayout({ children }: { children: React.ReactNode }) {
+  return children
 }

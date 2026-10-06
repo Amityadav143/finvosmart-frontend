@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { HOME_FAQ } from '@/lib/seo'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useTheme } from '@/lib/context/ThemeContext'
@@ -34,16 +35,32 @@ const S = {
 }
 
 /* ── Scroll reveal hook ──────────────────────────────────────────────────────*/
+// Scroll-reveal that never hides content in the server-rendered HTML. Sections
+// render visible (so crawlers, link previews and slow mobile connections see the
+// page even before JavaScript loads); after hydration, only sections that are
+// still below the fold are hidden, then faded in as they scroll into view.
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
+  const [phase, setPhase] = useState<'initial' | 'hidden' | 'shown'>('initial')
   useEffect(() => {
-    const obs = new IntersectionObserver(([e]: any) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.12 })
-    if (ref.current) obs.observe(ref.current)
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    if (el.getBoundingClientRect().top < window.innerHeight) return   // already on screen: leave as is
+    setPhase('hidden')
+    const obs = new IntersectionObserver(([e]: any) => {
+      if (e.isIntersecting) { setPhase('shown'); obs.disconnect() }
+    }, { threshold: 0.12 })
+    obs.observe(el)
     return () => obs.disconnect()
   }, [])
-  return { ref, style: { opacity: visible ? 1 : 0, transform: visible ? 'none' : 'translateY(30px)', transition: 'opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1)' } as React.CSSProperties }
+  const visible = phase !== 'hidden'
+  return { ref, style: {
+    opacity: visible ? 1 : 0,
+    transform: visible ? 'none' : 'translateY(30px)',
+    transition: phase === 'shown' ? 'opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1)' : 'none',
+  } as React.CSSProperties }
 }
+
 
 /* ── Animated counter ────────────────────────────────────────────────────────*/
 function useCountUp(target: number, run: boolean, dur = 1400) {
@@ -113,6 +130,9 @@ export default function LandingPageContent() {
                   <Sparkles size={13} style={{ color: 'var(--gold)' }} /> Built for India
                 </span>
               </div>
+              <p style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.04em', color: 'var(--gold)', marginBottom: '14px' }}>
+                GST billing · Accounting · Payroll · HRMS — for Indian businesses
+              </p>
               <h1 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 'clamp(42px, 5.4vw, 70px)', fontWeight: 400, lineHeight: 1.05, marginBottom: '24px', letterSpacing: '-0.015em' }}>
                 Seven business tools.<br />
                 <span style={goldGrad}>Now one platform.</span>
@@ -134,7 +154,7 @@ export default function LandingPageContent() {
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '44px' }}>
-                <Link href="/login?register=1" style={{ ...S.btn(), background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)', boxShadow: 'var(--btn-primary-shadow)' }}
+                <Link href="/register" style={{ ...S.btn(), background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)', boxShadow: 'var(--btn-primary-shadow)' }}
                   onMouseEnter={(e: any) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
                   onMouseLeave={(e: any) => { e.currentTarget.style.transform = 'none' }}>
                   Start Free Trial <ArrowRight size={16} />
@@ -446,7 +466,7 @@ export default function LandingPageContent() {
                   <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/mo</span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '24px', height: '16px' }}>{annualBilling ? 'billed annually' : 'billed monthly'}</div>
-                <Link href={name === 'Enterprise' ? '/contact' : '/login?register=1'} style={{ ...S.btn(), width: '100%', marginBottom: '24px',
+                <Link href={name === 'Enterprise' ? '/contact' : '/register'} style={{ ...S.btn(), width: '100%', marginBottom: '24px',
                   background: featured ? 'var(--btn-primary-bg)' : 'transparent',
                   color: featured ? 'var(--text-on-gold)' : 'var(--text-primary)',
                   border: featured ? 'none' : '1px solid var(--border-strong)',
@@ -527,7 +547,7 @@ export default function LandingPageContent() {
                 Join Indian businesses replacing seven tools with FINVOSMART. Free for 14 days.
               </p>
               <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Link href="/login?register=1" style={{ ...S.btn(), background: 'var(--bg-base)', color: 'var(--text-primary)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+                <Link href="/register" style={{ ...S.btn(), background: 'var(--bg-base)', color: 'var(--text-primary)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
                   Start Free Trial <ArrowRight size={16} />
                 </Link>
                 <Link href="/contact" style={{ ...S.btn(), background: 'rgba(255,255,255,0.15)', color: 'var(--text-on-gold)', border: '1px solid rgba(255,255,255,0.3)' }}>
@@ -547,13 +567,7 @@ export default function LandingPageContent() {
             <h2 style={S.h2()}>Everything you need to know</h2>
           </div>
           <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {[
-              { q:'How is FINVOSMART different from Tally?', a:'Tally is desktop accounting software. FINVOSMART is a complete cloud business platform — accounting plus HRMS, CRM, inventory, projects, AI and WhatsApp billing — all integrated and accessible from anywhere.' },
-              { q:'Is my data secure and GST-compliant?', a:'Yes. We are fully GST-compliant with e-invoicing and e-way bills built in. Data is encrypted at rest and in transit, with role-based access control and complete audit trails.' },
-              { q:'Can I migrate from my existing software?', a:'Absolutely. Our team helps you import customers, items, opening balances and historical data from Tally, Excel or any other system during onboarding.' },
-              { q:'Do you support multiple branches and GSTINs?', a:'Yes. Growth and Enterprise plans support multi-branch operations and multiple GSTINs with consolidated reporting across your whole organisation.' },
-              { q:'What kind of support do I get?', a:'All plans include support in English and Hindi. Growth gets priority support; Enterprise gets a dedicated account manager with an SLA. Onboarding assistance is included for everyone.' },
-            ].map((f, i) => (
+            {HOME_FAQ.map((f, i) => (
               <div key={i} style={{ background: 'var(--bg-card)', border: `1px solid ${openFaq === i ? 'var(--gold)' : 'var(--border)'}`, borderRadius: '14px', overflow: 'hidden', transition: 'border-color 0.25s' }}>
                 <button onClick={() => setOpenFaq(openFaq === i ? null : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '20px 24px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
                   <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>{f.q}</span>

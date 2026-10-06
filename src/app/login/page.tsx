@@ -50,7 +50,8 @@ export default function LoginPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       if (params.get('register') === '1' || params.get('trial') === '1') {
-        setWelcomeNew(true)
+        // Old "start trial" links pointed here; self-service sign-up now has its own page.
+        router.replace('/register')
       }
     }
   }, [])
@@ -223,7 +224,7 @@ export default function LoginPage() {
             <div style={{ marginBottom: '20px', padding: '14px 16px', borderRadius: '12px', background: 'var(--gold-muted)', border: '1px solid var(--border-strong)' }}>
               <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gold)', marginBottom: '3px' }}>👋 Welcome to FINVOSMART!</div>
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Sign in with the credentials provided to you. To start your own trial, contact our team from the <Link href="/contact" style={{ color: 'var(--gold)', textDecoration: 'none', fontWeight: 500 }}>Contact page</Link>.
+                Sign in with the credentials provided to you, or <Link href="/register" style={{ color: 'var(--gold)', textDecoration: 'none', fontWeight: 500 }}>start your own free trial</Link>.
               </div>
             </div>
           )}
@@ -421,6 +422,12 @@ export default function LoginPage() {
           </>
           )}
         </div>
+
+        {/* New here? */}
+        <p className="text-center mt-5" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+          New to Finvosmart?{' '}
+          <Link href="/register" style={{ color: 'var(--gold)', fontWeight: 600, textDecoration: 'none' }}>Start a free trial</Link>
+        </p>
 
         {/* Footer */}
         <div className="text-center mt-5" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>

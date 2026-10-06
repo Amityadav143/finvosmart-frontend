@@ -1,5 +1,5 @@
 /*
- * FINVOSMART — India's Business Operating System
+ * FINVOSMART — Finvosmart by Navgrow
  *
  * Copyright (c) 2025-2026 Navgrow Engineering Service Pvt. Ltd.
  * CIN: U29302WB2025PTC281015
@@ -11,16 +11,17 @@
 
 import type { Metadata } from 'next'
 import { JsonLd } from '@/components/seo/JsonLd'
-import { breadcrumbSchema, softwareSchema, pageMetadata } from '@/lib/seo'
+import { LegalPage } from '@/components/marketing/LegalPage'
+import { breadcrumbSchema, pageMetadata } from '@/lib/seo'
+import { PRIVACY } from '@/lib/legal'
 
-// Title, description, canonical and social preview come from src/lib/seo.ts.
-export const metadata: Metadata = pageMetadata('pricing')
+export const metadata: Metadata = pageMetadata('privacy')
 
-export default function PricingLayout({ children }: { children: React.ReactNode }) {
+export default function PrivacyPage() {
   return (
     <>
-      <JsonLd nodes={[breadcrumbSchema('pricing'), softwareSchema()]} />
-      {children}
+      <JsonLd nodes={[breadcrumbSchema('privacy')]} />
+      <LegalPage doc={PRIVACY} />
     </>
   )
 }

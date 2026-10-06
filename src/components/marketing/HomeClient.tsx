@@ -1,3 +1,4 @@
+'use client'
 /*
  * FINVOSMART — India's Business Operating System
  *
@@ -9,18 +10,27 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/lib/store/slices/authStore'
+import LandingPageContent from '@/components/marketing/LandingPageContent'
 import MarketingNav from '@/components/marketing/MarketingNav'
 import MarketingFooter from '@/components/marketing/MarketingFooter'
-import { JsonLd } from '@/components/seo/JsonLd'
-import { organizationSchema, websiteSchema } from '@/lib/seo'
 
-export default function MarketingLayout({ children }: { children: React.ReactNode }) {
+export default function HomeClient() {
+  const { isAuthenticated } = useAuthStore()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isAuthenticated) router.replace('/dashboard')
+  }, [isAuthenticated, router])
+
+  if (isAuthenticated) return null
+
   return (
     <>
-      {/* Site-wide: who publishes this site. Page-specific schema lives in each page's layout. */}
-      <JsonLd nodes={[organizationSchema(), websiteSchema()]} />
       <MarketingNav />
-      <main>{children}</main>
+      <LandingPageContent />
       <MarketingFooter />
     </>
   )

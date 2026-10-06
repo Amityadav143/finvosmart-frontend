@@ -77,6 +77,16 @@ export const authApi = {
   },
 
   // ── Social login ────────────────────────────────────────────────────────
+  /** Public sign-up: creates a NEW company with you as its admin, and signs you in. */
+  register: async (d: {
+    companyName: string; fullName: string; email: string; password: string
+    phone?: string; gstin?: string; website?: string
+    acceptTerms: boolean   // must be true — the server enforces it too
+  }): Promise<AuthResponse> => {
+    const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/register', d)
+    return data.data!
+  },
+
   google: async (idToken: string, companyCode?: string): Promise<AuthResponse> => {
     const res = await api.post<ApiResponse<AuthResponse>>('/auth/social/google', {
       idToken, companyCode: companyCode?.trim().toUpperCase() || undefined,

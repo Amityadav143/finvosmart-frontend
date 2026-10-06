@@ -1,25 +1,26 @@
 /*
- * FINVOSMART — Finvosmart by Navgrow
+ * FINVOSMART — India's Business Operating System
  *
  * Copyright (c) 2025-2026 Navgrow Engineering Service Pvt. Ltd.
  * CIN: U29302WB2025PTC281015
  *
  * All rights reserved. This source code is proprietary and confidential.
+ * Unauthorized copying, distribution, modification, or use of this file,
+ * via any medium, is strictly prohibited without prior written permission.
  */
 
 import type { Metadata } from 'next'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { breadcrumbSchema, pageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Features — All 14 Modules in One Platform',
-  description: 'Explore every FINVOSMART module: HRMS, Finance, GST e-Invoicing, CRM, Inventory, Procurement, Projects, AI Cash Flow and WhatsApp billing — one integrated system built for Indian businesses.',
-  alternates: { canonical: '/features' },
-  openGraph: {
-    title: 'FINVOSMART Features — 14 Modules, One Platform',
-    description: 'HRMS, Finance, GST Invoicing, CRM, Inventory, AI and WhatsApp billing — fully integrated for Indian SMEs.',
-    url: '/features',
-  },
-}
+// Title, description, canonical and social preview come from src/lib/seo.ts.
+export const metadata: Metadata = pageMetadata('features')
 
 export default function FeaturesLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return (
+    <>
+      <JsonLd nodes={[breadcrumbSchema('features')]} />
+      {children}
+    </>
+  )
 }

@@ -121,7 +121,7 @@ export default function AboutPage() {
           <h2 style={{ fontFamily: "'Instrument Serif', serif", fontSize: '32px', color: 'var(--text-primary)', marginBottom: '14px' }}>Ready to see it in action?</h2>
           <p style={{ fontSize: '16px', color: 'var(--text-secondary)', marginBottom: '32px' }}>Schedule a personalised demo or start your free trial today.</p>
           <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/login?register=1" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '13px 28px', borderRadius: '10px', background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)', textDecoration: 'none', fontWeight: 600, fontSize: '15px' }}>
+            <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '13px 28px', borderRadius: '10px', background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)', textDecoration: 'none', fontWeight: 600, fontSize: '15px' }}>
               Start Free Trial <ArrowRight size={15} />
             </Link>
             <Link href="/contact" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '13px 28px', borderRadius: '10px', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '15px' }}>

@@ -10,6 +10,7 @@
  */
 
 import type { Metadata, Viewport } from 'next'
+import { SITE, PAGES } from '@/lib/seo'
 import './globals.css'
 import { Providers } from './providers'
 import { Inter, JetBrains_Mono, Instrument_Serif } from 'next/font/google'
@@ -52,75 +53,71 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://finvosmart.com'),
+  metadataBase: new URL(SITE.url),
   title: {
-    default: "Finvosmart — India's Business Operating System",
+    default: PAGES.home.title,
     template: '%s | Finvosmart',
   },
-  description: "Finvosmart is India's most complete cloud ERP — HRMS, Finance, GST Invoicing, CRM, AI Cash Flow and WhatsApp Billing in one platform. Replace Tally, Zoho and 5 more apps. Start free.",
-  applicationName: 'Finvosmart',
-  authors: [{ name: 'Navgrow Engineering Service Pvt. Ltd.', url: 'https://finvosmart.com' }],
-  creator: 'Navgrow Engineering Service Pvt. Ltd.',
-  publisher: 'Navgrow Engineering Service Pvt. Ltd.',
+  description: PAGES.home.description,
+  applicationName: SITE.name,
+  authors: [{ name: SITE.legalName, url: SITE.url }],
+  creator: SITE.legalName,
+  publisher: SITE.legalName,
   category: 'Business Software',
+  // Ignored by Google, used lightly by Bing. The real signals are titles,
+  // descriptions and on-page content — kept to terms Indian businesses search.
   keywords: [
-    'Finvosmart', 'Finvosmart ERP', 'ERP software India', 'best ERP for Indian SME',
-    'GST billing software', 'GST invoicing software', 'e-invoicing software', 'e-way bill software',
-    'HRMS software India', 'payroll software India', 'TDS software', 'accounting software India',
-    'Tally alternative', 'Zoho alternative', 'Busy alternative', 'cloud ERP India',
-    'WhatsApp billing', 'AI cash flow forecasting', 'CRM software India', 'inventory management software',
-    'business management software', 'invoicing app India',
+    'Finvosmart', 'GST billing software', 'GST invoice software', 'e-invoicing software India',
+    'e-way bill software', 'accounting software for small business India', 'Tally alternative',
+    'payroll software India', 'HRMS software India', 'TDS software', 'billing software for MSME',
+    'cloud ERP India', 'inventory management software India', 'CRM software India',
   ],
-  alternates: {
-    canonical: '/',
-  },
+  // No canonical here on purpose: a root-level canonical is inherited by every page
+  // that doesn't override it, making them all claim to be the homepage. Each public
+  // page sets its own via pageMetadata() in src/lib/seo.ts.
   openGraph: {
     type: 'website',
-    locale: 'en_IN',
-    siteName: 'Finvosmart',
-    title: "Finvosmart — India's Business Operating System",
-    description: "One cloud platform for HRMS, Finance, GST Invoicing, CRM and AI. Built for Indian businesses. Replace Tally, Zoho and 5 more apps.",
-    url: 'https://finvosmart.com',
-    images: [{
-      url: '/og-image.png',
-      width: 1200,
-      height: 630,
-      alt: 'Finvosmart — India\'s Business Operating System',
-    }],
+    locale: SITE.locale,
+    siteName: SITE.name,
+    title: PAGES.home.title,
+    description: PAGES.home.description,
+    images: [{ ...SITE.ogImage }],
   },
   twitter: {
     card: 'summary_large_image',
-    site: '@finvosmart',
-    creator: '@finvosmart',
-    title: "Finvosmart — India's Business Operating System",
-    description: "One cloud platform for HRMS, Finance, GST Invoicing, CRM and AI. Built for Indian businesses.",
-    images: ['/og-image.png'],
+    title: PAGES.home.title,
+    description: PAGES.home.description,
+    images: [SITE.ogImage.url],
   },
   robots: {
     index: true,
     follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-      'max-video-preview': -1,
-    },
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
   },
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      // Google shows a site's favicon next to search results; it prefers a square
+      // icon whose size is a multiple of 48px — 192px qualifies.
+      { url: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
+    ],
     apple: '/apple-touch-icon.png',
   },
   manifest: '/site.webmanifest',
+  // Set these env vars at build time to verify ownership (or verify the domain
+  // via a DNS TXT record in Search Console, which needs no code at all).
   verification: {
-    // Add your Google Search Console verification token here when available:
-    // google: 'your-google-site-verification-token',
+    ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : {}),
+    ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
+      ? { other: { 'msvalidate.01': process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } } : {}),
   },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning
+    <html lang="en-IN" data-theme="dark" suppressHydrationWarning
       className={`${geist.variable} ${geistMono.variable} ${instrumentSerif.variable}`}>
       <body suppressHydrationWarning className="antialiased">
         <Providers>{children}</Providers>

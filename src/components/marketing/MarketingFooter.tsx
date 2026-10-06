@@ -15,8 +15,8 @@ import { Zap } from 'lucide-react'
 
 const COLS = [
   { title: 'Product',   links: [['/#features','14 Modules'],['/#ai-features','AI Features (6 USPs)'],['/#features','Smart Automations'],['/pricing','Pricing'],['https://demo.finvosmart.com','Live Demo']] },
-  { title: 'Solutions', links: [['/features#manufacturing','Manufacturing SMEs'],['/features#services','IT & Services'],['/features#retail','Retail & Distribution'],['/features#enterprise','Enterprise']] },
-  { title: 'Resources', links: [['https://docs.finvosmart.com','API Documentation'],['https://docs.finvosmart.com/swagger','Swagger UI'],['https://docs.finvosmart.com/deploy','Deployment Guide'],['/about#security','Security']] },
+  { title: 'Solutions', links: [['/gst-billing-software','GST Billing Software'],['/e-invoicing-software','E-Invoice & E-Way Bill'],['/tally-alternative','Tally Alternative'],['/features#manufacturing','Manufacturing SMEs'],['/features#services','IT & Services'],['/features#retail','Retail & Distribution'],['/features#enterprise','Enterprise']] },
+  { title: 'Resources', links: [['/gst-calculator','Free GST Calculator'],['https://docs.finvosmart.com','API Documentation'],['https://docs.finvosmart.com/swagger','Swagger UI'],['https://docs.finvosmart.com/deploy','Deployment Guide'],['/about#security','Security']] },
   { title: 'Company',   links: [['/about','About Us'],['/contact','Contact Sales'],['/about#careers','Careers'],['/about#legal','Legal & Privacy']] },
 ]
 

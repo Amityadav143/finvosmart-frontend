@@ -12,6 +12,11 @@
 import { api } from './client'
 import type { ApiResponse, Account, JournalEntry, JournalEntryLine, TrialBalance } from '@/types'
 
+export interface TrialBalanceReport {
+  accounts: { id?: string; code: string; name: string; type: string; balance: number; debit: number; credit: number }[]
+  totalDebit: number; totalCredit: number; balanced: boolean
+}
+
 export const financeApi = {
   accounts: {
     list: async (): Promise<Account[]> => (await api.get<ApiResponse<Account[]>>('/finance/accounts')).data.data ?? [],
@@ -24,7 +29,12 @@ export const financeApi = {
     create: async (d: { entryType: string; entryDate: string; narration: string; lines: Omit<JournalEntryLine,'id'>[] }) =>
       (await api.post<ApiResponse<JournalEntry>>('/finance/journal-entries', d)).data.data!,
   },
-  trialBalance: async (): Promise<TrialBalance[]> => (await api.get<ApiResponse<TrialBalance[]>>('/finance/trial-balance')).data.data ?? [],
+  // Computed from posted ledger entries; debit/credit are already on the correct side.
+  trialBalance: async (): Promise<TrialBalanceReport | null> =>
+    (await api.get<ApiResponse<TrialBalanceReport>>('/finance/trial-balance')).data.data ?? null,
+  // Posts any invoices the books don't reflect yet (safe to run repeatedly).
+  syncLedger: async (): Promise<{ invoicesChecked: number; failed: number }> =>
+    (await api.post('/finance/ledger/sync')).data.data,
   profitLoss: async (from: string, to: string) => (await api.get('/finance/reports/profit-loss', { params: { from, to } })).data.data,
   balanceSheet: async (asOf: string) => (await api.get('/finance/reports/balance-sheet', { params: { asOf } })).data.data,
 }

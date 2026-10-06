@@ -302,7 +302,7 @@ export default function CustomPlanPage() {
                 </div>
 
                 {/* CTA */}
-                <Link href={`/login?register=1&plan=custom&modules=${[...selected].join(',')}&users=${users}`} style={{
+                <Link href={`/register&plan=custom&modules=${[...selected].join(',')}&users=${users}`} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                   padding: '13px', borderRadius: '10px', background: 'var(--btn-primary-bg)',
                   color: 'var(--text-on-gold)', textDecoration: 'none',

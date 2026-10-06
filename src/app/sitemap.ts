@@ -10,30 +10,17 @@
  */
 
 import type { MetadataRoute } from 'next'
+import { PAGES, absoluteUrl, type PageSeo } from '@/lib/seo'
 
-const BASE_URL = 'https://finvosmart.com'
+// Generated at build time, so lastModified is the deploy date.
+const BUILT_AT = new Date()
 
-/**
- * Dynamic sitemap consumed by search engines. Lists the public marketing pages
- * with sensible change frequencies and priorities so crawlers index the most
- * important pages first. App (authenticated) routes are intentionally excluded.
- */
+/** Every indexable page, straight from src/lib/seo.ts. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date()
-
-  const routes: { path: string; priority: number; changeFrequency: 'daily' | 'weekly' | 'monthly' }[] = [
-    { path: '',             priority: 1.0, changeFrequency: 'weekly'  },
-    { path: '/features',    priority: 0.9, changeFrequency: 'monthly' },
-    { path: '/pricing',     priority: 0.9, changeFrequency: 'weekly'  },
-    { path: '/custom-plan', priority: 0.8, changeFrequency: 'monthly' },
-    { path: '/about',       priority: 0.6, changeFrequency: 'monthly' },
-    { path: '/contact',     priority: 0.7, changeFrequency: 'monthly' },
-  ]
-
-  return routes.map(r => ({
-    url: `${BASE_URL}${r.path}`,
-    lastModified: now,
-    changeFrequency: r.changeFrequency,
-    priority: r.priority,
+  return Object.values(PAGES).map((p: PageSeo) => ({
+    url: absoluteUrl(p.path),
+    lastModified: BUILT_AT,
+    changeFrequency: p.changeFrequency,
+    priority: p.priority,
   }))
 }

@@ -1,25 +1,26 @@
 /*
- * FINVOSMART — Finvosmart by Navgrow
+ * FINVOSMART — India's Business Operating System
  *
  * Copyright (c) 2025-2026 Navgrow Engineering Service Pvt. Ltd.
  * CIN: U29302WB2025PTC281015
  *
  * All rights reserved. This source code is proprietary and confidential.
+ * Unauthorized copying, distribution, modification, or use of this file,
+ * via any medium, is strictly prohibited without prior written permission.
  */
 
 import type { Metadata } from 'next'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { breadcrumbSchema, pageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Contact Sales — Talk to the FINVOSMART Team',
-  description: 'Get in touch with FINVOSMART. Request a demo, ask about migration from Tally or Zoho, or talk to sales about Enterprise plans. Support available in English and Hindi.',
-  alternates: { canonical: '/contact' },
-  openGraph: {
-    title: 'Contact FINVOSMART',
-    description: 'Request a demo or talk to sales. Migration help from Tally, Zoho and more.',
-    url: '/contact',
-  },
-}
+// Title, description, canonical and social preview come from src/lib/seo.ts.
+export const metadata: Metadata = pageMetadata('contact')
 
 export default function ContactLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return (
+    <>
+      <JsonLd nodes={[breadcrumbSchema('contact')]} />
+      {children}
+    </>
+  )
 }

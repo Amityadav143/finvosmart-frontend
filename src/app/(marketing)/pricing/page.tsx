@@ -18,7 +18,7 @@ const PLANS = [
   {
     name: 'Starter', monthly: '4,999', annual: '3,999',
     users: 'Up to 10 users', branches: '1 branch', featured: false,
-    cta: 'Start Free Trial', ctaHref: '/login?register=1&plan=starter',
+    cta: 'Start Free Trial', ctaHref: '/register&plan=starter',
     feats: [
       'Core ERP modules (Dashboard, Finance, Invoicing)',
       'HRMS — Employees, Attendance, Leave, Payroll',
@@ -33,7 +33,7 @@ const PLANS = [
   {
     name: 'Growth', monthly: '12,999', annual: '10,399',
     users: 'Up to 50 users', branches: 'Multi-branch', featured: true,
-    cta: 'Start Free Trial', ctaHref: '/login?register=1&plan=growth',
+    cta: 'Start Free Trial', ctaHref: '/register&plan=growth',
     feats: [
       'Everything in Starter',
       'ARIS — AI Cash Flow Oracle (90-day forecast)',

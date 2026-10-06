@@ -153,7 +153,7 @@ export default function FeaturesPage() {
 
           {/* CTA */}
           <div style={{ textAlign: 'center', marginTop: '60px' }}>
-            <Link href="/login?register=1" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 32px', borderRadius: '10px', background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)', textDecoration: 'none', fontWeight: 600, fontSize: '16px', boxShadow: 'var(--btn-primary-shadow)' }}>
+            <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 32px', borderRadius: '10px', background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)', textDecoration: 'none', fontWeight: 600, fontSize: '16px', boxShadow: 'var(--btn-primary-shadow)' }}>
               Start Free Trial — All Features Included <ArrowRight size={16} />
             </Link>
             <p style={{ marginTop: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>14-day trial · No credit card · Full Growth plan access</p>

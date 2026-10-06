@@ -1,3 +1,21 @@
+const fs = require('fs')
+const path = require('path')
+
+// Top-level routes that are public and should be indexed. Every other folder
+// directly under src/app (dashboard, hrms, finance, …) is the signed-in app and
+// gets `X-Robots-Tag: noindex`. Route groups like (marketing) hold the public
+// pages and are skipped. New app modules are covered automatically.
+const PUBLIC_TOP_LEVEL = new Set(['login', 'register'])
+function privateRoutes() {
+  try {
+    return fs.readdirSync(path.join(__dirname, 'src', 'app'), { withFileTypes: true })
+      .filter(d => d.isDirectory() && !/^[(_\[]/.test(d.name) && !PUBLIC_TOP_LEVEL.has(d.name))
+      .map(d => d.name)
+  } catch {
+    return []
+  }
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // NOTE: This project is deployed manually on a VPS (not Docker), so it uses the
@@ -61,6 +79,12 @@ const nextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       },
+      // Signed-in app screens: keep them out of search results. (They're allowed in
+      // robots.txt so crawlers can actually see this header.)
+      ...privateRoutes().map(route => ({
+        source: `/${route}/:path*`,
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      })),
       // NOTE: no rule for /_next/static — Next.js already serves its content-hashed
       // build files with long-lived immutable caching. Re-declaring it here could also
       // attach a year-long cache to an error response for a missing file.
