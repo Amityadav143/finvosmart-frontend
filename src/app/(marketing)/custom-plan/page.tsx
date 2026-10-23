@@ -20,6 +20,7 @@ import {
   Globe, Package2, PenLine, Activity, Shield
 } from 'lucide-react'
 import { STATIC_MODULES, CATEGORY_LABELS } from '@/lib/api/planModules'
+import { SoonBadge } from '@/components/marketing/SoonBadge'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   LayoutDashboard, DollarSign, FileText, ShoppingCart, Boxes,
@@ -33,14 +34,16 @@ function formatINR(n: number) {
   return '₹' + n.toLocaleString('en-IN')
 }
 
+// Only modules that work today; those still being built show "Coming soon" and can't be chosen.
 const POPULAR_BUNDLES = [
   { name: 'Accounting Starter',   desc: 'Small CA firm or solo trader',     icon: '📊', modules: ['FINANCE','INVOICING','TDS','BANK_RECON'] },
-  { name: 'HRMS + Payroll',       desc: 'HR team managing 20–200 employees', icon: '👥', modules: ['HRMS','EXPENSE'] },
-  { name: 'Sales & Commerce',     desc: 'Sales team + customer management',  icon: '🎯', modules: ['CRM','INVOICING','PORTAL','SUBSCRIPTIONS'] },
-  { name: 'Operations Pack',      desc: 'Manufacturing / trading company',   icon: '🏭', modules: ['PROCUREMENT','INVENTORY','FORECAST','FINANCE'] },
-  { name: 'Full AI Suite',        desc: 'All 6 AI-powered features',        icon: '🤖', modules: ['AI_CASHFLOW','WHATSAPP','BILL_SCANNER','WELLNESS','GST_RECON','VOICE'] },
-  { name: 'Smart Automations',    desc: 'All 8 automation tools',           icon: '⚡', modules: ['BANK_RECON','EXPENSE','PORTAL','SUBSCRIPTIONS','TDS','FORECAST','ESIGN','AUTOMATIONS'] },
+  { name: 'HRMS + Payroll',       desc: 'HR team managing 20–200 employees', icon: '👥', modules: ['HRMS'] },
+  { name: 'Sales & Commerce',     desc: 'Sales team + customer management',  icon: '🎯', modules: ['CRM','INVOICING','WHATSAPP'] },
+  { name: 'Operations Pack',      desc: 'Manufacturing / trading company',   icon: '🏭', modules: ['PROCUREMENT','INVENTORY','FINANCE'] },
+  { name: 'GST Compliance',       desc: 'GST returns, GSTR-2B check and TDS', icon: '🧾', modules: ['INVOICING','FINANCE','GST_RECON','TDS'] },
+  { name: 'Get Paid Faster',      desc: 'Pay links, reminders, bank matching', icon: '⚡', modules: ['INVOICING','WHATSAPP','BANK_RECON'] },
 ]
+const AVAILABLE = new Set(STATIC_MODULES.filter(m => !m.coming_soon).map(m => m.module_key))
 
 export default function CustomPlanPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set(['FINANCE','INVOICING','HRMS']))
@@ -49,6 +52,7 @@ export default function CustomPlanPage() {
   const [activeTab, setActiveTab] = useState<'ERP'|'AI'|'SMART'>('ERP')
 
   const toggle = (key: string) => {
+    if (!AVAILABLE.has(key)) return
     setSelected(prev => {
       const next = new Set(prev)
       next.has(key) ? next.delete(key) : next.add(key)
@@ -57,11 +61,11 @@ export default function CustomPlanPage() {
   }
 
   const applyBundle = (modules: string[]) => {
-    setSelected(new Set(modules))
+    setSelected(new Set(modules.filter(k => AVAILABLE.has(k))))
   }
 
   const modules = STATIC_MODULES
-  const selectedModules = modules.filter(m => selected.has(m.module_key) && !m.is_core)
+  const selectedModules = modules.filter(m => selected.has(m.module_key) && !m.is_core && !m.coming_soon)
 
   // Synchronous calculation
   const breakdown = selectedModules.map(m => ({
@@ -91,7 +95,7 @@ export default function CustomPlanPage() {
             Pay Only for What You Use
           </h1>
           <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0 auto', lineHeight: 1.7 }}>
-            Pick the exact modules your business needs. Start with just Invoicing, add HRMS later, unlock AI features when you're ready — no locked-in bundles.
+            Pick the exact modules your business needs. Start with just Invoicing, add HRMS later, add more as you grow — no locked-in bundles.
           </p>
         </div>
       </section>
@@ -139,7 +143,7 @@ export default function CustomPlanPage() {
                 }}>
                   {CATEGORY_LABELS[cat]}
                   <span style={{ marginLeft: '6px', fontSize: '10.5px', opacity: 0.75 }}>
-                    ({byCategory(cat).filter(m => selected.has(m.module_key)).length}/{byCategory(cat).length})
+                    ({byCategory(cat).filter(m => selected.has(m.module_key)).length}/{byCategory(cat).filter(m => !m.coming_soon).length})
                   </span>
                 </button>
               ))}
@@ -149,18 +153,20 @@ export default function CustomPlanPage() {
             <div className="auto-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
               {byCategory(activeTab).map(m => {
                 const Icon = ICON_MAP[m.icon_name] || Zap
-                const isOn = selected.has(m.module_key)
+                const soon = !!m.coming_soon
+                const isOn = !soon && selected.has(m.module_key)
                 const lineTotal = m.base_price_month + m.price_per_user * users
                 return (
-                  <div key={m.module_key} onClick={() => toggle(m.module_key)} style={{
+                  <div key={m.module_key} onClick={() => toggle(m.module_key)} aria-disabled={soon || undefined} style={{
                     background: isOn ? `${m.accent_color}10` : 'var(--bg-card)',
                     border: `1px solid ${isOn ? m.accent_color : 'var(--border)'}`,
-                    borderRadius: '14px', padding: '16px', cursor: 'pointer',
-                    transition: 'all 0.2s', position: 'relative',
+                    borderRadius: '14px', padding: '16px', cursor: soon ? 'default' : 'pointer',
+                    transition: 'all 0.2s', position: 'relative', opacity: soon ? 0.72 : 1,
                     boxShadow: isOn ? `0 0 0 1px ${m.accent_color}30` : 'none',
                   }}>
+                    {soon && <SoonBadge style={{ position: 'absolute', top: '12px', right: '12px' }} />}
                     {/* Toggle indicator */}
-                    <div style={{
+                    {!soon && <div style={{
                       position: 'absolute', top: '12px', right: '12px',
                       width: '22px', height: '22px', borderRadius: '50%',
                       border: `2px solid ${isOn ? m.accent_color : 'var(--border)'}`,
@@ -169,7 +175,7 @@ export default function CustomPlanPage() {
                       transition: 'all 0.2s',
                     }}>
                       {isOn && <Check size={12} color="#fff" strokeWidth={3} />}
-                    </div>
+                    </div>}
 
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                       <div style={{
@@ -179,7 +185,7 @@ export default function CustomPlanPage() {
                       }}>
                         <Icon size={18} />
                       </div>
-                      <div style={{ flex: 1, paddingRight: '28px' }}>
+                      <div style={{ flex: 1, paddingRight: soon ? '96px' : '28px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '3px' }}>{m.display_name}</div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{m.description}</div>
                         <div style={{ marginTop: '10px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
@@ -207,7 +213,7 @@ export default function CustomPlanPage() {
 
             {/* Select all / clear */}
             <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
-              <button onClick={() => setSelected(new Set(byCategory(activeTab).map(m => m.module_key)))} style={{
+              <button onClick={() => setSelected(prev => new Set([...Array.from(prev), ...byCategory(activeTab).filter(m => !m.coming_soon).map(m => m.module_key)]))} style={{
                 padding: '7px 16px', borderRadius: '8px', border: '1px solid var(--border-strong)',
                 background: 'transparent', color: 'var(--text-secondary)', fontSize: '12.5px', cursor: 'pointer', fontFamily: 'inherit'
               }}>Select all {CATEGORY_LABELS[activeTab]}</button>
@@ -302,7 +308,7 @@ export default function CustomPlanPage() {
                 </div>
 
                 {/* CTA */}
-                <Link href={`/register&plan=custom&modules=${[...selected].join(',')}&users=${users}`} style={{
+                <Link href={`/register?plan=custom&modules=${[...selected].join(',')}&users=${users}`} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                   padding: '13px', borderRadius: '10px', background: 'var(--btn-primary-bg)',
                   color: 'var(--text-on-gold)', textDecoration: 'none',

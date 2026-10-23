@@ -30,6 +30,9 @@ const geistMono = JetBrains_Mono({
   weight: ['400', '500'],
   variable: '--font-geist-mono',
   display: 'swap',
+  // Only the app's figures and codes use it — not the public pages — so it isn't preloaded on
+  // every page (one less font competing with the first paint on a phone).
+  preload: false,
 })
 const instrumentSerif = Instrument_Serif({
   subsets: ['latin'],
@@ -115,10 +118,17 @@ export const metadata: Metadata = {
   },
 }
 
+// Sets the saved (or the device's) light/dark theme before the first paint, so a visitor who
+// prefers light never sees the page flash dark first. ThemeContext keeps it in sync afterwards.
+const THEME_SCRIPT = "try{var t=localStorage.getItem('finvo-theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.setAttribute('data-theme',t)}catch(e){}"
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-IN" data-theme="dark" suppressHydrationWarning
       className={`${geist.variable} ${geistMono.variable} ${instrumentSerif.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body suppressHydrationWarning className="antialiased">
         <Providers>{children}</Providers>
       </body>

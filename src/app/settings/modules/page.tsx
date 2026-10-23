@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { useState } from 'react'
 import { Users, FileText, ShoppingCart, Package, TrendingUp, BarChart3, FolderOpen, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -25,7 +26,7 @@ const MODULES = [
   {key:'analytics',   name:'Advanced Analytics',desc:'Custom dashboards, BI reports',       icon:BarChart3,   enabled:false, plan:'Enterprise'},
 ]
 
-export default function ModulesPage(){
+function ModulesPage(){
   const [mods, setMods] = useState(MODULES)
 
   const toggle=(key:string)=>{
@@ -71,4 +72,9 @@ export default function ModulesPage(){
       </div>
     </div>
   )
+}
+
+/** Still being built: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="module-settings"><ModulesPage /></PreviewGate>
 }

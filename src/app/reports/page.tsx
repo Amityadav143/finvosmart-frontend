@@ -11,221 +11,189 @@
  */
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { hrmsApi } from '@/lib/api/hrms'
-import { invoicingApi } from '@/lib/api/invoicing'
-import { crmApi } from '@/lib/api/crm'
-import { formatCurrency, exportToCsv } from '@/lib/utils'
-import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, RadarChart, Radar, PolarGrid, PolarAngleAxis } from 'recharts'
-import { TrendingUp, TrendingDown, Activity, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
+import { dashboardApi } from '@/lib/api/dashboard'
+import { SalesChart, SERIES } from '@/components/dashboard/SalesChart'
+import { useTheme } from '@/lib/context/ThemeContext'
+import { formatDate } from '@/lib/utils'
+import { inr } from '@/lib/money'
+import type { DashAnalytics, DashBucket, DashNamed } from '@/types/dashboard'
 
-const MONTHLY = [
-  {m:'Oct',rev:38,exp:23,profit:15},{m:'Nov',rev:42,exp:25,profit:17},{m:'Dec',rev:36,exp:21,profit:15},
-  {m:'Jan',rev:48,exp:29,profit:19},{m:'Feb',rev:51,exp:31,profit:20},{m:'Mar',rev:46,exp:28,profit:18},
-  {m:'Apr',rev:52,exp:32,profit:20},
-]
+const n = (x: unknown) => Number(x ?? 0)
+const rupees = (x: unknown) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Math.round(n(x)))
+const PERIODS: { months: 3 | 6 | 12; label: string }[] = [{ months: 3, label: '3 months' }, { months: 6, label: '6 months' }, { months: 12, label: '12 months' }]
+const LEAD_LABEL: Record<string, string> = {
+  NEW: 'New', CONTACTED: 'Contacted', QUALIFIED: 'Qualified', PROPOSAL: 'Proposal sent', NEGOTIATION: 'Negotiating', WON: 'Won', LOST: 'Lost',
+}
 
-const DEPT_PERFORMANCE = [
-  {dept:'Engineering',target:90,actual:87,color:'#3b82f6'},
-  {dept:'Sales',      target:85,actual:92,color:'#22c55e'},
-  {dept:'HR',         target:80,actual:78,color:'#f59e0b'},
-  {dept:'Finance',    target:95,actual:94,color:'#8b5cf6'},
-  {dept:'Operations', target:88,actual:85,color:'#14b8a6'},
-]
+export default function AnalyticsPage() {
+  const [months, setMonths] = useState<3 | 6 | 12>(12)
+  const { isDark } = useTheme()
+  const { data, isLoading, isError, isFetching } = useQuery({
+    queryKey: ['analytics', months], queryFn: () => dashboardApi.analytics(months), placeholderData: prev => prev,
+  })
+  const bar = isDark ? SERIES.dark.invoiced : SERIES.light.invoiced
 
-const LEAD_FUNNEL = [
-  {stage:'Inquiries',   count:120,color:'#3b82f6'},
-  {stage:'Qualified',   count:72, color:'#8b5cf6'},
-  {stage:'Proposals',   count:38, color:'#f59e0b'},
-  {stage:'Negotiations',count:18, color:'#f97316'},
-  {stage:'Won',         count:11, color:'#22c55e'},
-]
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="page-title">Analytics</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {data ? `${formatDate(data.from)} to ${formatDate(data.to)} · ` : ''}from your invoices, payments, bills, employees and leads
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex rounded-xl overflow-hidden" role="group" aria-label="Period" style={{ border: '1px solid var(--border)' }}>
+            {PERIODS.map(p => (
+              <button key={p.months} onClick={() => setMonths(p.months)} aria-pressed={months === p.months}
+                className="px-3 h-9 text-xs font-semibold"
+                style={{ background: months === p.months ? 'var(--gold-muted)' : 'transparent', color: months === p.months ? 'var(--gold)' : 'var(--text-secondary)' }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <button className="btn-secondary h-9 text-sm" disabled={!data} onClick={() => data && exportCsv(data)}><Download size={14} />Export CSV</button>
+        </div>
+      </div>
 
-const INV_AGING = [
-  {range:'0–30 days', amount:1240000, color:'#22c55e'},
-  {range:'31–60 days',amount: 680000, color:'#f59e0b'},
-  {range:'61–90 days',amount: 340000, color:'#f97316'},
-  {range:'>90 days',  amount: 180000, color:'#ef4444'},
-]
+      {isError && <div className="card text-sm" style={{ color: '#dc2626' }}>Analytics couldn't be loaded. Check your connection and try again.</div>}
+      {isLoading && <div className="card text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</div>}
 
-function ChartTip({active,payload,label}:any){
-  if(!active||!payload?.length) return null
-  return(
-    <div className="rounded-xl px-3 py-2 text-xs" style={{background:'var(--bg-elevated)',border:'1px solid var(--border)',boxShadow:'var(--shadow-md)'}}>
-      <p className="font-bold mb-1" style={{color:'var(--text-secondary)'}}>{label}</p>
-      {payload.map((p:any,i:number)=>(
-        <p key={i} style={{color:p.color||'var(--text-primary)'}}>
-          {p.name}: {typeof p.value==='number'&&p.value>1000?formatCurrency(p.value*100000):p.value+'L'}
-        </p>
-      ))}
+      {data && (
+        <div className="space-y-5" style={{ opacity: isFetching ? 0.6 : 1, transition: 'opacity .2s' }}>
+          {data.sales && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Figure label={`Invoiced in ${months} months`} value={rupees(data.invoiced)} />
+              <Figure label={`Collected in ${months} months`} value={rupees(data.collected)}
+                sub={n(data.invoiced) > 0 ? `${Math.round((n(data.collected) / n(data.invoiced)) * 100)}% of what was invoiced` : undefined} />
+              <Figure label="Customers owe you now" value={rupees(data.receivable)} />
+              <Figure label="Of which overdue" value={rupees(data.overdue)}
+                sub={n(data.receivable) > 0 ? `${Math.round((n(data.overdue) / n(data.receivable)) * 100)}% of what's owed` : undefined} />
+            </div>
+          )}
+
+          {data.sales && (
+            <SalesChart months={data.sales} dark={isDark} title="Invoiced and collected by month" subtitle="Credit notes and refunds netted" />
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {data.receivableAgeing && (
+              <Bars title="What customers owe, by age" note="Open invoices by days past their due date" color={bar}
+                rows={data.receivableAgeing.map((b: DashBucket) => ({ key: b.key, label: b.label, value: n(b.amount), text: `${inr(b.amount)}${b.count ? ` · ${b.count}` : ''}` }))}
+                empty="Nothing is owed to you right now." link={{ href: '/invoicing', label: 'Invoices' }} />
+            )}
+            {data.topCustomers && (
+              <Bars title="Top customers" note={`By value invoiced in the last ${months} months`} color={bar}
+                rows={data.topCustomers.map((c: DashNamed, i) => ({ key: c.name + i, label: c.name, value: n(c.amount), text: `${inr(c.amount)} · ${c.count} doc${c.count === 1 ? '' : 's'}` }))}
+                empty="No invoices in this period." link={{ href: '/crm/customers', label: 'Customers' }} />
+            )}
+            {data.payableAgeing && (
+              <Bars title="What you owe suppliers, by age" note="Open bills by days past their due date" color={bar}
+                rows={data.payableAgeing.map((b: DashBucket) => ({ key: b.key, label: b.label, value: n(b.amount), text: inr(b.amount) }))}
+                empty="You owe suppliers nothing right now." link={{ href: '/purchases', label: 'Bills' }} />
+            )}
+            {data.headcountByDepartment && (
+              <Bars title="Team by department" note="Active employees, including those serving notice" color={bar}
+                rows={data.headcountByDepartment.map((h: DashNamed) => ({ key: h.name, label: h.name, value: h.count, text: String(h.count) }))}
+                empty="No employees yet." link={{ href: '/hrms/employees', label: 'Employees' }} />
+            )}
+            {data.leadsByStatus && (
+              <Bars title="Leads by stage" note="All leads, with their estimated value" color={bar}
+                rows={data.leadsByStatus.map((l: DashNamed) => ({ key: l.name, label: LEAD_LABEL[l.name] ?? l.name, value: l.count,
+                  text: `${l.count}${n(l.amount) > 0 ? ` · ${rupees(l.amount)}` : ''}` }))}
+                empty="No leads yet." link={{ href: '/crm/leads', label: 'Leads' }} />
+            )}
+          </div>
+          {!data.sales && !data.payableAgeing && !data.headcountByDepartment && !data.leadsByStatus && (
+            <div className="card text-sm" style={{ color: 'var(--text-secondary)' }}>There's nothing here for your role yet.</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-export default function AnalyticsPage(){
-  const [period, setPeriod] = useState<'3M'|'6M'|'1Y'>('6M')
-  const {data:empStats} = useQuery({queryKey:['emp-stats'],queryFn:hrmsApi.employees.stats})
-  const {data:invStats} = useQuery({queryKey:['inv-stats'],queryFn:invoicingApi.stats})
-
-  const displayMonths = period==='3M'?MONTHLY.slice(-3):period==='1Y'?MONTHLY:MONTHLY.slice(-6)
-
-  return(
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Analytics</h1>
-          <p className="text-sm mt-0.5" style={{color:'var(--text-muted)'}}>Business intelligence across all modules</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {(['3M','6M','1Y'] as const).map(p=>(
-            <button key={p} onClick={()=>setPeriod(p)}
-              className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all"
-              style={{background:period===p?'var(--gold-muted)':'var(--bg-hover)',
-                      color:period===p?'var(--gold)':'var(--text-muted)',
-                      border:`1px solid ${period===p?'rgba(245,158,11,.2)':'var(--border)'}`}}>
-              {p}
-            </button>
-          ))}
-          <button className="btn-secondary h-9 text-sm" onClick={()=>exportToCsv('business-summary', [{ Employees:empStats?.total??0, Invoices:invStats?.totalInvoices??0, Revenue:invStats?.totalPaid??0, Outstanding:invStats?.totalOutstanding??0 }])}><Download className="w-4 h-4"/>Report</button>
-        </div>
-      </div>
-
-      {/* Top KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          {label:'Revenue (Mar)',     val:'₹51L',  change:+11.8, icon:TrendingUp,   color:'#22c55e'},
-          {label:'Net Profit (Mar)',  val:'₹20L',  change:+5.2,  icon:TrendingUp,   color:'#3b82f6'},
-          {label:'Headcount',         val:empStats?.totalActive??247, change:+1.2, icon:Activity, color:'#8b5cf6'},
-          {label:'Outstanding AR',    val:formatCurrency(invStats?.outstanding??2840000), change:-5.1, icon:TrendingDown, color:'#ef4444'},
-        ].map((k,i)=>(
-          <div key={i} className="stat-card" style={{['--stat-accent' as string]:k.color}}>
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-[0.05] pointer-events-none" style={{background:k.color,transform:'translate(30%,-30%)'}}/>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{color:'var(--text-muted)',fontSize:'9px',letterSpacing:'.07em'}}>{k.label}</p>
-                <p className="font-serif text-2xl mb-1.5" style={{color:'var(--text-primary)'}}>{k.val}</p>
-                <div className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full`}
-                  style={{background:`${k.change>=0?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)'}`,
-                          color:k.change>=0?'#22c55e':'#ef4444',
-                          border:`1px solid ${k.change>=0?'rgba(34,197,94,.2)':'rgba(239,68,68,.2)'}`}}>
-                  {k.change>=0?'↑':'↓'}{Math.abs(k.change)}% vs last month
-                </div>
-              </div>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:`${k.color}15`}}>
-                <k.icon className="w-5 h-5" style={{color:k.color}}/>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Revenue + Profit trend */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="section-title">Revenue, Expenses & Profit</h2>
-            <p className="text-xs mt-0.5" style={{color:'var(--text-muted)'}}>₹ in Lakhs</p>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            {[['Revenue','#f59e0b'],['Expenses','rgba(100,116,139,.7)'],['Profit','#22c55e']].map(([n,c])=>(
-              <span key={n} className="flex items-center gap-1.5" style={{color:'var(--text-muted)'}}>
-                <span className="w-3 h-1.5 rounded-full inline-block" style={{background:c as string}}/>
-                {n}
-              </span>
-            ))}
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={displayMonths} margin={{top:5,right:5,left:0,bottom:0}}>
-            <defs>
-              <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.18}/>
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="gP" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.15}/>
-                <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <XAxis dataKey="m" axisLine={false} tickLine={false} tick={{fontSize:11}}/>
-            <YAxis axisLine={false} tickLine={false} tickFormatter={(v: any) =>`₹${v}L`} tick={{fontSize:10}}/>
-            <Tooltip content={<ChartTip/>}/>
-            <Area type="monotone" dataKey="rev"    name="Revenue"  stroke="#f59e0b" strokeWidth={2} fill="url(#gR)"/>
-            <Area type="monotone" dataKey="exp"    name="Expenses" stroke="rgba(100,116,139,.6)" strokeWidth={1.5} fill="none"/>
-            <Area type="monotone" dataKey="profit" name="Profit"   stroke="#22c55e" strokeWidth={2} fill="url(#gP)"/>
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Three charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        {/* Sales funnel */}
-        <div className="card">
-          <h3 className="text-sm font-semibold mb-1">Sales Funnel</h3>
-          <p className="text-xs mb-4" style={{color:'var(--text-muted)'}}>Lead conversion stages</p>
-          <div className="space-y-2">
-            {LEAD_FUNNEL.map((f,i)=>(
-              <div key={f.stage}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs" style={{color:'var(--text-secondary)'}}>{f.stage}</span>
-                  <span className="text-xs font-mono font-bold" style={{color:f.color}}>{f.count}</span>
-                </div>
-                <div style={{height:'6px',borderRadius:'4px',background:'var(--border)',overflow:'hidden'}}>
-                  <div style={{height:'100%',borderRadius:'4px',background:f.color,width:`${(f.count/120)*100}%`,transition:'width .6s ease'}}/>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 pt-3" style={{borderTop:'1px solid var(--border)'}}>
-            <p className="text-xs" style={{color:'var(--text-muted)'}}>
-              Conversion rate: <span style={{color:'#22c55e',fontWeight:700}}>9.2%</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Invoice aging */}
-        <div className="card">
-          <h3 className="text-sm font-semibold mb-1">Invoice Aging</h3>
-          <p className="text-xs mb-4" style={{color:'var(--text-muted)'}}>Outstanding receivables by age</p>
-          <ResponsiveContainer width="100%" height={140}>
-            <BarChart data={INV_AGING} layout="vertical" margin={{top:0,right:0,left:0,bottom:0}}>
-              <XAxis type="number" hide/>
-              <YAxis type="category" dataKey="range" axisLine={false} tickLine={false} tick={{fontSize:10,fill:'var(--text-muted)'}} width={70}/>
-              <Tooltip formatter={(v:any)=>formatCurrency(v)} contentStyle={{background:'var(--bg-elevated)',border:'1px solid var(--border)',borderRadius:'10px',fontSize:'11px'}}/>
-              <Bar dataKey="amount" radius={[0,6,6,0]}>
-                {INV_AGING.map((e,i)=><Cell key={i} fill={e.color}/>)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          <p className="text-sm font-semibold mt-2" style={{color:'var(--text-primary)'}}>
-            Total: <span style={{color:'var(--gold)'}}>{formatCurrency(INV_AGING.reduce((s,a)=>s+a.amount,0))}</span>
-          </p>
-        </div>
-
-        {/* Dept performance */}
-        <div className="card">
-          <h3 className="text-sm font-semibold mb-1">Department Performance</h3>
-          <p className="text-xs mb-3" style={{color:'var(--text-muted)'}}>Target vs actual score</p>
-          <div className="space-y-3">
-            {DEPT_PERFORMANCE.map(d=>(
-              <div key={d.dept}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs" style={{color:'var(--text-secondary)'}}>{d.dept}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs" style={{color:'var(--text-muted)'}}>T:{d.target}</span>
-                    <span className="text-xs font-bold" style={{color:d.actual>=d.target?'#22c55e':'#ef4444'}}>A:{d.actual}</span>
-                  </div>
-                </div>
-                <div className="relative" style={{height:'5px',borderRadius:'4px',background:'var(--border)'}}>
-                  <div style={{position:'absolute',height:'100%',borderRadius:'4px',background:d.color,opacity:.3,width:`${d.target}%`}}/>
-                  <div style={{position:'absolute',height:'100%',borderRadius:'4px',background:d.color,width:`${d.actual}%`}}/>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+function Figure({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="card">
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</p>
+      <p className="text-2xl font-semibold tracking-tight mt-1" style={{ color: 'var(--text-primary)', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif' }}>{value}</p>
+      {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{sub}</p>}
     </div>
   )
+}
+
+/** A ranked list of horizontal bars, one colour, each value written at the bar's end. */
+function Bars({ title, note, rows, color, empty, link }: {
+  title: string; note: string; rows: { key: string; label: string; value: number; text: string }[]; color: string; empty: string
+  link: { href: string; label: string }
+}) {
+  const max = Math.max(0, ...rows.map(r => r.value))
+  return (
+    <section className="card" aria-label={title}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="section-title">{title}</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{note}</p>
+        </div>
+        <Link href={link.href} className="text-xs font-semibold shrink-0" style={{ color: 'var(--gold)' }}>{link.label}</Link>
+      </div>
+      {max <= 0 ? (
+        <p className="text-sm py-6" style={{ color: 'var(--text-muted)' }}>{empty}</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {rows.map(r => (
+            <li key={r.key} className="grid items-center gap-3" style={{ gridTemplateColumns: 'minmax(90px, 32%) 1fr' }}>
+              <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }} title={r.label}>{r.label}</span>
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="h-3 rounded-r" style={{ width: `${max ? Math.max(r.value > 0 ? 1.5 : 0, (r.value / max) * 70) : 0}%`, background: color }} />
+                <span className="text-xs font-mono whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>{r.text}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function exportCsv(d: DashAnalytics) {
+  const cell = (v: unknown) => { const t = v == null ? '' : String(v); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t }
+  const lines: string[] = [`Analytics ${d.from} to ${d.to}`, '']
+  if (d.sales) {
+    lines.push('Month,Invoiced,Collected')
+    d.sales.forEach(m => lines.push([m.month, n(m.invoiced).toFixed(2), n(m.collected).toFixed(2)].map(cell).join(',')))
+    lines.push('')
+  }
+  if (d.receivableAgeing) {
+    lines.push('Owed by customers,Amount,Invoices')
+    d.receivableAgeing.forEach(b => lines.push([b.label, n(b.amount).toFixed(2), b.count].map(cell).join(',')))
+    lines.push('')
+  }
+  if (d.topCustomers) {
+    lines.push('Customer,Invoiced,Documents')
+    d.topCustomers.forEach(c => lines.push([c.name, n(c.amount).toFixed(2), c.count].map(cell).join(',')))
+    lines.push('')
+  }
+  if (d.payableAgeing) {
+    lines.push('Owed to suppliers,Amount')
+    d.payableAgeing.forEach(b => lines.push([b.label, n(b.amount).toFixed(2)].map(cell).join(',')))
+    lines.push('')
+  }
+  if (d.headcountByDepartment) {
+    lines.push('Department,Employees')
+    d.headcountByDepartment.forEach(h => lines.push([h.name, h.count].map(cell).join(',')))
+    lines.push('')
+  }
+  if (d.leadsByStatus) {
+    lines.push('Lead stage,Leads,Estimated value')
+    d.leadsByStatus.forEach(l => lines.push([LEAD_LABEL[l.name] ?? l.name, l.count, n(l.amount).toFixed(2)].map(cell).join(',')))
+  }
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = `analytics_${d.from}_to_${d.to}.csv`; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

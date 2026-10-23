@@ -10,6 +10,8 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
+import { notAvailableYet } from '@/lib/notAvailable'
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { Modal } from '@/components/ui/Modal'
@@ -25,7 +27,7 @@ const SUBS = [
   {id:'S5',customer:'Tech Mahindra',  desc:'On-site Support Contract',        amount:95000,  freq:'Monthly',   next:'30 Apr 2025', generated:3,  total:285000,  status:'PAUSED'},
 ]
 
-export default function SubscriptionsPage(){
+function SubscriptionsPage(){
   const [showCreate,setShowCreate]=useState(false)
   const arr = SUBS.filter(s=>s.status==='ACTIVE').reduce((t,s)=>t+(s.freq==='Monthly'?s.amount:s.freq==='Quarterly'?s.amount/3:s.amount/12),0)
 
@@ -94,10 +96,15 @@ export default function SubscriptionsPage(){
           </div>
           <div className="flex justify-end gap-3 pt-2" style={{borderTop:'1px solid var(--border)'}}>
             <button onClick={()=>setShowCreate(false)} className="btn-secondary">Cancel</button>
-            <button onClick={()=>{toast.success('Subscription activated — first invoice on schedule');setShowCreate(false)}} className="btn-primary">Activate</button>
+            <button onClick={()=>{notAvailableYet('Activating subscriptions from this screen')}} className="btn-primary">Activate</button>
           </div>
         </div>
       </Modal>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="recurring-billing"><SubscriptionsPage /></PreviewGate>
 }

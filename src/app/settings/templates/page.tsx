@@ -17,6 +17,7 @@ import {
   FileText, Plus, Check, Copy, Trash2, Star, Palette, Eye, Settings2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiError } from '@/lib/utils'
 
 interface TemplateConfig {
   primaryColor: string; accentColor: string; fontFamily: string; logoPosition: string
@@ -28,9 +29,10 @@ interface Template {
   configJson: string; isDefault: boolean; isSystem: boolean
 }
 
-const DOC_TYPES = ['INVOICE','PROFORMA','QUOTATION','PURCHASE_ORDER','CREDIT_NOTE','DELIVERY_CHALLAN','RECEIPT']
-const FONTS = [['serif','Serif (classic)'],['sans-serif','Sans-serif (modern)']]
-const LOGO_POS = [['TOP_LEFT','Top Left'],['TOP_CENTER','Top Center'],['TOP_RIGHT','Top Right']]
+/** The documents printed from invoicing; each uses its own default template, or else the invoice one. */
+const DOC_TYPES: [string, string][] = [['INVOICE', 'Tax invoices'], ['QUOTATION', 'Quotations'], ['PROFORMA', 'Proforma invoices'],
+  ['CREDIT_NOTE', 'Credit notes'], ['DELIVERY_CHALLAN', 'Delivery challans']]
+const DOC_LABEL = Object.fromEntries(DOC_TYPES) as Record<string, string>
 
 const DEFAULT_CFG: TemplateConfig = {
   primaryColor:'#1A1B4B', accentColor:'#D97706', fontFamily:'serif', logoPosition:'TOP_LEFT',
@@ -54,44 +56,44 @@ export default function TemplatesPage() {
     queryFn: () => api.get(`/templates?docType=${docType}`).then(r => r.data.data ?? []),
   })
 
-  // Seed presets the first time the gallery is empty
+  // The built-in invoice looks are added the first time the invoice gallery is opened
   const seed = useMutation({
     mutationFn: () => api.post('/templates/seed-presets'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
     onError: () => {},
   })
   useEffect(() => {
-    if (!isLoading && (templates as Template[]).length === 0) seed.mutate()
+    if (!isLoading && docType === 'INVOICE' && (templates as Template[]).length === 0 && !seed.isPending && !seed.isSuccess) seed.mutate()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading])
+  }, [isLoading, docType])
 
   const setDefaultMut = useMutation({
     mutationFn: (id: string) => api.post(`/templates/${id}/set-default`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); toast.success('Default template set') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed'),
+    onError: (e: any) => toast.error(apiError(e, 'The default template could not be changed')),
   })
   const duplicateMut = useMutation({
     mutationFn: (id: string) => api.post(`/templates/${id}/duplicate`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); toast.success('Template duplicated — now customise it') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed'),
+    onError: (e: any) => toast.error(apiError(e, 'The template could not be copied')),
   })
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/templates/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); toast.success('Template deleted') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Cannot delete this template'),
+    onError: (e: any) => toast.error(apiError(e, 'Cannot delete this template')),
   })
   const saveMut = useMutation({
     mutationFn: () => api.patch(`/templates/${editing!.id}`, { name: editName, configJson: JSON.stringify(cfg) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); toast.success('Template saved'); setEditing(null) },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed to save'),
+    onError: (e: any) => toast.error(apiError(e, 'The template could not be saved')),
   })
   const createMut = useMutation({
     mutationFn: () => api.post('/templates', {
-      name: `Custom ${docType.replace('_',' ').toLowerCase()}`, docType, baseTheme: 'CLASSIC',
+      name: `My ${(DOC_LABEL[docType] ?? 'document').toLowerCase().replace(/s$/, '')} template`, docType, baseTheme: 'CLASSIC',
       configJson: JSON.stringify(DEFAULT_CFG),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['templates'] }); toast.success('Template created') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed'),
+    onError: (e: any) => toast.error(apiError(e, 'The template could not be created')),
   })
 
   const openEditor = (t: Template) => {
@@ -106,7 +108,7 @@ export default function TemplatesPage() {
           <h1 className="page-title flex items-center gap-2">
             <Palette size={22} style={{ color: 'var(--gold)' }} /> Document Templates
           </h1>
-          <p className="page-subtitle">Customise how your invoices, POs and quotations look — colours, fonts, layout & footer</p>
+          <p className="page-subtitle">How your invoice PDFs look: brand colour, a note under the heading, a footer note, and whether payment details and the signature print. The default template of each kind is used; anything GST requires always prints.</p>
         </div>
         <button className="btn-primary h-9" onClick={() => createMut.mutate()}>
           <Plus size={15} /> New Template
@@ -115,14 +117,14 @@ export default function TemplatesPage() {
 
       {/* Doc type tabs */}
       <div style={{ display:'flex', gap:'4px', flexWrap:'wrap', borderBottom:'1px solid var(--border)' }}>
-        {DOC_TYPES.map(dt => (
-          <button key={dt} onClick={() => setDocType(dt)}
+        {DOC_TYPES.map(([dt, label]) => (
+          <button key={dt} onClick={() => setDocType(dt)} role="tab" aria-selected={docType===dt}
             style={{
-              padding:'8px 14px', fontSize:'12px', fontWeight:600, cursor:'pointer', background:'none', border:'none',
+              padding:'8px 14px', fontSize:'12.5px', fontWeight:600, cursor:'pointer', background:'none', border:'none',
               color: docType===dt ? 'var(--gold)' : 'var(--text-muted)',
               borderBottom: docType===dt ? '2px solid var(--gold)' : '2px solid transparent',
             }}>
-            {dt.replace('_',' ')}
+            {label}
           </button>
         ))}
       </div>
@@ -134,13 +136,14 @@ export default function TemplatesPage() {
           return (
             <div key={t.id} className="card" style={{ padding:0, overflow:'hidden' }}>
               {/* Mini preview */}
-              <div style={{ height:'140px', padding:'14px', background:'#fff', position:'relative', fontFamily:c.fontFamily }}>
-                <div style={{ display:'flex', justifyContent: c.logoPosition==='TOP_CENTER'?'center':c.logoPosition==='TOP_RIGHT'?'flex-end':'flex-start' }}>
-                  <div style={{ width:'42px', height:'14px', borderRadius:'3px', background:c.primaryColor }} />
+              <div style={{ height:'140px', padding:'14px', background:'#fff', position:'relative' }}>
+                <div style={{ display:'flex', justifyContent:'space-between' }}>
+                  <div style={{ width:'60px', height:'8px', borderRadius:'2px', background:'#374151' }} />
+                  <div style={{ width:'42px', height:'10px', borderRadius:'2px', background:c.primaryColor }} />
                 </div>
                 <div style={{ marginTop:'8px', height:'6px', width:'55%', background:'#e5e7eb', borderRadius:'2px' }} />
                 <div style={{ marginTop:'4px', height:'5px', width:'40%', background:'#eef0f3', borderRadius:'2px' }} />
-                <div style={{ marginTop:'10px', height:'8px', width:'100%', background:c.accentColor, opacity:0.85, borderRadius:'2px' }} />
+                <div style={{ marginTop:'10px', height:'2px', width:'100%', background:c.primaryColor }} />
                 {[0,1,2].map(i => (
                   <div key={i} style={{ marginTop:'5px', display:'flex', gap:'4px' }}>
                     <div style={{ height:'4px', flex:2, background:'#eef0f3', borderRadius:'2px' }} />
@@ -160,8 +163,8 @@ export default function TemplatesPage() {
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <p style={{ fontSize:'13px', fontWeight:600 }}>{t.name}</p>
-                    <p style={{ fontSize:'10px', color:'var(--text-muted)' }}>
-                      {t.baseTheme}{t.isSystem ? ' · built-in' : ' · custom'}
+                    <p style={{ fontSize:'11px', color:'var(--text-muted)' }}>
+                      {t.isSystem ? 'Built in' : 'Yours'}{t.isDefault ? ' · used for new PDFs' : ''}
                     </p>
                   </div>
                 </div>
@@ -187,7 +190,13 @@ export default function TemplatesPage() {
         {(templates as Template[]).length === 0 && !isLoading && (
           <div className="card" style={{ gridColumn:'1/-1', textAlign:'center', padding:'40px' }}>
             <FileText size={32} style={{ color:'var(--text-muted)', margin:'0 auto 12px', display:'block' }} />
-            <p style={{ fontWeight:600, color:'var(--text-secondary)' }}>Setting up your templates…</p>
+            {docType === 'INVOICE'
+              ? <p style={{ fontWeight:600, color:'var(--text-secondary)' }}>Adding the built-in looks…</p>
+              : <>
+                  <p style={{ fontWeight:600, color:'var(--text-secondary)', margin:0 }}>{DOC_LABEL[docType]} print with your default invoice template</p>
+                  <p style={{ fontSize:'13px', color:'var(--text-muted)', margin:'6px 0 14px' }}>Make one here to give them a look of their own.</p>
+                  <button className="btn-primary h-9" onClick={() => createMut.mutate()}><Plus size={15} /> New template</button>
+                </>}
           </div>
         )}
       </div>
@@ -206,41 +215,28 @@ export default function TemplatesPage() {
                   <label className="label">Template Name</label>
                   <input className="input h-10" value={editName} onChange={e => setEditName(e.target.value)} />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Primary Colour</label>
-                    <div className="flex gap-2 items-center">
-                      <input type="color" value={cfg.primaryColor} onChange={e => setCfg(c => ({ ...c, primaryColor:e.target.value }))}
-                        style={{ width:'36px', height:'36px', borderRadius:'8px', border:'1px solid var(--border)', cursor:'pointer' }} />
-                      <input className="input h-9 flex-1" value={cfg.primaryColor} onChange={e => setCfg(c => ({ ...c, primaryColor:e.target.value }))} />
-                    </div>
+                <div>
+                  <label className="label" htmlFor="tpl-colour">Brand colour (document title and lines)</label>
+                  <div className="flex gap-2 items-center">
+                    <input type="color" value={cfg.primaryColor} onChange={e => setCfg(c => ({ ...c, primaryColor:e.target.value }))} aria-label="Pick the colour"
+                      style={{ width:'36px', height:'36px', borderRadius:'8px', border:'1px solid var(--border)', cursor:'pointer' }} />
+                    <input id="tpl-colour" className="input h-9 flex-1" value={cfg.primaryColor} onChange={e => setCfg(c => ({ ...c, primaryColor:e.target.value }))} />
                   </div>
-                  <div>
-                    <label className="label">Accent Colour</label>
-                    <div className="flex gap-2 items-center">
-                      <input type="color" value={cfg.accentColor} onChange={e => setCfg(c => ({ ...c, accentColor:e.target.value }))}
-                        style={{ width:'36px', height:'36px', borderRadius:'8px', border:'1px solid var(--border)', cursor:'pointer' }} />
-                      <input className="input h-9 flex-1" value={cfg.accentColor} onChange={e => setCfg(c => ({ ...c, accentColor:e.target.value }))} />
-                    </div>
-                  </div>
+                  <p className="text-xs" style={{ color:'var(--text-muted)', marginTop:'4px' }}>Very light colours aren&apos;t used — they wouldn&apos;t show on white paper.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Font</label>
-                    <select className="input h-10" value={cfg.fontFamily} onChange={e => setCfg(c => ({ ...c, fontFamily:e.target.value }))}>
-                      {FONTS.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Logo Position</label>
-                    <select className="input h-10" value={cfg.logoPosition} onChange={e => setCfg(c => ({ ...c, logoPosition:e.target.value }))}>
-                      {LOGO_POS.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                  </div>
+                <div>
+                  <label className="label" htmlFor="tpl-head">Note under the heading</label>
+                  <input id="tpl-head" className="input h-10" maxLength={160} placeholder="e.g. Composition taxable person, not eligible to collect tax on supplies" value={cfg.headerNote}
+                    onChange={e => setCfg(c => ({ ...c, headerNote:e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label" htmlFor="tpl-foot">Footer note (every page)</label>
+                  <input id="tpl-foot" className="input h-10" maxLength={160} placeholder="Thank you for your business." value={cfg.footerNote}
+                    onChange={e => setCfg(c => ({ ...c, footerNote:e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  {([['showHsnColumn','Show HSN/SAC column'],['showFooterTerms','Show terms & conditions'],
-                     ['showBankDetails','Show bank details'],['showSignature','Show signature block']] as const).map(([k,label]) => (
+                  {([['showFooterTerms','Print the footer note'],['showBankDetails','Print how to pay (UPI QR code, bank details, pay link)'],
+                     ['showSignature','Print the signature block']] as const).map(([k,label]) => (
                     <label key={k} className="flex items-center gap-2" style={{ fontSize:'13px', cursor:'pointer' }}>
                       <input type="checkbox" checked={cfg[k] as boolean}
                         onChange={e => setCfg(c => ({ ...c, [k]: e.target.checked }))} />
@@ -248,37 +244,30 @@ export default function TemplatesPage() {
                     </label>
                   ))}
                 </div>
-                <div>
-                  <label className="label">Header Note</label>
-                  <input className="input h-10" placeholder="e.g. Original for Recipient" value={cfg.headerNote}
-                    onChange={e => setCfg(c => ({ ...c, headerNote:e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">Footer Note</label>
-                  <input className="input h-10" placeholder="Thank you for your business." value={cfg.footerNote}
-                    onChange={e => setCfg(c => ({ ...c, footerNote:e.target.value }))} />
-                </div>
+                <p className="text-xs" style={{ color:'var(--text-muted)' }}>
+                  HSN/SAC codes, the CGST/SGST or IGST split, place of supply and the other details GST rule 46 requires always print.
+                </p>
               </div>
 
               {/* Live preview */}
               <div>
                 <label className="label flex items-center gap-1"><Eye size={13}/> Live Preview</label>
-                <div style={{ background:'#fff', borderRadius:'10px', border:'1px solid var(--border)', padding:'18px', fontFamily:cfg.fontFamily, minHeight:'380px' }}>
-                  <div style={{ display:'flex', justifyContent: cfg.logoPosition==='TOP_CENTER'?'center':cfg.logoPosition==='TOP_RIGHT'?'flex-end':'space-between', alignItems:'center' }}>
-                    <div style={{ fontWeight:700, fontSize:'18px', color:cfg.primaryColor }}>Your Company</div>
-                    {cfg.logoPosition==='TOP_LEFT' && <div style={{ fontSize:'10px', color:'#9ca3af', textAlign:'right' }}>INVOICE<br/>#INV/2026/0042</div>}
+                <div style={{ background:'#fff', borderRadius:'10px', border:'1px solid var(--border)', padding:'18px', minHeight:'380px', fontFamily:'Helvetica, Arial, sans-serif' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                    <div style={{ fontWeight:700, fontSize:'15px', color:'#1a1a1a' }}>Your Company<div style={{ fontSize:'8px', fontWeight:400, color:'#6b7280' }}>GSTIN: 27AAPCA1234F1ZV</div></div>
+                    <div style={{ fontSize:'12px', fontWeight:700, color:cfg.primaryColor, textAlign:'right' }}>TAX INVOICE<div style={{ fontSize:'8px', fontWeight:400, color:'#9ca3af' }}>INV/26-27/000042</div></div>
                   </div>
-                  {cfg.headerNote && <p style={{ fontSize:'9px', color:'#6b7280', marginTop:'4px' }}>{cfg.headerNote}</p>}
-                  <div style={{ height:'2px', background:cfg.accentColor, margin:'12px 0' }} />
+                  <div style={{ height:'1.5px', background:cfg.primaryColor, margin:'10px 0 6px' }} />
+                  {cfg.headerNote && <p style={{ fontSize:'8.5px', color:'#6b7280', margin:'0 0 8px' }}>{cfg.headerNote}</p>}
                   <div style={{ fontSize:'10px', color:'#374151' }}>
                     <p style={{ fontWeight:600 }}>Bill To: Acme Industries Pvt Ltd</p>
                     <p style={{ color:'#9ca3af' }}>GSTIN: 27AAAAA0000A1Z5</p>
                   </div>
                   <table style={{ width:'100%', marginTop:'12px', fontSize:'9px', borderCollapse:'collapse' }}>
                     <thead>
-                      <tr style={{ background:cfg.primaryColor, color:'#fff' }}>
+                      <tr style={{ background:'#eef0f5', color:'#1a1a1a' }}>
                         <th style={{ padding:'4px 6px', textAlign:'left' }}>Item</th>
-                        {cfg.showHsnColumn && <th style={{ padding:'4px 6px' }}>HSN</th>}
+                        <th style={{ padding:'4px 6px' }}>HSN/SAC</th>
                         <th style={{ padding:'4px 6px' }}>Qty</th>
                         <th style={{ padding:'4px 6px', textAlign:'right' }}>Amount</th>
                       </tr>
@@ -287,7 +276,7 @@ export default function TemplatesPage() {
                       {[['Consulting Services','9983','2','₹50,000'],['Software License','8523','1','₹18,000']].map((row,i) => (
                         <tr key={i} style={{ borderBottom:'1px solid #f0f0f0' }}>
                           <td style={{ padding:'4px 6px' }}>{row[0]}</td>
-                          {cfg.showHsnColumn && <td style={{ padding:'4px 6px', textAlign:'center' }}>{row[1]}</td>}
+                          <td style={{ padding:'4px 6px', textAlign:'center' }}>{row[1]}</td>
                           <td style={{ padding:'4px 6px', textAlign:'center' }}>{row[2]}</td>
                           <td style={{ padding:'4px 6px', textAlign:'right' }}>{row[3]}</td>
                         </tr>
@@ -295,20 +284,21 @@ export default function TemplatesPage() {
                     </tbody>
                   </table>
                   <div style={{ marginTop:'8px', textAlign:'right', fontSize:'10px' }}>
-                    <span style={{ fontWeight:700, color:cfg.primaryColor }}>Total: ₹80,240</span>
+                    <span style={{ fontWeight:700, color:'#1a1a1a' }}>Total: ₹80,240</span>
                   </div>
                   {cfg.showBankDetails && (
-                    <div style={{ marginTop:'10px', fontSize:'8px', color:'#6b7280' }}>
-                      <p style={{ fontWeight:600 }}>Bank: HDFC Bank · A/C 50200012345678 · IFSC HDFC0001234</p>
+                    <div style={{ marginTop:'10px', fontSize:'8px', color:'#6b7280', display:'flex', gap:'8px', alignItems:'center' }}>
+                      <div style={{ width:'26px', height:'26px', background:'repeating-linear-gradient(45deg,#111 0 2px,#fff 2px 4px)' }} aria-hidden />
+                      <p style={{ fontWeight:600, margin:0 }}>Scan to pay by UPI · Bank: HDFC Bank · A/C 50200012345678 · IFSC HDFC0001234</p>
                     </div>
-                  )}
-                  {cfg.showFooterTerms && cfg.footerNote && (
-                    <p style={{ marginTop:'10px', fontSize:'8px', color:'#9ca3af', fontStyle:'italic' }}>{cfg.footerNote}</p>
                   )}
                   {cfg.showSignature && (
                     <div style={{ marginTop:'16px', textAlign:'right', fontSize:'9px', color:'#374151' }}>
                       <div style={{ display:'inline-block', borderTop:'1px solid #d1d5db', paddingTop:'3px' }}>Authorised Signatory</div>
                     </div>
+                  )}
+                  {cfg.showFooterTerms && cfg.footerNote && (
+                    <p style={{ marginTop:'14px', fontSize:'8px', color:'#6b7280' }}>{cfg.footerNote}</p>
                   )}
                 </div>
               </div>

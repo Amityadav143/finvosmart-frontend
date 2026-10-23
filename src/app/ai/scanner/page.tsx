@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { useState, useRef } from 'react'
 import { Upload, Camera, CheckCircle, AlertTriangle, FileText, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -36,7 +37,7 @@ const MOCK_RESULT = {
   ]
 }
 
-export default function SmartScannerPage(){
+function SmartScannerPage(){
   const [stage, setStage] = useState<'idle'|'scanning'|'review'|'posted'>('idle')
   const [progress, setProgress] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -194,4 +195,9 @@ export default function SmartScannerPage(){
       )}
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="bill-scanner"><SmartScannerPage /></PreviewGate>
 }

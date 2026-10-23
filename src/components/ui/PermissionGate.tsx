@@ -11,6 +11,7 @@
  */
 
 import { ReactNode } from 'react'
+import Link from 'next/link'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { Shield } from 'lucide-react'
 
@@ -62,10 +63,11 @@ export function PermissionGate({
       <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Shield size={22} color="#EF4444" />
       </div>
-      <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Access Denied</p>
-      <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '300px' }}>
-        You don&apos;t have permission to view this section. Contact your administrator.
+      <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>You don&apos;t have access to this</p>
+      <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '340px' }}>
+        Your role doesn&apos;t include it. An administrator can add it to your role under Settings → Roles.
       </p>
+      <Link href="/dashboard" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gold)' }}>Back to the dashboard</Link>
     </div>
   )
 

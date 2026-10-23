@@ -10,17 +10,20 @@
  */
 
 import type { MetadataRoute } from 'next'
-import { PAGES, absoluteUrl, type PageSeo } from '@/lib/seo'
+import { CONTENT_UPDATED, PAGES, absoluteUrl, languagesFor, type PageKey } from '@/lib/seo'
 
-// Generated at build time, so lastModified is the deploy date.
-const BUILT_AT = new Date()
-
-/** Every indexable page, straight from src/lib/seo.ts. */
+/** Every indexable page, straight from src/lib/seo.ts, with the date its content last changed. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  return Object.values(PAGES).map((p: PageSeo) => ({
-    url: absoluteUrl(p.path),
-    lastModified: BUILT_AT,
-    changeFrequency: p.changeFrequency,
-    priority: p.priority,
+  return (Object.keys(PAGES) as PageKey[]).map(key => ({
+    url: absoluteUrl(PAGES[key].path),
+    // A plain YYYY-MM-DD date: a Date object would be written in UTC, i.e. the day before
+    // (midnight in India is 18:30 UTC the previous day).
+    lastModified: CONTENT_UPDATED[key],
+    changeFrequency: PAGES[key].changeFrequency,
+    priority: PAGES[key].priority,
+    // Language versions (the English and Hindi homepages name each other).
+    ...(PAGES[key].lang || key === 'home'
+      ? { alternates: { languages: Object.fromEntries(Object.entries(languagesFor(key)).map(([l, path]) => [l, absoluteUrl(path)])) } }
+      : {}),
   }))
 }

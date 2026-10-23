@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { useQuery } from '@tanstack/react-query'
 import { aiApi } from '@/lib/api/ai'
 import { PermissionGate } from '@/components/ui/PermissionGate'
@@ -34,7 +35,7 @@ const ratingColor = (r: string) => {
   }
 }
 
-export default function HealthScorePage() {
+function HealthScorePage() {
   const { data: report, isLoading } = useQuery({ queryKey: ['health-score'], queryFn: aiApi.health.report })
 
   return (
@@ -146,4 +147,9 @@ export default function HealthScorePage() {
       </div>
     </PermissionGate>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="health-score"><HealthScorePage /></PreviewGate>
 }

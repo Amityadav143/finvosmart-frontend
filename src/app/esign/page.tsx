@@ -10,6 +10,8 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
+import { notAvailableYet } from '@/lib/notAvailable'
 import { useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
@@ -25,7 +27,7 @@ const DOCS=[
 
 const DOCTYPE=['Purchase Order','Contract','Offer Letter','NDA','Invoice','Employment Contract']
 
-export default function EsignPage(){
+function EsignPage(){
   const [showNew,setShowNew]=useState(false)
   const done=DOCS.filter(d=>d.status==='COMPLETED').length
 
@@ -95,10 +97,15 @@ export default function EsignPage(){
           </div>
           <div className="flex justify-end gap-3 pt-2" style={{borderTop:'1px solid var(--border)'}}>
             <button onClick={()=>setShowNew(false)} className="btn-secondary">Cancel</button>
-            <button onClick={()=>{toast.success('OTP signing invitation sent to all parties');setShowNew(false)}} className="btn-primary">Send Signing Request</button>
+            <button onClick={()=>{notAvailableYet('Sending e-sign invitations')}} className="btn-primary">Send Signing Request</button>
           </div>
         </div>
       </Modal>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="esign"><EsignPage /></PreviewGate>
 }

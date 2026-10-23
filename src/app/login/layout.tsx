@@ -10,7 +10,8 @@
  */
 
 import type { Metadata } from 'next'
-import { pageMetadata } from '@/lib/seo'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { organizationSchema, pageMetadata, pageSchema, websiteSchema } from '@/lib/seo'
 
 // The login page is linked from the homepage, so it gets its own title and
 // description instead of inheriting the homepage's (which made two URLs show
@@ -18,5 +19,10 @@ import { pageMetadata } from '@/lib/seo'
 export const metadata: Metadata = pageMetadata('login')
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return (
+    <>
+      <JsonLd nodes={[organizationSchema(), websiteSchema(), ...pageSchema('login')]} />
+      {children}
+    </>
+  )
 }

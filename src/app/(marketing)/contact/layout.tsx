@@ -11,7 +11,7 @@
 
 import type { Metadata } from 'next'
 import { JsonLd } from '@/components/seo/JsonLd'
-import { breadcrumbSchema, pageMetadata } from '@/lib/seo'
+import { pageMetadata, pageSchema } from '@/lib/seo'
 
 // Title, description, canonical and social preview come from src/lib/seo.ts.
 export const metadata: Metadata = pageMetadata('contact')
@@ -19,7 +19,7 @@ export const metadata: Metadata = pageMetadata('contact')
 export default function ContactLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <JsonLd nodes={[breadcrumbSchema('contact')]} />
+      <JsonLd nodes={pageSchema('contact')} />
       {children}
     </>
   )

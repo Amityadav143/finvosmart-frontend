@@ -59,7 +59,7 @@ function Row({ label: l, value, strong }: { label: string; value: string; strong
   )
 }
 
-export function GstCalculator() {
+export function GstCalculator({ embedded = false }: { embedded?: boolean } = {}) {
   const [amount, setAmount] = useState('10000')
   const [rate, setRate] = useState<number>(18)
   const [customRate, setCustomRate] = useState('')
@@ -118,9 +118,15 @@ export function GstCalculator() {
             <Row label="Total GST" value={formatINR(r.gst)} />
             <Row label="Total amount" value={formatINR(r.total)} strong />
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '10px 0 18px', fontVariantNumeric: 'tabular-nums' }}>{formula}</p>
-            <Link href="/gst-billing-software" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gold)', textDecoration: 'none' }}>
+            {embedded
+              // In an embed, a link inside the frame would load our page in the frame (refused
+              // there by X-Frame-Options), so it opens in a new tab instead.
+              ? <a href="https://finvosmart.com/gst-billing-software?utm_source=embed&utm_medium=referral" target="_blank" rel="noopener" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gold)', textDecoration: 'none' }}>
               Put this on a GST invoice automatically →
-            </Link>
+            </a>
+              : <Link href="/gst-billing-software" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gold)', textDecoration: 'none' }}>
+              Put this on a GST invoice automatically →
+            </Link>}
           </div>
         </div>
         <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginTop: '14px', textAlign: 'center' }}>

@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { useState } from 'react'
 import { PermissionGate } from '@/components/ui/PermissionGate'
 import { Plus, GitBranch, Users, CheckCircle, ChevronDown, ChevronRight, Edit2, Trash2 } from 'lucide-react'
@@ -59,7 +60,7 @@ const INIT_WORKFLOWS: Workflow[] = [
   },
 ]
 
-export default function WorkflowPage() {
+function WorkflowPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>(INIT_WORKFLOWS)
   const [expanded, setExpanded]   = useState<string | null>('1')
 
@@ -177,4 +178,9 @@ export default function WorkflowPage() {
       </div>
     </PermissionGate>
   )
+}
+
+/** Still being built: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="approval-workflows"><WorkflowPage /></PreviewGate>
 }

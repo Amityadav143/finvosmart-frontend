@@ -14,8 +14,11 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
 import { PermissionGate } from '@/components/ui/PermissionGate'
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { Plus, Package, TrendingDown, BarChart2, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiError } from '@/lib/utils'
+import { todayIST } from '@/lib/money'
 
 interface FixedAsset {
   id: string; assetCode: string; assetName: string; category: string
@@ -38,7 +41,7 @@ const STATUS_META = {
 const CATEGORIES = ['PLANT_MACHINERY','VEHICLE','COMPUTER_IT','FURNITURE_FIXTURE','BUILDING','OTHER']
 
 const BLANK_FORM = {
-  assetName: '', category: 'COMPUTER_IT', purchaseDate: new Date().toISOString().split('T')[0],
+  assetName: '', category: 'COMPUTER_IT', purchaseDate: todayIST(),
   purchaseCost: '', salvageValue: '0', usefulLifeYears: 5, depreciationRate: '',
   method: 'WDV' as 'WDV' | 'SLM', vendorName: '', invoiceNumber: '', hsnCode: '', location: '', notes: ''
 }
@@ -56,7 +59,7 @@ const SLM_YEARS: Record<string, number> = {
 const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const pct  = (n: number) => `${n.toFixed(1)}%`
 
-export default function AssetsPage() {
+function AssetsPage() {
   const qc = useQueryClient()
   const [showNew, setShowNew]         = useState(false)
   const [form, setForm]               = useState({ ...BLANK_FORM })
@@ -79,7 +82,7 @@ export default function AssetsPage() {
       qc.invalidateQueries({ queryKey: ['fixed-assets'] })
       setShowNew(false); setForm({ ...BLANK_FORM }); toast.success('Asset added to register')
     },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed to add asset'),
+    onError: (e: any) => toast.error(apiError(e, 'Failed to add asset')),
   })
 
   const loadSchedule = async (assetId: string) => {
@@ -305,4 +308,9 @@ export default function AssetsPage() {
       </div>
     </PermissionGate>
   )
+}
+
+/** The asset register doesn't post to the books yet, so it is a preview (its API is off otherwise). */
+export default function Page() {
+  return <PreviewGate feature="fixed-assets"><AssetsPage /></PreviewGate>
 }

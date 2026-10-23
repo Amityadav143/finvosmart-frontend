@@ -12,7 +12,7 @@
 import Link from 'next/link'
 import type { CSSProperties, ReactNode } from 'react'
 import { JsonLd } from '@/components/seo/JsonLd'
-import { breadcrumbSchema, faqSchemaFor, PAGES } from '@/lib/seo'
+import { breadcrumbTrail, CONTENT_UPDATED, faqSchemaFor, pageSchema, PAGES, type PageKey } from '@/lib/seo'
 import { SOLUTIONS, type SolutionKey } from '@/lib/solutions'
 
 // Server component: every word of these pages is in the initial HTML.
@@ -37,11 +37,11 @@ export function Eyebrow({ children }: { children: ReactNode }) {
 }
 
 /** Native <details>: answers are in the HTML (crawlable, no JavaScript needed) yet collapsible. */
-export function FaqList({ items }: { items: ReadonlyArray<{ q: string; a: string }> }) {
+export function FaqList({ items, title = 'Frequently asked questions' }: { items: ReadonlyArray<{ q: string; a: string }>; title?: string }) {
   return (
     <section style={{ padding: '56px 0' }}>
       <div style={narrow}>
-        <h2 style={{ ...h2Style, textAlign: 'center', marginBottom: '28px' }}>Frequently asked questions</h2>
+        <h2 style={{ ...h2Style, textAlign: 'center', marginBottom: '28px' }}>{title}</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {items.map(f => (
             <details key={f.q} style={{ ...card, padding: '0' }}>
@@ -56,29 +56,78 @@ export function FaqList({ items }: { items: ReadonlyArray<{ q: string; a: string
   )
 }
 
-const RELATED = [
-  { key: 'gstBilling' as const, blurb: 'Create GST invoices with HSN codes and the right CGST, SGST or IGST split.' },
-  { key: 'eInvoicing' as const, blurb: 'Generate IRNs and e-way bills straight from your invoices.' },
-  { key: 'gstCalculator' as const, blurb: 'Add or remove GST and see the tax split — free, no sign-up.' },
-  { key: 'tallyAlternative' as const, blurb: 'Double-entry books that post your GST invoices automatically.' },
-]
+/** One line on each page, for the "related pages" cards. */
+const BLURBS: Partial<Record<PageKey, string>> = {
+  gstBilling: 'Create GST invoices with HSN codes and the right CGST, SGST or IGST split.',
+  accountingSoftware: 'Double-entry books with ledgers, Trial Balance, P&L and Balance Sheet that post themselves.',
+  payrollSoftware: 'Monthly payroll with PF, ESI, professional tax, TDS, payslips and bank files.',
+  hrmsSoftware: 'Employees, attendance, leave, hiring and performance reviews in one place.',
+  eInvoicing: 'Who must e-invoice in 2026, the 30-day rule, and how e-way bills differ.',
+  tallyAlternative: 'Double-entry books that post your invoices, bills and payroll automatically.',
+  gstCalculator: 'Add or remove GST and see the tax split — free, no sign-up.',
+  gstinChecker: 'Check a GST number’s format and check digit — free.',
+  gstInvoiceFormat: 'Free GST invoice template in Excel and PDF, with a Rule 46 checklist.',
+  gstDueDates: 'Every GST, TDS, PF and ESI date this year, with a calendar to download.',
+  freeTools: 'Every free tool in one place — no sign-up for any of them.',
+}
 
-/** Internal links between the GST pages (helps visitors and search engines find them). */
-export function RelatedLinks({ current }: { current: 'gstBilling' | 'eInvoicing' | 'gstCalculator' | 'tallyAlternative' }) {
+/** Where to go next from each page: the closest topics first. */
+const RELATED: Partial<Record<PageKey, PageKey[]>> = {
+  gstBilling: ['eInvoicing', 'gstInvoiceFormat', 'gstCalculator', 'accountingSoftware', 'gstDueDates', 'tallyAlternative'],
+  eInvoicing: ['gstBilling', 'gstInvoiceFormat', 'gstDueDates', 'gstinChecker', 'accountingSoftware', 'tallyAlternative'],
+  tallyAlternative: ['accountingSoftware', 'gstBilling', 'payrollSoftware', 'gstInvoiceFormat', 'gstCalculator', 'eInvoicing'],
+  accountingSoftware: ['tallyAlternative', 'gstBilling', 'payrollSoftware', 'gstDueDates', 'gstCalculator', 'eInvoicing'],
+  payrollSoftware: ['hrmsSoftware', 'accountingSoftware', 'gstDueDates', 'tallyAlternative', 'gstBilling', 'gstCalculator'],
+  hrmsSoftware: ['payrollSoftware', 'accountingSoftware', 'gstDueDates', 'gstBilling', 'tallyAlternative', 'gstinChecker'],
+  gstCalculator: ['gstinChecker', 'gstInvoiceFormat', 'gstDueDates', 'gstBilling', 'eInvoicing', 'freeTools'],
+  gstinChecker: ['gstCalculator', 'gstInvoiceFormat', 'gstDueDates', 'gstBilling', 'eInvoicing', 'freeTools'],
+  gstInvoiceFormat: ['gstBilling', 'gstCalculator', 'gstinChecker', 'gstDueDates', 'eInvoicing', 'freeTools'],
+  gstDueDates: ['gstCalculator', 'gstinChecker', 'gstInvoiceFormat', 'payrollSoftware', 'gstBilling', 'freeTools'],
+}
+
+/** Internal links between the GST and software pages (helps visitors and search engines find them). */
+export function RelatedLinks({ current }: { current: PageKey }) {
+  const keys = RELATED[current] ?? []
   return (
-    <section style={{ padding: '8px 0 56px' }}>
+    <section style={{ padding: '8px 0 56px' }} aria-labelledby="related-heading">
       <div style={wrap}>
+        <h2 id="related-heading" style={{ ...h2Style, fontSize: 'clamp(22px,3vw,28px)', textAlign: 'center', marginBottom: '22px' }}>Related</h2>
         <div className="auto-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '900px', margin: '0 auto' }}>
-          {RELATED.filter(r => r.key !== current).map(r => (
-            <Link key={r.key} href={PAGES[r.key].path} style={{ ...card, display: 'block', textDecoration: 'none' }}>
-              <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>{PAGES[r.key].label} →</div>
-              <div style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{r.blurb}</div>
+          {keys.map(k => (
+            <Link key={k} href={PAGES[k].path} className="lp-card" style={{ ...card, display: 'block', textDecoration: 'none' }}>
+              <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>{PAGES[k].label} →</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{BLURBS[k]}</div>
             </Link>
           ))}
         </div>
       </div>
     </section>
   )
+}
+
+/** Home › (hub ›) page, matching the page's BreadcrumbList schema. */
+export function Breadcrumbs({ page }: { page: PageKey }) {
+  const trail = breadcrumbTrail(page)
+  return (
+    <nav aria-label="Breadcrumb">
+      <ol className="mk-crumbs">
+        {trail.map((k, i) => (
+          <li key={k}>
+            {i < trail.length - 1
+              ? <Link href={PAGES[k].path}>{PAGES[k].label}</Link>
+              : <span aria-current="page">{PAGES[k].label}</span>}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
+/** "Updated 9 October 2026": when the page's content last changed (CONTENT_UPDATED in lib/seo). */
+export function UpdatedOn({ page }: { page: PageKey }) {
+  const iso = CONTENT_UPDATED[page]
+  const label = new Date(`${iso}T00:00:00+05:30`).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' })
+  return <>Updated <time dateTime={iso}>{label}</time></>
 }
 
 export function CtaBand({ title, text, href = '/register', label = 'Start free trial' }:
@@ -99,10 +148,11 @@ export function SolutionPage({ id }: { id: SolutionKey }) {
   const page = PAGES[id]
   return (
     <div style={{ background: 'var(--bg-base)', paddingTop: '88px' }}>
-      <JsonLd nodes={[breadcrumbSchema(id), faqSchemaFor(page.path, s.faqs)]} />
+      <JsonLd nodes={pageSchema(id, faqSchemaFor(page.path, s.faqs))} />
 
       <section style={{ padding: '72px 0 56px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
         <div style={wrap}>
+          <Breadcrumbs page={id} />
           <Eyebrow>{s.eyebrow}</Eyebrow>
           <h1 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 'clamp(32px,5vw,54px)', color: 'var(--text-primary)',
                        lineHeight: 1.12, margin: '0 auto 18px', maxWidth: '820px', fontWeight: 400 }}>{s.h1}</h1>
@@ -111,12 +161,14 @@ export function SolutionPage({ id }: { id: SolutionKey }) {
             <Link href="/register" className="btn-primary" style={{ height: '46px', padding: '0 26px', fontSize: '15px', textDecoration: 'none' }}>Start free trial</Link>
             <Link href="/pricing" className="btn-secondary" style={{ height: '46px', padding: '0 22px', fontSize: '15px', textDecoration: 'none' }}>See pricing</Link>
           </div>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '14px' }}>14-day free trial · No credit card</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '14px' }}>14-day free trial · No credit card · <UpdatedOn page={id} /></p>
         </div>
       </section>
 
-      <section style={{ padding: '64px 0' }}>
+      <section style={{ padding: '64px 0' }} aria-labelledby="highlights-heading">
         <div style={wrap}>
+          {/* Keeps the outline in order (H1 → H2 → H3) for screen readers; the cards speak for themselves. */}
+          <h2 id="highlights-heading" className="sr-only">{page.label} at a glance</h2>
           <div className="auto-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '20px' }}>
             {s.highlights.map(h => (
               <div key={h.title} style={card}>

@@ -15,17 +15,19 @@ import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { cn } from '@/lib/utils'
+import { shown } from '@/lib/previews'
 import {
   LayoutDashboard, Users, Clock, Calendar, DollarSign, FileText,
   ShoppingCart, Boxes, FolderOpen, UserCheck, BarChart3, Settings,
   LogOut, Building2, TrendingUp, Zap, X, MessageCircle, Camera,
   Heart, RefreshCw, CreditCard, Globe, PenLine, Activity, Package2,
   Bell, ClipboardList, ChevronDown, Timer, FileDown, Layers, ShieldCheck
-, Plug , Palette, Mail, Brain, ShieldAlert, Landmark } from 'lucide-react'
+, Plug , Palette, Mail, Brain, ShieldAlert, Landmark, Receipt, Truck, FileCheck2, Percent, FileUp, Webhook, BookOpen } from 'lucide-react'
 import { useState } from 'react'
 
 /* ── Navigation structure ─────────────────────────────────────────────── */
-type NavItem = { href: string; label: string; icon: any; perm: string; dot?: string }
+/** perm: one permission, or a list where any one is enough. */
+type NavItem = { href: string; label: string; icon: any; perm: string | string[]; dot?: string }
 type NavSection = { id: string; label: string | null; items: NavItem[]; accent?: string }
 const NAV_SECTIONS: NavSection[] = [
   {
@@ -47,8 +49,6 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/ai/cashflow',    label: 'Cash Flow Oracle', icon: Zap,           dot: '#8b5cf6', perm: 'AI_CASHFLOW_VIEW' },
       { href: '/ai/wellness',    label: 'Wellness AI',       icon: Heart,         dot: '#ec4899', perm: 'WELLNESS_VIEW' },
       { href: '/ai/scanner',     label: 'Bill Scanner',      icon: Camera,        dot: '#8b5cf6', perm: 'AI_SCANNER_USE' },
-      { href: '/whatsapp',       label: 'WhatsApp Hub',      icon: MessageCircle, dot: '#22c55e', perm: 'WHATSAPP_VIEW' },
-      { href: '/gst-reconciler', label: 'GST Reconciler',    icon: RefreshCw,     dot: '#14b8a6', perm: 'GST_RECON_VIEW' },
     ],
   },
   {
@@ -56,12 +56,11 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Smart Tools',
     accent: '#f59e0b',
     items: [
-      { href: '/bank-reconciliation', label: 'Bank Reconciliation', icon: Building2,  dot: '#2563eb', perm: 'BANK_RECON_VIEW' },
+      { href: '/bank-reconciliation', label: 'Bank Reconciliation', icon: Building2,  dot: '#2563eb', perm: 'BANK_RECON_RUN' },
       { href: '/tenders',             label: 'Tender Management',   icon: Landmark,   dot: '#2563eb', perm: 'TENDER_VIEW' },
       { href: '/expense-claims',      label: 'Expense Claims',      icon: CreditCard, dot: '#16a34a', perm: 'EXPENSE_VIEW' },
       { href: '/client-portal',       label: 'Client Portal',       icon: Globe,      dot: '#7c3aed', perm: 'PORTAL_VIEW' },
       { href: '/subscriptions',       label: 'Recurring Billing',   icon: RefreshCw,  dot: '#0d9488', perm: 'SUBSCRIPTIONS_VIEW' },
-      { href: '/tds',                 label: 'TDS Tracker',         icon: DollarSign, dot: '#b45309', perm: 'TDS_VIEW' },
       { href: '/demand-forecast',     label: 'Demand Forecast',     icon: Package2,   dot: '#db2777', perm: 'FORECAST_VIEW' },
       { href: '/esign',               label: 'Digital Signing',     icon: PenLine,    dot: '#c2410c', perm: 'ESIGN_USE' },
       { href: '/automations',         label: 'Automations',         icon: Activity,   dot: '#57534e', perm: 'AUTOMATIONS_VIEW' },
@@ -74,10 +73,10 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/hrms/employees',  label: 'Employees',   icon: Users,      perm: 'EMPLOYEE_VIEW' },
       { href: '/hrms/attendance', label: 'Attendance',  icon: Clock,      perm: 'ATTENDANCE_VIEW' },
       { href: '/hrms/leave',      label: 'Leave',       icon: Calendar,   perm: 'LEAVE_VIEW' },
-      { href: '/hrms/payroll',    label: 'Payroll',     icon: DollarSign, perm: 'PAYROLL_VIEW' },
+      { href: '/hrms/payroll',    label: 'Payroll',     icon: DollarSign, perm: ['PAYROLL_PROCESS', 'PAYROLL_ADMIN', 'PAYROLL_REPORTS'] },
       { href: '/timesheet',      label: 'Timesheets',  icon: Timer,      perm: 'ATTENDANCE_VIEW' },
       { href: '/recruitment',    label: 'Recruitment', icon: Users,      perm: 'EMPLOYEE_VIEW' },
-      { href: '/performance',    label: 'Performance', icon: TrendingUp, perm: 'EMPLOYEE_VIEW' },
+      { href: '/performance',    label: 'Performance', icon: TrendingUp, perm: ['EMPLOYEE_VIEW', 'LEAVE_APPLY'] },
       { href: '/self-service',    label: 'My Portal',   icon: UserCheck,  perm: 'ATTENDANCE_VIEW' },
     ],
   },
@@ -86,9 +85,10 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Finance',
     items: [
       { href: '/finance/accounts', label: 'Accounts', icon: Building2, perm: 'FINANCE_VIEW' },
-      { href: '/finance/vouchers', label: 'Vouchers', icon: FileText,  perm: 'FINANCE_CREATE' },
+      { href: '/finance/ledger',   label: 'Ledgers',  icon: BookOpen,  perm: ['FINANCE_VIEW', 'FINANCE_REPORTS'] },
+      { href: '/finance/vouchers', label: 'Journal entries', icon: FileText,  perm: ['FINANCE_VIEW', 'FINANCE_REPORTS'] },
       { href: '/finance/reports',  label: 'Reports',  icon: BarChart3, perm: 'FINANCE_REPORTS' },
-      { href: '/ca-workspace',     label: 'CA Workspace', icon: ShieldCheck, dot: '#d97706', perm: 'CA_WORKSPACE_VIEW' },
+      { href: '/ca-workspace',     label: 'CA Workspace', icon: ShieldCheck, dot: '#d97706', perm: ['CA_WORKSPACE_VIEW', 'FINANCE_APPROVE'] },
     ],
   },
   {
@@ -96,19 +96,27 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Commerce',
     items: [
       { href: '/invoicing',     label: 'Invoices',   icon: FileText,  perm: 'INVOICE_VIEW' },
-      { href: '/crm/leads',     label: 'Leads',      icon: TrendingUp,perm: 'CRM_VIEW' },
+      { href: '/quotations',    label: 'Quotations', icon: ClipboardList, perm: 'INVOICE_VIEW' },
       { href: '/crm/customers', label: 'Customers',  icon: UserCheck, perm: 'CRM_VIEW' },
+      { href: '/crm/leads',     label: 'Leads',      icon: TrendingUp,perm: 'CRM_VIEW' },
+      { href: '/whatsapp',      label: 'WhatsApp',   icon: MessageCircle, perm: 'WHATSAPP_VIEW' },
+      { href: '/purchases',     label: 'Bills & expenses', icon: Receipt, perm: 'PROCUREMENT_VIEW' },
+      { href: '/procurement/vendors', label: 'Suppliers', icon: Truck, perm: 'PROCUREMENT_VIEW' },
+      { href: '/gst-export',    label: 'GST returns', icon: Landmark, perm: 'GST_RECON_VIEW' },
+      { href: '/gst-reconciler', label: 'GST credit check', icon: FileCheck2, perm: 'GST_RECON_VIEW' },
+      { href: '/tds',           label: 'TDS register', icon: Percent, perm: 'TDS_VIEW' },
     ],
   },
   {
     id: 'ops',
     label: 'Operations',
     items: [
-      { href: '/procurement/orders', label: 'Purchases',  icon: ShoppingCart, perm: 'PROCUREMENT_VIEW' },
+      { href: '/procurement/orders', label: 'Purchase orders', icon: ShoppingCart, perm: 'PROCUREMENT_VIEW' },
       { href: '/inventory/items',    label: 'Inventory',  icon: Boxes,        perm: 'INVENTORY_VIEW' },
       { href: '/projects',           label: 'Projects',   icon: FolderOpen,   perm: 'PROJECT_VIEW' },
+      { href: '/contracts',          label: 'Contracts',  icon: FileCheck2,   perm: ['SETTINGS_COMPANY', 'FINANCE_VIEW', 'PROCUREMENT_VIEW'] },
       { href: '/reports',            label: 'Analytics',  icon: BarChart3,    perm: 'REPORTS_VIEW' },
-      { href: '/marketplace',        label: 'Marketplace & API', icon: Plug,  dot: '#7c3aed', perm: 'MARKETPLACE_VIEW' },
+      { href: '/marketplace',        label: 'Marketplace & API', icon: Plug,  dot: '#7c3aed', perm: 'SETTINGS_VIEW' },
     ],
   },
   {
@@ -121,6 +129,8 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/settings/email',     label: 'Email Alerts', icon: Mail, perm: 'SETTINGS_COMPANY' },
       { href: '/settings/roles',     label: 'Roles',        icon: ClipboardList, perm: 'SETTINGS_ROLES' },
       { href: '/settings/audit-log', label: 'Audit Log',    icon: ClipboardList, perm: 'AUDIT_LOG_VIEW' },
+      { href: '/webhooks',           label: 'Webhooks',     icon: Webhook,       perm: 'SETTINGS_COMPANY' },
+      { href: '/import',             label: 'Import from Excel', icon: FileUp, perm: ['CRM_CREATE', 'PROCUREMENT_CREATE', 'INVENTORY_CREATE', 'FINANCE_CREATE', 'EMPLOYEE_CREATE'] },
     ],
   },
 ]
@@ -173,7 +183,8 @@ export function Sidebar({ onClose }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         {NAV_SECTIONS.map(section => {
           // Filter items user can access
-          const visibleItems = section.items.filter(item => !item.perm || can(item.perm))
+          // Items the user may open; features still on demo data only when previews are switched on
+          const visibleItems = section.items.filter(item => shown(item.href) && (!item.perm || (Array.isArray(item.perm) ? item.perm.some(p => can(p)) : can(item.perm))))
           if (!visibleItems.length) return null
 
           const isOpen = !collapsed[section.id]

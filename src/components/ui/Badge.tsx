@@ -18,7 +18,7 @@ const STATUS_MAP: Record<string, string> = {
   HALF_DAY: 'status-half_day', PROCESSING: 'status-processing',
   REJECTED: 'status-rejected', TERMINATED: 'status-terminated', OVERDUE: 'status-overdue',
   ABSENT: 'status-absent', LOST: 'status-lost',
-  SENT: 'status-sent', NEW: 'status-new', SUBMITTED: 'status-submitted', WFH: 'status-wfh',
+  SENT: 'status-sent', VIEWED: 'status-sent', NEW: 'status-new', SUBMITTED: 'status-submitted', WFH: 'status-wfh',
   QUALIFIED: 'status-qualified', ON_LEAVE: 'status-on_leave', ORDERED: 'status-ordered',
   INACTIVE: 'status-inactive', DRAFT: 'status-draft', CANCELLED: 'status-cancelled',
   RESIGNED: 'status-resigned',

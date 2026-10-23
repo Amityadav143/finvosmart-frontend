@@ -11,22 +11,24 @@
  */
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { financeApi } from '@/lib/api/finance'
-import { formatCurrency, exportToCsv } from '@/lib/utils'
+import { formatCurrency, exportToCsv, apiError } from '@/lib/utils'
 import { BarChart2, TrendingUp, TrendingDown, Download, FileText, RefreshCw } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, AreaChart, Area, LineChart, Line, Legend } from 'recharts'
 
-/** Rows of one statement section (income, expenses, assets…) with its total. */
-function StatementSection({ title, rows, total }: { title: string; rows: any[]; total: any }) {
+/** Rows of one statement section (income, expenses, assets…) with its total; each account opens its ledger. */
+function StatementSection({ title, rows, total, ledger }: { title: string; rows: any[]; total: any; ledger?: (id: string) => string }) {
   return (
     <>
       <tr><td colSpan={2} className="table-cell font-semibold pt-4" style={{color:'var(--text-secondary)'}}>{title}</td></tr>
       {rows.length===0 && <tr><td colSpan={2} className="table-cell text-xs" style={{color:'var(--text-muted)'}}>Nothing posted</td></tr>}
       {rows.map((r:any)=>(
         <tr key={r.id ?? r.name} className="table-row">
-          <td className="table-cell">{r.code ? <span className="font-mono text-xs mr-2" style={{color:'var(--gold)'}}>{r.code}</span> : null}{r.name}</td>
+          <td className="table-cell">{r.code ? <span className="font-mono text-xs mr-2" style={{color:'var(--gold)'}}>{r.code}</span> : null}
+            {r.id && ledger ? <Link href={ledger(r.id)} className="hover:underline" style={{color:'var(--text-primary)'}} title="Open the ledger">{r.name}</Link> : r.name}</td>
           <td className="table-cell font-mono text-right">{formatCurrency(Number(r.amount))}</td>
         </tr>
       ))}
@@ -56,7 +58,7 @@ export default function FinanceReportsPage(){
       toast.success(`Books updated — ${r?.invoicesChecked ?? 0} invoices checked`)
       qc.invalidateQueries({queryKey:['accounts']}); qc.invalidateQueries({queryKey:['trial-balance']}); qc.invalidateQueries({queryKey:['pl']}); qc.invalidateQueries({queryKey:['bs']})
     },
-    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Could not update the books'),
+    onError: (e: any) => toast.error(apiError(e, 'Could not update the books')),
   })
   // Indian financial year (April–March), from today's date.
   const today = new Date()
@@ -79,6 +81,12 @@ export default function FinanceReportsPage(){
                                                   enabled: activeTab==='pl' && !!plFrom && !!plTo && plFrom<=plTo })
   const {data:bs, isLoading:bsLoading} = useQuery({ queryKey:['bs',asOf], queryFn:()=>financeApi.balanceSheet(asOf),
                                                   enabled: activeTab==='bs' && !!asOf })
+  // Each account in a report opens its ledger for the same period (the balance sheet: its year to the date).
+  const plLedger = (id: string) => `/finance/ledger?account=${id}&from=${plFrom}&to=${plTo}`
+  const bsLedger = (id: string) => {
+    const [y, m] = asOf.split('-').map(Number)
+    return `/finance/ledger?account=${id}&from=${m >= 4 ? y : y - 1}-04-01&to=${asOf}`
+  }
   const fmtDate = (d: string) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : ''
 
   const tabs = [{k:'pl',label:'P & L'},{k:'bs',label:'Balance Sheet'},{k:'tb',label:'Trial Balance'}]
@@ -139,8 +147,8 @@ export default function FinanceReportsPage(){
               <p className="text-xs mb-3" style={{color:'var(--text-muted)'}}>{fmtDate(plFrom)} to {fmtDate(plTo)}</p>
               {plLoading ? <p className="text-sm" style={{color:'var(--text-muted)'}}>Loading…</p> : (
                 <table className="w-full text-sm"><tbody>
-                  <StatementSection title="Income" rows={pl?.income??[]} total={pl?.totalIncome}/>
-                  <StatementSection title="Expenses" rows={pl?.expenses??[]} total={pl?.totalExpenses}/>
+                  <StatementSection title="Income" rows={pl?.income??[]} total={pl?.totalIncome} ledger={plLedger}/>
+                  <StatementSection title="Expenses" rows={pl?.expenses??[]} total={pl?.totalExpenses} ledger={plLedger}/>
                   <tr style={{borderTop:'2px solid var(--border-strong)'}}>
                     <td className="table-cell font-bold">{Number(pl?.netProfit??0)>=0?'Net profit':'Net loss'}</td>
                     <td className="table-cell font-mono font-bold text-right" style={{color:Number(pl?.netProfit??0)>=0?'#22c55e':'#ef4444'}}>
@@ -182,8 +190,8 @@ export default function FinanceReportsPage(){
             <div className="card">
               <h2 className="section-title mb-1">Liabilities &amp; equity</h2>
               <table className="w-full text-sm"><tbody>
-                <StatementSection title="Liabilities" rows={bs?.liabilities??[]} total={bs?.totalLiabilities}/>
-                <StatementSection title="Equity" rows={bs?.equity??[]} total={bs?.totalEquity}/>
+                <StatementSection title="Liabilities" rows={bs?.liabilities??[]} total={bs?.totalLiabilities} ledger={bsLedger}/>
+                <StatementSection title="Equity" rows={bs?.equity??[]} total={bs?.totalEquity} ledger={bsLedger}/>
                 <tr style={{borderTop:'2px solid var(--border-strong)'}}>
                   <td className="table-cell font-bold">Total</td>
                   <td className="table-cell font-mono font-bold text-right">{formatCurrency(Number(bs?.totalLiabilitiesAndEquity??0))}</td>
@@ -193,7 +201,7 @@ export default function FinanceReportsPage(){
             <div className="card">
               <h2 className="section-title mb-1">Assets</h2>
               <table className="w-full text-sm"><tbody>
-                <StatementSection title="Assets" rows={bs?.assets??[]} total={bs?.totalAssets}/>
+                <StatementSection title="Assets" rows={bs?.assets??[]} total={bs?.totalAssets} ledger={bsLedger}/>
               </tbody></table>
             </div>
           </div>
@@ -216,7 +224,7 @@ export default function FinanceReportsPage(){
                 {(trial?.accounts??[]).map((a: any)=>(
                   <tr key={a.id ?? a.code} className="table-row">
                     <td className="table-cell"><span className="font-mono text-xs" style={{color:'var(--gold)'}}>{a.code}</span></td>
-                    <td className="table-cell font-medium">{a.name}</td>
+                    <td className="table-cell font-medium">{a.id ? <Link href={`/finance/ledger?account=${a.id}`} className="hover:underline" style={{color:'var(--text-primary)'}} title="Open the ledger">{a.name}</Link> : a.name}</td>
                     <td className="table-cell">
                       <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
                         style={{background:`rgba(${a.type==='ASSET'?'59,130,246':a.type==='LIABILITY'?'239,68,68':a.type==='INCOME'?'34,197,94':'245,158,11'},.1)`,

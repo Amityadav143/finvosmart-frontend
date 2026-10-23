@@ -9,16 +9,5 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { api } from './client'
-import type { ApiResponse, TdsEntry, TdsSection } from '@/types'
-
-export const tdsApi = {
-  detectSection: async (category: string): Promise<TdsSection> =>
-    (await api.get<ApiResponse<TdsSection>>('/tds/detect-section', { params: { category } })).data.data!,
-  calculate: async (vendorId: string, category: string, amount: number): Promise<TdsEntry> =>
-    (await api.post<ApiResponse<TdsEntry>>('/tds/calculate', null, { params: { vendorId, category, amount } })).data.data!,
-  quarterSummary: async (quarter: string) =>
-    (await api.get('/tds/quarter/' + quarter)).data.data,
-  exportForm26Q: async (quarter: string) =>
-    api.get(`/tds/export/form26q?quarter=${quarter}`, { responseType: 'blob' }),
-}
+/** The TDS register is built from supplier bills — see tdsRegisterApi in ./purchases. */
+export { tdsRegisterApi as tdsApi } from './purchases'

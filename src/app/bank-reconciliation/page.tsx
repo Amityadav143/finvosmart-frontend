@@ -10,148 +10,210 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useState, useRef } from 'react'
-import { Upload, CheckCircle, AlertTriangle, RefreshCw, Download } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { CheckCircle2, FileSpreadsheet, RefreshCw, Upload } from 'lucide-react'
+import { bankingApi, type ParsedStatement, type StatementLine, type ConfirmResult } from '@/lib/api/banking'
+import { PermissionGate } from '@/components/ui/PermissionGate'
+import { formatDate, apiError } from '@/lib/utils'
+import { inr } from '@/lib/money'
 
-const MATCHED = [
-  {bank:'NEFT CR-TCS LTD',     amount:'₹4,20,000',date:'02 Apr',je:'REC-2025-00041',conf:98.5,type:'CREDIT'},
-  {bank:'IMPS ACER INDIA',     amount:'₹1,25,000',date:'03 Apr',je:'JE-2025-00039', conf:95.2,type:'DEBIT'},
-  {bank:'RTGS INFOSYS LTD',    amount:'₹2,50,000',date:'01 Apr',je:'REC-2025-00040',conf:99.1,type:'CREDIT'},
-  {bank:'NEFT CR-HCL TECH',    amount:'₹80,000', date:'01 Apr',je:'REC-2025-00038',conf:97.3,type:'CREDIT'},
-]
-const UNMATCHED = [
-  {desc:'UPI-UNKNOWN-REF928374',amount:'₹8,500', date:'04 Apr',type:'DEBIT'},
-  {desc:'ATM WDL-POWAI-42182',  amount:'₹20,000',date:'03 Apr',type:'DEBIT'},
-  {desc:'POS-MARRIOTT-MUMBAI',  amount:'₹12,400',date:'02 Apr',type:'DEBIT'},
-]
+type Tab = 'suggested' | 'unmatched' | 'recorded' | 'out'
+const amountOf = (l: StatementLine) => Number(l.credit ?? l.debit ?? 0)
 
-export default function BankReconPage(){
-  const [stage,setStage] = useState<'idle'|'done'>('idle')
-  const [bank,setBank]   = useState('HDFC Bank')
+export default function BankReconPage() {
+  const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [data, setData] = useState<ParsedStatement | null>(null)
+  const [choice, setChoice] = useState<Record<string, number>>({})      // line key → chosen suggestion index (-1 = skip)
+  const [tab, setTab] = useState<Tab>('suggested')
+  const [result, setResult] = useState<ConfirmResult | null>(null)
+  const [file, setFile] = useState<File | null>(null)
 
-  return(
+  const show = (d: ParsedStatement) => {
+    setData(d)
+    const c: Record<string, number> = {}
+    for (const l of d.lines) if (!l.alreadyRecorded && l.suggestions[0]?.autoSelect) c[l.key] = 0
+    setChoice(c)
+  }
+
+  const parse = useMutation({
+    mutationFn: (f: File) => bankingApi.parse(f),
+    onSuccess: d => {
+      show(d); setResult(null)
+      setTab(d.lines.some(l => !l.alreadyRecorded && l.suggestions.length) ? 'suggested' : 'unmatched')
+    },
+    onError: (e: any) => toast.error(apiError(e, 'The statement could not be read')),
+  })
+
+  const groups = useMemo(() => {
+    const g: Record<Tab, StatementLine[]> = { suggested: [], unmatched: [], recorded: [], out: [] }
+    for (const l of data?.lines ?? []) {
+      if (l.alreadyRecorded) g.recorded.push(l)
+      else if (l.suggestions.length) g.suggested.push(l)
+      else if (!l.credit) g.out.push(l)
+      else g.unmatched.push(l)
+    }
+    return g
+  }, [data])
+
+  const selected = (data?.lines ?? []).filter(l => choice[l.key] !== undefined && choice[l.key] >= 0 && l.suggestions[choice[l.key]])
+  const selectedIn = selected.filter(l => l.credit).reduce((s, l) => s + Number(l.credit ?? 0), 0)
+  const selectedOut = selected.filter(l => !l.credit).reduce((s, l) => s + Number(l.debit ?? 0), 0)
+
+  const confirm = useMutation({
+    mutationFn: () => bankingApi.confirm(selected.map(l => {
+      const s = l.suggestions[choice[l.key]]
+      return { key: l.key, date: l.date, amount: amountOf(l), description: l.description, reference: l.reference,
+               allocations: s.allocations.map(a => ({ invoiceId: a.invoiceId, amount: Number(a.amount), tds: Number(a.tds ?? 0), kind: a.kind ?? 'INVOICE' })) }
+    })),
+    onSuccess: r => {
+      setResult(r)
+      qc.invalidateQueries({ queryKey: ['invoices'] }); qc.invalidateQueries({ queryKey: ['inv-stats'] })
+      qc.invalidateQueries({ queryKey: ['bills'] }); qc.invalidateQueries({ queryKey: ['payables'] })
+      if (r.recorded) toast.success(`${r.recorded} payment${r.recorded === 1 ? '' : 's'} recorded`)
+      if (r.errors.length) toast.error(`${r.errors.length} line${r.errors.length === 1 ? '' : 's'} not recorded`)
+      // read the statement again: recorded lines now show as recorded, suggestions reflect the new balances
+      if (file) bankingApi.parse(file).then(show).catch(() => setChoice({}))
+    },
+    onError: (e: any) => toast.error(apiError(e, 'The payments could not be recorded')),
+  })
+
+  const onFile = (f?: File | null) => { if (f) { setFile(f); parse.mutate(f) } }
+
+  return (
     <div className="space-y-5">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold uppercase tracking-widest" style={{color:'#2563eb',letterSpacing:'.08em'}}>F-01 — New Feature</span>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="page-title">Match bank payments</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Upload your bank statement — money received is matched to the invoice it pays, money paid out to the supplier bill it settles, and recorded once you confirm.</p>
         </div>
-        <h1 className="page-title">Bank Reconciliation</h1>
-        <p className="text-sm mt-0.5" style={{color:'var(--text-muted)'}}>Import any bank statement — AI auto-matches transactions to your journal entries</p>
+        {data && <button className="btn-secondary h-9" onClick={() => { setData(null); setResult(null); setChoice({}) }}><RefreshCw size={15} />Another statement</button>}
       </div>
 
-      {stage==='idle' && (
+      {!data && (
         <div className="card">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
-            <div>
-              <h2 className="section-title mb-3">Upload Bank Statement</h2>
-              <div className="space-y-3">
-                <div><label className="label">Bank</label>
-                  <select className="input h-10" value={bank} onChange={e=>setBank(e.target.value)}>
-                    {['HDFC Bank','SBI','ICICI Bank','Axis Bank','Kotak Mahindra','Yes Bank','IndusInd Bank','PNB'].map(b=><option key={b}>{b}</option>)}
-                  </select></div>
-                <div><label className="label">Statement Period</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input className="input h-10" type="date" defaultValue="2025-04-01"/>
-                    <input className="input h-10" type="date" defaultValue="2025-04-08"/>
-                  </div></div>
-              </div>
-              <div className="flex gap-3 mt-4">
-                <button onClick={()=>{setStage('done');toast.success('Statement reconciled — 271 of 284 matched (95.4%)')}} className="btn-primary">
-                  <RefreshCw className="w-4 h-4"/>Reconcile Demo
-                </button>
-                <button onClick={()=>fileRef.current?.click()} className="btn-secondary">
-                  <Upload className="w-4 h-4"/>Upload CSV/PDF
-                </button>
-                <input ref={fileRef} type="file" accept=".csv,.xlsx,.pdf,.ofx" className="hidden" onChange={()=>{setStage('done');toast.success('Reconciled!')}}/>
-              </div>
+          <div
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); onFile(e.dataTransfer.files?.[0]) }}
+            className="rounded-2xl flex flex-col items-center justify-center text-center gap-3 py-12 px-4 cursor-pointer"
+            style={{ border: '2px dashed var(--border-strong)' }}
+            onClick={() => fileRef.current?.click()} role="button" tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') fileRef.current?.click() }}>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--gold-muted)' }}>
+              {parse.isPending ? <RefreshCw className="animate-spin" style={{ color: 'var(--gold)' }} /> : <Upload style={{ color: 'var(--gold)' }} />}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {[['Supported formats','CSV, Excel, PDF, OFX'],['Banks','8 major Indian banks'],['Avg match rate','95%+'],['Time saved','~14 hrs/month']].map(([k,v])=>(
-                <div key={k} className="rounded-xl p-4" style={{background:'rgba(37,99,235,.05)',border:'1px solid rgba(37,99,235,.12)'}}>
-                  <p className="text-xs mb-1" style={{color:'var(--text-muted)'}}>{k}</p>
-                  <p className="font-semibold text-sm" style={{color:'#2563eb'}}>{v}</p>
-                </div>
-              ))}
-            </div>
+            <p className="font-semibold">{parse.isPending ? 'Reading the statement…' : 'Drop the statement here, or click to choose'}</p>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>CSV, Excel (.xlsx / .xls) or OFX, as downloaded from net banking — any bank (SBI, HDFC, ICICI, Axis, Kotak…). No need to choose the format.</p>
+            <input ref={fileRef} type="file" className="hidden" accept=".csv,.txt,.xlsx,.xls,.ofx,.qfx" onChange={e => { onFile(e.target.files?.[0]); e.target.value = '' }} />
           </div>
+          <ul className="text-xs mt-4 space-y-1" style={{ color: 'var(--text-muted)' }}>
+            <li>• Lines already recorded are recognised, so uploading the same statement again never records anything twice.</li>
+            <li>• Payments where the customer deducted TDS are spotted (balance due less 1%, 2%, 5% or 10% of the taxable value).</li>
+            <li>• Payments to suppliers are matched to their unpaid bills by bill number, amount and name.</li>
+            <li>• Nothing is recorded until you confirm. Matches you confirm go into the books as receipts and payments.</li>
+          </ul>
         </div>
       )}
 
-      {stage==='done' && (
+      {data && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {[
-              {l:'Total Entries', v:'284', c:'#3b82f6'},
-              {l:'Auto-Matched',  v:'271 (95.4%)', c:'#22c55e'},
-              {l:'Unmatched',    v:'13', c:'#f59e0b'},
-              {l:'Book Balance', v:'₹48.2L', c:'var(--gold)'},
-              {l:'Time Saved',   v:'14 hrs', c:'#8b5cf6'},
-            ].map(s=>(
-              <div key={s.l} className="card">
-                <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{color:'var(--text-muted)',fontSize:'9px'}}>{s.l}</p>
-                <p className="font-serif text-xl" style={{color:s.c}}>{s.v}</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Stat label="Statement" value={`${formatDate(data.from)} – ${formatDate(data.to)}`} sub={`${data.transactions} transactions · ${data.fileName}`} />
+            <Stat label="Money in" value={inr(data.totalIn)} sub={`${data.moneyIn} credits`} />
+            <Stat label="Matched" value={String(groups.suggested.length)} sub="to invoices or bills" color="#16a34a" />
+            <Stat label="Already recorded" value={String(groups.recorded.length)} sub="from earlier uploads" />
+          </div>
+          {(data.skippedRows > 0 || data.warnings.length > 0) && (
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{data.skippedRows > 0 && `${data.skippedRows} row(s) were not transactions and were skipped. `}{data.warnings.join(' ')}</p>
+          )}
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}><FileSpreadsheet className="inline w-3.5 h-3.5 mr-1" />Columns found: {data.layout}</p>
+
+          {result && (
+            <div className="card text-sm space-y-1" style={{ borderColor: result.errors.length ? '#d97706' : '#16a34a' }}>
+              <p className="font-semibold"><CheckCircle2 className="inline w-4 h-4 mr-1" style={{ color: '#16a34a' }} />{result.recorded} payment{result.recorded === 1 ? '' : 's'} recorded ({inr(result.amount)}){result.skippedAlreadyRecorded ? ` · ${result.skippedAlreadyRecorded} already recorded` : ''}</p>
+              {result.errors.map((e, i) => <p key={i} style={{ color: '#d97706' }}>{e}</p>)}
+            </div>
+          )}
+
+          <div className="flex gap-1 p-1 rounded-xl w-fit flex-wrap" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}>
+            {([['suggested', 'Matched'], ['unmatched', 'Money in, no match'], ['out', 'Money out, no match'], ['recorded', 'Already recorded']] as [Tab, string][]).map(([t, label]) => (
+              <button key={t} onClick={() => setTab(t)} className="px-3 py-1.5 rounded-lg text-sm font-medium"
+                style={{ background: tab === t ? 'var(--bg-card)' : 'transparent', color: tab === t ? 'var(--gold)' : 'var(--text-muted)' }}>
+                {label} <span className="text-xs opacity-70">{groups[t].length}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            {groups[tab].length === 0 && <div className="card text-sm" style={{ color: 'var(--text-muted)' }}>Nothing here.</div>}
+            {groups[tab].map(l => (
+              <div key={l.key} className="card py-3">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatDate(l.date)}{l.reference ? ` · ref ${l.reference}` : ''}</p>
+                    <p className="text-sm font-mono break-all">{l.description || '—'}</p>
+                  </div>
+                  <p className="font-mono font-semibold" style={{ color: l.credit ? '#16a34a' : 'var(--text-primary)' }}>{l.credit ? '+' + inr(l.credit) : '−' + inr(l.debit)}</p>
+                </div>
+                {tab === 'suggested' && (
+                  <div className="mt-2 space-y-1.5">
+                    {l.suggestions.map((s, i) => (
+                      <label key={i} className="flex items-start gap-2 rounded-lg px-2.5 py-2 cursor-pointer text-sm"
+                        style={{ background: choice[l.key] === i ? 'var(--gold-muted)' : 'var(--bg-surface)', border: `1px solid ${choice[l.key] === i ? 'var(--gold)' : 'transparent'}` }}>
+                        <input type="radio" name={`m-${l.key}`} className="mt-1" checked={choice[l.key] === i} onChange={() => setChoice(c => ({ ...c, [l.key]: i }))} />
+                        <span className="flex-1">
+                          {s.allocations[0]?.kind === 'BILL' && <span className="badge s-blue mr-1.5">Bill</span>}
+                          <span className="font-medium">{s.allocations.map(a => a.invoiceNumber).join(' + ')}</span>
+                          <span style={{ color: 'var(--text-muted)' }}> · {s.allocations[0]?.customerName}</span>
+                          {s.allocations.some(a => Number(a.tds) > 0) && <span style={{ color: 'var(--text-muted)' }}> · TDS {inr(s.allocations.reduce((x, a) => x + Number(a.tds ?? 0), 0))}</span>}
+                          <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{s.reason}</span>
+                        </span>
+                        <span className="text-xs font-semibold" style={{ color: s.confidence >= 70 ? '#16a34a' : '#d97706' }}>{s.confidence}%</span>
+                      </label>
+                    ))}
+                    <label className="flex items-center gap-2 px-2.5 text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+                      <input type="radio" name={`m-${l.key}`} checked={choice[l.key] === undefined || choice[l.key] < 0} onChange={() => setChoice(c => ({ ...c, [l.key]: -1 }))} />
+                      None of these — leave it for now
+                    </label>
+                  </div>
+                )}
+                {tab === 'unmatched' && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>No invoice fits. If it is a customer payment, open the invoice and use “Record payment”.</p>}
+                {tab === 'out' && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>No unpaid bill fits. If it is a supplier payment, record the bill (or an expense) and its payment in Bills and payables.</p>}
+                {tab === 'recorded' && <p className="text-xs mt-1" style={{ color: '#16a34a' }}>Recorded against {l.credit ? 'an invoice' : 'a bill'}.</p>}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="section-title">Matched Transactions</h2>
-                <button onClick={()=>toast.success('271 transactions posted to ledger')} className="btn-primary h-8 text-xs">
-                  <CheckCircle className="w-3.5 h-3.5"/>Post All
+          <PermissionGate permission="BANK_RECON_RUN">
+            <div className="sticky bottom-0 z-20 -mx-5 md:-mx-6 -mb-5 md:-mb-6 px-5 md:px-6 py-3 flex items-center justify-between gap-3 flex-wrap"
+              style={{ background: 'var(--bg-elevated)', borderTop: '1px solid var(--border)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{selected.length
+                ? `${selected.length} selected${selectedIn ? ` · ${inr(selectedIn)} received` : ''}${selectedOut ? ` · ${inr(selectedOut)} paid out` : ''}`
+                : 'Select the matches to record.'}</p>
+              <div className="flex gap-2">
+                <Link href="/invoicing" className="btn-secondary h-10">Invoices</Link>
+                <Link href="/purchases" className="btn-secondary h-10">Bills</Link>
+                <button className="btn-primary h-10" disabled={!selected.length || confirm.isPending} onClick={() => confirm.mutate()}>
+                  {confirm.isPending ? 'Recording…' : `Record ${selected.length || ''} payment${selected.length === 1 ? '' : 's'}`}
                 </button>
               </div>
-              <div className="space-y-2">
-                {MATCHED.map((m,i)=>(
-                  <div key={i} className="flex items-center justify-between p-3 rounded-xl"
-                    style={{background:'rgba(34,197,94,.05)',border:'1px solid rgba(34,197,94,.15)'}}>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold truncate">{m.bank}</p>
-                      <p className="font-mono text-xs mt-0.5" style={{color:'var(--gold)',fontSize:'10px'}}>{m.je}</p>
-                    </div>
-                    <div className="text-right ml-3 flex-shrink-0">
-                      <p className="font-mono text-sm font-bold" style={{color:m.type==='CREDIT'?'#22c55e':'#ef4444'}}>{m.amount}</p>
-                      <p className="text-xs" style={{color:'#22c55e'}}>{m.conf}%</p>
-                    </div>
-                  </div>
-                ))}
-                <p className="text-center text-xs py-2" style={{color:'var(--text-muted)'}}>+ 267 more matched transactions</p>
-              </div>
             </div>
-
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="section-title">Needs Review</h2>
-                <span className="text-xs px-2 py-1 rounded-full font-bold" style={{background:'rgba(245,158,11,.1)',color:'var(--gold)'}}>13 items</span>
-              </div>
-              <div className="space-y-2">
-                {UNMATCHED.map((u,i)=>(
-                  <div key={i} className="flex items-center justify-between p-3 rounded-xl"
-                    style={{background:'rgba(245,158,11,.05)',border:'1px solid rgba(245,158,11,.15)'}}>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold truncate">{u.desc}</p>
-                      <p className="text-xs mt-0.5" style={{color:'var(--text-muted)'}}>{u.date}</p>
-                    </div>
-                    <div className="text-right ml-3 flex-shrink-0">
-                      <p className="font-mono text-sm font-bold" style={{color:'#f59e0b'}}>{u.amount}</p>
-                      <button onClick={()=>toast('Select a journal entry to match')} className="text-xs" style={{color:'#3b82f6'}}>Match →</button>
-                    </div>
-                  </div>
-                ))}
-                <p className="text-center text-xs py-2" style={{color:'var(--text-muted)'}}>+ 10 more unmatched</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3">
-            <button className="btn-secondary" onClick={()=>toast.success('Reconciliation report exported')}><Download className="w-4 h-4"/>Export Report</button>
-            <button onClick={()=>setStage('idle')} className="btn-ghost text-sm">Start New</button>
-          </div>
+          </PermissionGate>
         </>
       )}
+    </div>
+  )
+}
+
+function Stat({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+  return (
+    <div className="card">
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</p>
+      <p className="font-semibold mt-1" style={{ color }}>{value}</p>
+      {sub && <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
     </div>
   )
 }

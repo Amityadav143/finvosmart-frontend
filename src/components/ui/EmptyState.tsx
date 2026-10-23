@@ -19,6 +19,8 @@ interface EmptyStateProps {
   description?: string
   /** Primary call-to-action */
   action?: { label: string; onClick?: () => void; href?: string }
+  /** A second, quieter way to start (e.g. "Import from Excel") */
+  secondary?: { label: string; onClick?: () => void; href?: string }
   /** Optional secondary hint below the action */
   hint?: string
   compact?: boolean
@@ -29,7 +31,7 @@ interface EmptyStateProps {
  * Replaces blank areas with guidance and a clear next step, which makes new
  * accounts feel intentional and helps users understand what to do.
  */
-export function EmptyState({ icon: Icon = Inbox, title, description, action, hint, compact }: EmptyStateProps) {
+export function EmptyState({ icon: Icon = Inbox, title, description, action, secondary, hint, compact }: EmptyStateProps) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
@@ -44,12 +46,17 @@ export function EmptyState({ icon: Icon = Inbox, title, description, action, hin
       </div>
       <h3 style={{ fontSize: compact ? '16px' : '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>{title}</h3>
       {description && (
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '380px', marginBottom: action ? '22px' : 0 }}>{description}</p>
+        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '420px', marginBottom: action || secondary ? '22px' : 0 }}>{description}</p>
       )}
-      {action && (
-        action.href
-          ? <Link href={action.href} className="btn-primary" style={{ textDecoration: 'none' }}>{action.label}</Link>
-          : <button onClick={action.onClick} className="btn-primary">{action.label}</button>
+      {(action || secondary) && (
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          {action && (action.href
+            ? <Link href={action.href} className="btn-primary" style={{ textDecoration: 'none' }}>{action.label}</Link>
+            : <button onClick={action.onClick} className="btn-primary">{action.label}</button>)}
+          {secondary && (secondary.href
+            ? <Link href={secondary.href} className="btn-secondary" style={{ textDecoration: 'none' }}>{secondary.label}</Link>
+            : <button onClick={secondary.onClick} className="btn-secondary">{secondary.label}</button>)}
+        </div>
       )}
       {hint && <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginTop: '14px' }}>{hint}</p>}
     </div>

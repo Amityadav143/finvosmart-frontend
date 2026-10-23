@@ -8,7 +8,6 @@
  * Unauthorized copying, distribution, modification, or use of this file,
  * via any medium, is strictly prohibited without prior written permission.
  */
-
 import { AppLayout } from '@/components/layout/AppLayout'
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <AppLayout>{children}</AppLayout>

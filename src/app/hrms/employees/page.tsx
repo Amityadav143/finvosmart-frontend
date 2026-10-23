@@ -11,18 +11,23 @@
  */
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Link from 'next/link'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { hrmsApi } from '@/lib/api/hrms'
+import { EmployeeModal } from '@/components/hrms/EmployeeModal'
+import { SalarySetupModal } from '@/components/payroll/SalarySetupModal'
+import { usePermissions } from '@/lib/hooks/usePermissions'
 import { DataTable } from '@/components/ui/Table'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/Badge'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { Pagination } from '@/components/ui/Pagination'
-import { Modal } from '@/components/ui/Modal'
 import { StatCard } from '@/components/ui/StatCard'
 import { formatDate } from '@/lib/utils'
 import { useDebounce } from '@/lib/hooks'
+import { useUrlParams } from '@/lib/hooks/useUrlParams'
 import type { Employee } from '@/types'
-import { Plus, Download, Users, UserCheck, UserX, Briefcase, LayoutGrid, List } from 'lucide-react'
+import { Plus, Download, Users, UserCheck, UserX, Briefcase, LayoutGrid, List, FileUp } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
@@ -33,8 +38,26 @@ export default function EmployeesPage() {
   const [status, setStatus] = useState('')
   const [view, setView] = useState<'list'|'grid'>('list')
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ firstName: '', lastName: '', officialEmail: '', employmentType: 'PERMANENT', dateOfJoining: new Date().toISOString().split('T')[0] })
+  const [prefill, setPrefill] = useState<Record<string, string> | undefined>()
+  const [editing, setEditing] = useState<Employee | null>(null)
+  const [salaryFor, setSalaryFor] = useState<string | null>(null)
+  const { isAdmin, isHR, isSuperAdmin } = usePermissions()
+  const canAdd = isAdmin || isHR || isSuperAdmin
   const dq = useDebounce(q, 400)
+  useUrlParams(p => {
+    if (p.get('q')) setQ(p.get('q')!)
+    if (p.get('new') === '1' && canAdd) {
+      // e.g. a candidate just hired: /hrms/employees?new=1&name=…&email=…&phone=…&ctc=…
+      const parts = (p.get('name') ?? '').trim().split(/\s+/).filter(Boolean)
+      const fill: Record<string, string> = {}
+      if (parts.length) { fill.firstName = parts[0]; fill.lastName = parts.length > 1 ? parts.slice(1).join(' ') : '' }
+      if (p.get('email')) fill.officialEmail = p.get('email')!
+      if (p.get('phone')) fill.phonePrimary = p.get('phone')!
+      if (p.get('ctc') && /^\d+$/.test(p.get('ctc')!)) fill.ctcAnnual = p.get('ctc')!
+      setPrefill(Object.keys(fill).length ? fill : undefined)
+      setShowCreate(true)
+    }
+  }, ['name', 'email', 'phone', 'ctc'])
 
   const { data, isLoading } = useQuery({
     queryKey: ['employees', page, dq, status],
@@ -42,11 +65,15 @@ export default function EmployeesPage() {
   })
   const { data: stats } = useQuery({ queryKey: ['emp-stats'], queryFn: hrmsApi.employees.stats })
 
-  const createMutation = useMutation({
-    mutationFn: (d: any) => hrmsApi.employees.create(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['employees'] }); setShowCreate(false); toast.success('Employee added') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed'),
-  })
+  /** Opens an employee with their full record (the list carries only a summary). */
+  const open = async (e: Employee) => {
+    try { setEditing(await hrmsApi.employees.get(e.id)) }
+    catch { toast.error('This employee could not be opened') }
+  }
+  const saved = () => {
+    qc.invalidateQueries({ queryKey: ['employees'] }); qc.invalidateQueries({ queryKey: ['emp-stats'] })
+    setShowCreate(false); setEditing(null); setPrefill(undefined)
+  }
 
   const hashColor = (code?: string) => {
     const seed = (code?.charCodeAt(4) ?? 0) + (code?.charCodeAt(5) ?? 0)
@@ -85,19 +112,21 @@ export default function EmployeesPage() {
 
   const exportEmployees = async () => {
     try {
-      const { api } = await import('@/lib/api/client')
-      const res = await api.get('/employees?size=1000')
-      const emps = res.data.data?.content ?? []
-      const rows = ['Name,Email,Phone,Department,Designation,Status,Join Date']
-      emps.forEach((e: any) => rows.push(
-        `"${e.fullName}","${e.email}","${e.phone ?? ''}","${e.department ?? ''}","${e.designation ?? ''}","${e.status}","${e.joiningDate ?? ''}"`
-      ))
-      const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
+      const all = await hrmsApi.employees.list({ page: 0, size: 1000, query: dq || undefined, status: status || undefined })
+      const cell = (v: unknown) => {
+        let t = v == null ? '' : String(v)
+        if (/^[=+\-@]/.test(t)) t = "'" + t                                     // never a spreadsheet formula
+        return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
+      }
+      const rows = [['Code', 'Name', 'Work email', 'Mobile', 'Department', 'Designation', 'Type', 'Status', 'Joined', 'Left'].join(',')]
+      all.content.forEach((e: Employee) => rows.push([e.employeeCode, e.fullName, e.officialEmail, e.phonePrimary, e.departmentName, e.designationName,
+        e.employmentType, e.status, e.dateOfJoining, e.dateOfExit].map(cell).join(',')))
+      const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url; a.download = 'employees.csv'; a.click(); URL.revokeObjectURL(url)
-      import('react-hot-toast').then(({ default: toast }) => toast.success('Employee list exported'))
-    } catch { console.error('Export failed') }
+      a.href = url; a.download = 'employees.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+      toast.success('Employee list exported')
+    } catch { toast.error('Export failed') }
   }
 
 
@@ -108,7 +137,7 @@ export default function EmployeesPage() {
         <StatCard label="Active"    value={stats?.totalActive ?? 0} icon={Users}      accent="#3b82f6" format="number" delay={0} />
         <StatCard label="On Notice" value={stats?.onNotice    ?? 0} icon={UserX}      accent="#f59e0b" format="number" delay={60} />
         <StatCard label="On Leave"  value={stats?.onLeave     ?? 0} icon={UserCheck}  accent="#8b5cf6" format="number" delay={120} />
-        <StatCard label="In Query"  value={data?.totalElements ?? 0} icon={Briefcase}  accent="#14b8a6" format="number" delay={180} />
+        <StatCard label={dq || status ? 'Matching your search' : 'All employees'} value={data?.totalElements ?? 0} icon={Briefcase}  accent="#14b8a6" format="number" delay={180} />
       </div>
 
       {/* Toolbar */}
@@ -127,14 +156,22 @@ export default function EmployeesPage() {
             <button onClick={() => setView('grid')} className="btn-icon rounded-none border-0 border-l w-9 h-9" style={{ borderColor: 'var(--border)', background: view==='grid' ? 'var(--gold-muted)' : 'transparent', color: view==='grid' ? 'var(--gold)' : 'var(--text-muted)' }}><LayoutGrid className="w-4 h-4" /></button>
           </div>
           <button className="btn-secondary h-10 text-sm" onClick={exportEmployees}><Download className="w-4 h-4" />Export CSV</button>
-          <button onClick={() => setShowCreate(true)} className="btn-primary h-10 text-sm"><Plus className="w-4 h-4" />Add Employee</button>
+          {canAdd && <Link href="/import?kind=employees" className="btn-secondary h-10 text-sm"><FileUp className="w-4 h-4" />Import</Link>}
+          {canAdd && <button onClick={() => { setPrefill(undefined); setShowCreate(true) }} className="btn-primary h-10 text-sm"><Plus className="w-4 h-4" />Add employee</button>}
         </div>
       </div>
 
       {/* Table or Grid */}
       {view === 'list' ? (
         <>
-          <DataTable columns={columns} data={data?.content ?? []} loading={isLoading} keyExtractor={e => e.id} emptyMessage="No employees match your search" />
+          <DataTable columns={columns} data={data?.content ?? []} loading={isLoading} keyExtractor={e => e.id} onRowClick={open}
+            emptyMessage="No employees match your search."
+            empty={q || status ? undefined : (
+              <EmptyState compact icon={Users} title="No employees yet"
+                description="Add your team with joining date, PAN, bank, PF and ESI details — attendance, leave, payroll and payslips build on these."
+                action={canAdd ? { label: 'Add an employee', onClick: () => setShowCreate(true) } : undefined}
+                secondary={canAdd ? { label: 'Import from Excel', href: '/import?kind=employees' } : undefined} />
+            )} />
           {data && <Pagination currentPage={data.currentPage} totalPages={data.totalPages} onPageChange={setPage} totalElements={data.totalElements} pageSize={20} />}
         </>
       ) : (
@@ -143,7 +180,7 @@ export default function EmployeesPage() {
           (data?.content ?? []).map((e: any, idx: any) => {
             const c = hashColor(e.employeeCode)
             return (
-              <div key={e.id} className="card" style={{ animationDelay: `${idx * 0.04}s` }}>
+              <button key={e.id} type="button" className="card text-left" style={{ animationDelay: `${idx * 0.04}s` }} onClick={() => open(e)}>
                 <div className="flex items-start gap-3 mb-4">
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: c.bg, color: c.text }}>{e.firstName?.[0]}{e.lastName?.[0]}</div>
                   <div className="flex-1 min-w-0">
@@ -157,35 +194,19 @@ export default function EmployeesPage() {
                   <StatusBadge status={e.status} />
                   <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{formatDate(e.dateOfJoining)}</span>
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>
       )}
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Add New Employee" subtitle="Fill in the details to onboard an employee">
-        <form onSubmit={e => { e.preventDefault(); createMutation.mutate(form) }} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">First Name *</label><input className="input h-10" required value={form.firstName} onChange={e => setForm(f => ({...f, firstName: e.target.value}))} /></div>
-            <div><label className="label">Last Name *</label><input className="input h-10" required value={form.lastName} onChange={e => setForm(f => ({...f, lastName: e.target.value}))} /></div>
-          </div>
-          <div><label className="label">Official Email</label><input className="input h-10" type="email" value={form.officialEmail} onChange={e => setForm(f => ({...f, officialEmail: e.target.value}))} /></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">Type *</label>
-              <select className="input h-10" value={form.employmentType} onChange={e => setForm(f => ({...f, employmentType: e.target.value}))}>
-                <option value="PERMANENT">Permanent</option><option value="CONTRACT">Contract</option>
-                <option value="INTERN">Intern</option><option value="CONSULTANT">Consultant</option>
-              </select></div>
-            <div><label className="label">Date of Joining *</label><input className="input h-10" type="date" required value={form.dateOfJoining} onChange={e => setForm(f => ({...f, dateOfJoining: e.target.value}))} /></div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2" style={{ borderTop: '1px solid var(--border)', marginTop: '20px', paddingTop: '16px' }}>
-            <button type="button" onClick={() => setShowCreate(false)} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={createMutation.isPending} className="btn-primary">
-              {createMutation.isPending ? 'Creating...' : 'Create Employee'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {(showCreate || editing) && (
+        <EmployeeModal employee={editing} prefill={editing ? undefined : prefill} onClose={() => { setShowCreate(false); setEditing(null); setPrefill(undefined) }} onSaved={saved}
+          onSalary={id => { setEditing(null); setSalaryFor(id) }} />
+      )}
+      {salaryFor && (
+        <SalarySetupModal employeeId={salaryFor} onClose={() => setSalaryFor(null)} onSaved={() => { setSalaryFor(null); qc.invalidateQueries({ queryKey: ['payroll-setups'] }) }} />
+      )}
     </div>
   )
 }

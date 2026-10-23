@@ -11,7 +11,7 @@
 
 import type { Metadata } from 'next'
 import { JsonLd } from '@/components/seo/JsonLd'
-import { breadcrumbSchema, softwareSchema, pageMetadata } from '@/lib/seo'
+import { softwareSchema, pageMetadata, pageSchema } from '@/lib/seo'
 
 // Title, description, canonical and social preview come from src/lib/seo.ts.
 export const metadata: Metadata = pageMetadata('pricing')
@@ -19,7 +19,7 @@ export const metadata: Metadata = pageMetadata('pricing')
 export default function PricingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <JsonLd nodes={[breadcrumbSchema('pricing'), softwareSchema()]} />
+      <JsonLd nodes={pageSchema('pricing', softwareSchema())} />
       {children}
     </>
   )

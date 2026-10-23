@@ -10,7 +10,28 @@
  */
 
 import { api } from './client'
-import type { ApiResponse, Account, JournalEntry, JournalEntryLine, TrialBalance } from '@/types'
+import { download } from './purchases'
+import type { ApiResponse, Account, JournalEntry, JournalEntryLine, PageResponse, TrialBalance } from '@/types'
+
+type Amount = number | string
+
+/** One line of an account's ledger (AccountLedger.Line). */
+export interface LedgerLine {
+  date: string; entryId: string; entryNumber: string; entryType: string; narration?: string | null
+  /** The accounts on the other side of the entry. */
+  particulars: string
+  debit: Amount; credit: Amount
+  /** The balance after this line, and its side ("Dr", "Cr", or "" for nil). */
+  balance: Amount; side: string
+  voucherLink?: string | null; documentLink?: string | null
+}
+
+/** AccountLedgerService.View */
+export interface AccountLedgerView {
+  account: { id: string; code: string; name: string; type: string; system: boolean }
+  ledger: { from: string; to: string; opening: Amount; openingSide: string; lines: LedgerLine[]
+            totalDebit: Amount; totalCredit: Amount; closing: Amount; closingSide: string }
+}
 
 export interface TrialBalanceReport {
   accounts: { id?: string; code: string; name: string; type: string; balance: number; debit: number; credit: number }[]
@@ -25,10 +46,22 @@ export const financeApi = {
   },
   journalEntries: {
     list: async (params: { page?: number; size?: number; type?: string } = {}) =>
-      (await api.get('/finance/journal-entries', { params })).data.data,
+      (await api.get<ApiResponse<PageResponse<JournalEntry>>>('/finance/journal-entries', { params })).data.data!,
+    /** One entry with its lines (opened from a link). */
+    get: async (id: string) => (await api.get<ApiResponse<JournalEntry>>(`/finance/journal-entries/${id}`)).data.data!,
     create: async (d: { entryType: string; entryDate: string; narration: string; lines: Omit<JournalEntryLine,'id'>[] }) =>
       (await api.post<ApiResponse<JournalEntry>>('/finance/journal-entries', d)).data.data!,
+    /** Posts the mirror image of a manual entry, dated today. */
+    reverse: async (id: string, reason?: string) =>
+      (await api.post<ApiResponse<JournalEntry>>(`/finance/journal-entries/${id}/reverse`, { reason: reason || null })).data.data!,
   },
+  /** An account's ledger for a period (default: this financial year to today). */
+  ledger: async (accountId: string, from?: string, to?: string): Promise<AccountLedgerView> =>
+    (await api.get<ApiResponse<AccountLedgerView>>(`/finance/accounts/${accountId}/ledger`, { params: { from, to } })).data.data!,
+  ledgerPdf: (accountId: string, from: string, to: string, code: string) =>
+    download(`/finance/accounts/${accountId}/ledger/pdf`, { from, to }, `Ledger_${code.replace(/[^A-Za-z0-9-]+/g, '')}_${from}_to_${to}.pdf`),
+  ledgerCsv: (accountId: string, from: string, to: string, code: string) =>
+    download(`/finance/accounts/${accountId}/ledger/csv`, { from, to }, `Ledger_${code.replace(/[^A-Za-z0-9-]+/g, '')}_${from}_to_${to}.csv`),
   // Computed from posted ledger entries; debit/credit are already on the correct side.
   trialBalance: async (): Promise<TrialBalanceReport | null> =>
     (await api.get<ApiResponse<TrialBalanceReport>>('/finance/trial-balance')).data.data ?? null,

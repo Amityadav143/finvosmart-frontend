@@ -10,6 +10,8 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
+import { notAvailableYet } from '@/lib/notAvailable'
 import { useState } from 'react'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
@@ -33,7 +35,7 @@ const POLICY = [
   {cat:'Hotel / Travel',  limit:'Manager approval',monthly:'No limit'},
 ]
 
-export default function ExpenseClaimsPage(){
+function ExpenseClaimsPage(){
   const [showNew,setShowNew]=useState(false)
   const [form,setForm]=useState({category:'Travel',amount:'',vendor:'',remarks:''})
 
@@ -134,10 +136,15 @@ export default function ExpenseClaimsPage(){
             <input className="input h-10" value={form.vendor} onChange={e=>setForm(f=>({...f,vendor:e.target.value}))}/></div>
           <div className="flex justify-end gap-3 pt-2" style={{borderTop:'1px solid var(--border)'}}>
             <button onClick={()=>setShowNew(false)} className="btn-secondary">Cancel</button>
-            <button onClick={()=>{toast.success('Claim submitted — auto-processing...');setShowNew(false)}} className="btn-primary">Submit Claim</button>
+            <button onClick={()=>{notAvailableYet('Submitting expense claims')}} className="btn-primary">Submit Claim</button>
           </div>
         </div>
       </Modal>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="expense-claims"><ExpenseClaimsPage /></PreviewGate>
 }

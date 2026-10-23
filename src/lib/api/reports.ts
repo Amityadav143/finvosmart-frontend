@@ -13,10 +13,4 @@ import { api } from './client'
 
 export const reportsApi = {
   dashboardSummary: async () => (await api.get('/reports/dashboard-summary')).data.data,
-  topCustomers: async (limit = 10) =>
-    (await api.get('/reports/top-customers', { params: { limit } })).data.data ?? [],
-  revenueByMonth: async (year: number) =>
-    (await api.get('/reports/revenue-by-month', { params: { year } })).data.data ?? [],
-  expensesByCategory: async (from: string, to: string) =>
-    (await api.get('/reports/expenses-by-category', { params: { from, to } })).data.data ?? [],
 }

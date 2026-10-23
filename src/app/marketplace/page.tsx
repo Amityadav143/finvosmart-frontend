@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
@@ -18,6 +19,7 @@ import {
   CheckCircle2, RefreshCw, AlertTriangle, Code, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiError } from '@/lib/utils'
 
 type Tab = 'integrations' | 'api-keys'
 
@@ -52,7 +54,7 @@ const CATEGORY_META: Record<string, { label: string; icon: any; color: string }>
   ACCOUNTING: { label: 'Accounting',  icon: BookOpen,     color: '#2563EB' },
 }
 
-export default function MarketplacePage() {
+function MarketplacePage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('integrations')
   const [showKey, setShowKey] = useState(false)
@@ -74,17 +76,17 @@ export default function MarketplacePage() {
     mutationFn: (p: { provider: string; category: string; displayName: string }) =>
       api.post('/marketplace/integrations/connect', { ...p, configJson: '{}' }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mkt-integrations'] }); toast.success('Integration connected') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed to connect'),
+    onError: (e: any) => toast.error(apiError(e, 'Failed to connect')),
   })
   const disconnect = useMutation({
     mutationFn: (id: string) => api.post(`/marketplace/integrations/${id}/disconnect`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mkt-integrations'] }); toast.success('Disconnected') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed to disconnect'),
+    onError: (e: any) => toast.error(apiError(e, 'Failed to disconnect')),
   })
   const sync = useMutation({
     mutationFn: (id: string) => api.post(`/marketplace/integrations/${id}/sync`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mkt-integrations'] }); toast.success('Sync triggered') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Sync failed'),
+    onError: (e: any) => toast.error(apiError(e, 'Sync failed')),
   })
   const issueKey = useMutation({
     mutationFn: () => api.post('/marketplace/api-keys', keyForm).then(r => r.data.data),
@@ -93,12 +95,12 @@ export default function MarketplacePage() {
       setShowKey(false); setNewKey({ key: data.key, name: data.name })
       setKeyForm({ name: '', scopes: 'invoices:read,customers:read', rateTier: 'FREE' })
     },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed to issue key'),
+    onError: (e: any) => toast.error(apiError(e, 'Failed to issue key')),
   })
   const revokeKey = useMutation({
     mutationFn: (id: string) => api.post(`/marketplace/api-keys/${id}/revoke`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mkt-apikeys'] }); toast.success('Key revoked') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed to revoke'),
+    onError: (e: any) => toast.error(apiError(e, 'Failed to revoke')),
   })
 
   const connectedMap = new Map((integrations as Integration[]).map(i => [i.provider, i]))
@@ -287,4 +289,9 @@ export default function MarketplacePage() {
       )}
     </div>
   )
+}
+
+/** Still a preview: integrations don't reach the providers yet, and API keys aren't accepted for sign-in yet. */
+export default function Page() {
+  return <PreviewGate feature="integrations"><MarketplacePage /></PreviewGate>
 }

@@ -10,101 +10,107 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useState } from 'react'
-import { formatCurrency } from '@/lib/utils'
-import { StatusBadge } from '@/components/ui/Badge'
-import { Download, AlertCircle } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { tdsRegisterApi } from '@/lib/api/purchases'
+import { Notice } from '@/components/invoicing/InvoiceForm'
+import { formatDate } from '@/lib/utils'
+import { inr, todayIST } from '@/lib/money'
+import { addDays, quarterOf } from '@/lib/purchases'
 
-const ENTRIES=[
-  {vendor:'Acer India Pvt Ltd', pan:'AAACI1234A',section:'194C',payment:125000,rate:2,tds:2500,date:'02 Apr',status:'DEDUCTED'},
-  {vendor:'Infosys Consulting', pan:'AAIIF0121H',section:'194J',payment:185000,rate:10,tds:18500,date:'01 Apr',status:'DEDUCTED'},
-  {vendor:'Office Lease (Powai)',pan:'AAACO4567G',section:'194I',payment:80000,rate:10,tds:8000,date:'01 Apr',status:'DEDUCTED'},
-  {vendor:'Tech Writer - Ravi K.',pan:'AAAPR9012K',section:'194J',payment:30000,rate:10,tds:3000,date:'03 Apr',status:'DEDUCTED'},
-  {vendor:'Transport - FastMove', pan:'AABCT3456L',section:'194C',payment:18000,rate:1,tds:180,date:'04 Apr',status:'PENDING'},
-]
+export default function TdsRegisterPage() {
+  const [anchor, setAnchor] = useState(todayIST())
+  const q = useMemo(() => quarterOf(anchor), [anchor])
+  const { data: reg, isLoading, isError } = useQuery({ queryKey: ['tds-register', q.from, q.to], queryFn: () => tdsRegisterApi.register(q.from, q.to) })
+  const today = todayIST()
 
-const SECTIONS=[
-  {sec:'194C',desc:'Payments to contractors/sub-contractors',rateInd:'1%',rateCo:'2%',thresh:'₹30,000 per contract / ₹1L annual'},
-  {sec:'194J',desc:'Professional / technical service fees',rateInd:'10%',rateCo:'10%',thresh:'₹30,000 per annum'},
-  {sec:'194I',desc:'Rent (land, building, machinery)',rateInd:'10%',rateCo:'10%',thresh:'₹2,40,000 per annum'},
-  {sec:'194H',desc:'Commission or brokerage',rateInd:'5%',rateCo:'5%',thresh:'₹15,000 per annum'},
-]
-
-export default function TdsPage(){
-  const [quarter,setQuarter]=useState('Q4 FY 2024-25')
-  const totalTds=ENTRIES.reduce((s,e)=>s+e.tds,0)
-
-  return(
+  return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <span className="text-xs font-bold uppercase tracking-widest" style={{color:'#b45309',letterSpacing:'.08em'}}>F-05 — New Feature</span>
-          <h1 className="page-title">TDS Calculator & Tracker</h1>
-          <p className="text-sm mt-0.5" style={{color:'var(--text-muted)'}}>Auto-detect TDS section · Deduct at correct rate · Track challans · Generate Form 26Q</p>
+          <h1 className="page-title">TDS register</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Income tax deducted on supplier bills — what to deposit each month, and for the quarterly TDS statement</p>
         </div>
-        <div className="flex gap-2">
-          <select className="input h-9 w-44 text-sm" value={quarter} onChange={e=>setQuarter(e.target.value)}>
-            {['Q1 FY 2024-25','Q2 FY 2024-25','Q3 FY 2024-25','Q4 FY 2024-25'].map(q=><option key={q}>{q}</option>)}
-          </select>
-          <button onClick={()=>toast('Form 26Q data exported')} className="btn-secondary h-9"><Download className="w-4 h-4"/>Form 26Q</button>
+        <div className="flex items-center gap-2">
+          <button className="btn-icon w-9 h-9" aria-label="Previous quarter" onClick={() => setAnchor(addDays(q.from, -1))}><ChevronLeft size={16} /></button>
+          <span className="text-sm font-semibold w-32 text-center">{q.label}</span>
+          <button className="btn-icon w-9 h-9" aria-label="Next quarter" disabled={q.to >= today} onClick={() => setAnchor(addDays(q.to, 1))}><ChevronRight size={16} /></button>
+          <button className="btn-secondary h-9" onClick={() => tdsRegisterApi.csv(q.from, q.to).catch(() => toast.error('Export failed'))}><Download size={15} />CSV</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[{l:'Total Payments',v:formatCurrency(ENTRIES.reduce((s,e)=>s+e.payment,0)),c:'#3b82f6'},
-          {l:'TDS Deducted',  v:formatCurrency(totalTds),c:'var(--gold)'},
-          {l:'Challan Due',   v:'7 May 2025',c:'#ef4444'},
-          {l:'Form 26Q Status',v:'Ready',c:'#22c55e'}].map(s=>(
-          <div key={s.l} className="card">
-            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{color:'var(--text-muted)',fontSize:'9px'}}>{s.l}</p>
-            <p className="font-serif text-xl" style={{color:s.c}}>{s.v}</p>
+      {isLoading && <div className="card text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</div>}
+      {isError && <div className="card text-sm" style={{ color: '#dc2626' }}>The register couldn't be loaded.</div>}
+
+      {reg && (
+        <>
+          {reg.missingPan > 0 && <Notice tone="amber">{reg.missingPan} deduction{reg.missingPan === 1 ? ' is' : 's are'} for suppliers without a valid PAN: the higher rate (generally 20%) applies, and the TDS statement needs their PAN. Add it on the supplier.</Notice>}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="card"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>TDS deducted</p><p className="font-serif text-2xl mt-1" style={{ color: 'var(--gold)' }}>{inr(reg.totalTds)}</p><p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{reg.count} bill{reg.count === 1 ? '' : 's'}</p></div>
+            <div className="card"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>On payments of</p><p className="font-serif text-2xl mt-1">{inr(reg.totalBase)}</p><p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>value before GST</p></div>
+            <div className="card lg:col-span-2"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quarterly TDS statement</p><p className="font-serif text-2xl mt-1">Due {formatDate(reg.statementDue)}</p><p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>For {q.label}. From April 2026 these deductions are under section 393 of the Income-tax Act, 2025.</p></div>
           </div>
-        ))}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card">
-          <h2 className="section-title mb-4">TDS Deductions — {quarter}</h2>
-          <div className="table-wrap">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="card">
+              <h3 className="font-semibold text-sm mb-2">Deposit by month</h3>
+              {reg.months.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No TDS deducted in this quarter.</p>}
+              <div className="space-y-1.5">
+                {reg.months.map(m => (
+                  <div key={m.month} className="flex items-center justify-between text-sm">
+                    <span>{m.label} <span className="text-xs" style={{ color: 'var(--text-muted)' }}>· {m.count} bill{m.count === 1 ? '' : 's'}</span></span>
+                    <span className="flex items-center gap-3"><span className="text-xs" style={{ color: m.depositDue < today ? 'var(--text-muted)' : '#d97706' }}>by {formatDate(m.depositDue)}</span><span className="font-mono">{inr(m.tds)}</span></span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>TDS is paid to the government by the 7th of the next month (March: by 30 April) through challan on the income-tax portal.</p>
+            </div>
+            <div className="card">
+              <h3 className="font-semibold text-sm mb-2">By kind of payment</h3>
+              {reg.natures.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>—</p>}
+              <div className="space-y-1.5">
+                {reg.natures.map(n => (
+                  <div key={n.nature} className="flex items-center justify-between text-sm gap-3">
+                    <span className="truncate">{n.label} <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{n.section}</span></span>
+                    <span className="font-mono shrink-0">{inr(n.tds)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="card p-0 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
-                {['Vendor','PAN','Section','Payment','Rate','TDS','Date','Status'].map(h=><th key={h} className="table-header">{h}</th>)}
-              </tr></thead>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                  <th className="text-left font-medium px-4 py-3">Bill</th>
+                  <th className="text-left font-medium px-3 py-3">Supplier</th>
+                  <th className="text-left font-medium px-3 py-3">Kind</th>
+                  <th className="text-right font-medium px-3 py-3">Amount</th>
+                  <th className="text-right font-medium px-3 py-3">Rate</th>
+                  <th className="text-right font-medium px-4 py-3">TDS</th>
+                </tr>
+              </thead>
               <tbody>
-                {ENTRIES.map((e,i)=>(
-                  <tr key={i} className="table-row">
-                    <td className="table-cell font-medium text-sm">{e.vendor}</td>
-                    <td className="table-cell font-mono text-xs">{e.pan}</td>
-                    <td className="table-cell"><span className="text-xs px-2 py-1 rounded-full font-semibold" style={{background:'rgba(180,83,9,.1)',color:'#b45309'}}>{e.section}</span></td>
-                    <td className="table-cell font-mono text-sm">{formatCurrency(e.payment)}</td>
-                    <td className="table-cell font-mono text-sm">{e.rate}%</td>
-                    <td className="table-cell font-mono text-sm font-semibold" style={{color:'var(--gold)'}}>{formatCurrency(e.tds)}</td>
-                    <td className="table-cell text-xs">{e.date}</td>
-                    <td className="table-cell"><StatusBadge status={e.status}/></td>
+                {reg.entries.map(e => (
+                  <tr key={e.billId} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td className="px-4 py-2.5"><Link href={`/purchases/bills/${e.billId}`} className="font-mono text-xs underline">{e.referenceNumber}</Link><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatDate(e.date)}</p></td>
+                    <td className="px-3 py-2.5"><p>{e.vendorName}</p><p className="text-xs font-mono" style={{ color: e.panMissing ? '#dc2626' : 'var(--text-muted)' }}>{e.pan || 'No PAN'}</p></td>
+                    <td className="px-3 py-2.5 text-xs">{e.natureLabel}<p className="font-mono" style={{ color: 'var(--text-muted)' }}>{e.section}</p></td>
+                    <td className="px-3 py-2.5 text-right font-mono">{inr(e.base)}</td>
+                    <td className="px-3 py-2.5 text-right font-mono">{Number(e.rate)}%</td>
+                    <td className="px-4 py-2.5 text-right font-mono font-semibold">{inr(e.tds)}</td>
                   </tr>
                 ))}
+                {reg.entries.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center" style={{ color: 'var(--text-muted)' }}>No bills with TDS in {q.label}. TDS is set on each supplier and suggested on their bills.</td></tr>}
               </tbody>
             </table>
           </div>
-        </div>
-
-        <div className="card">
-          <h2 className="section-title mb-4">TDS Sections</h2>
-          <div className="space-y-3">
-            {SECTIONS.map(s=>(
-              <div key={s.sec} className="p-3 rounded-xl" style={{background:'var(--bg-hover)',border:'1px solid var(--border)'}}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-semibold text-sm" style={{color:'#b45309'}}>{s.sec}</span>
-                  <span className="text-xs font-mono" style={{color:'var(--gold)'}}>Indiv: {s.rateInd} / Co: {s.rateCo}</span>
-                </div>
-                <p className="text-xs" style={{color:'var(--text-secondary)'}}>{s.desc}</p>
-                <p className="text-xs mt-1" style={{color:'var(--text-muted)'}}>Threshold: {s.thresh}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
 }

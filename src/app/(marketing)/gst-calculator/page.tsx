@@ -12,8 +12,10 @@
 import type { Metadata } from 'next'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { GstCalculator } from '@/components/marketing/GstCalculator'
-import { CtaBand, Eyebrow, FaqList, RelatedLinks, h2Style, narrow, pStyle, wrap } from '@/components/marketing/SolutionPage'
-import { breadcrumbSchema, faqSchemaFor, gstCalculatorSchema, pageMetadata, PAGES } from '@/lib/seo'
+import { Breadcrumbs, CtaBand, Eyebrow, FaqList, RelatedLinks, UpdatedOn, h2Style, narrow, pStyle, wrap } from '@/components/marketing/SolutionPage'
+import { ShareButtons } from '@/components/marketing/ShareButtons'
+import { EmbedCode } from '@/components/marketing/EmbedCode'
+import { absoluteUrl, faqSchemaFor, gstCalculatorSchema, pageMetadata, pageSchema, PAGES, SITE } from '@/lib/seo'
 import { GST_CALCULATOR as C } from '@/lib/solutions'
 
 export const metadata: Metadata = pageMetadata('gstCalculator')
@@ -25,17 +27,20 @@ const strong = { color: 'var(--text-primary)' }
 export default function GstCalculatorPage() {
   return (
     <div style={{ background: 'var(--bg-base)', paddingTop: '88px' }}>
-      <JsonLd nodes={[breadcrumbSchema('gstCalculator'), gstCalculatorSchema(), faqSchemaFor(PAGES.gstCalculator.path, C.faqs)]} />
+      <JsonLd nodes={pageSchema('gstCalculator', gstCalculatorSchema(), faqSchemaFor(PAGES.gstCalculator.path, C.faqs))} />
 
       <section style={{ padding: '64px 0 32px', textAlign: 'center' }}>
         <div style={wrap}>
+          <Breadcrumbs page="gstCalculator" />
           <Eyebrow>{C.eyebrow}</Eyebrow>
           <h1 style={{ fontFamily: "'Instrument Serif', serif", fontSize: 'clamp(34px,5vw,56px)', color: 'var(--text-primary)', lineHeight: 1.1, marginBottom: '16px', fontWeight: 400 }}>{C.h1}</h1>
           <p style={{ fontSize: '17px', color: 'var(--text-secondary)', maxWidth: '640px', margin: '0 auto', lineHeight: 1.7 }}>{C.lead}</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '14px' }}>Free · No sign-up · <UpdatedOn page="gstCalculator" /></p>
         </div>
       </section>
 
       <GstCalculator />
+      <ShareButtons url={absoluteUrl(PAGES.gstCalculator.path)} text="Free GST calculator: add or remove GST and see the CGST, SGST and IGST split —" />
 
       <section style={{ padding: '24px 0 16px' }}>
         <div style={narrow}>
@@ -64,6 +69,7 @@ export default function GstCalculatorPage() {
         </div>
       </section>
 
+      <EmbedCode origin={SITE.url} pageUrl={absoluteUrl(PAGES.gstCalculator.path)} id="gst-calculator" title="GST calculator" />
       <FaqList items={C.faqs} />
       <RelatedLinks current="gstCalculator" />
       <CtaBand title="Stop calculating GST by hand" text="Finvosmart applies the right GST on every invoice line and splits it into CGST, SGST or IGST for you." href="/gst-billing-software" label="See GST billing software" />

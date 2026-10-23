@@ -10,13 +10,16 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PermissionGate } from '@/components/ui/PermissionGate'
+import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { financeApi } from '@/lib/api/finance'
 import { DataTable } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, apiError } from '@/lib/utils'
 import { Account } from '@/types'
 import { Plus, TrendingUp, TrendingDown, DollarSign, BarChart2 } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
@@ -32,6 +35,7 @@ const ACCOUNT_COLORS: Record<string, string> = {
 
 export default function AccountsPage() {
   const qc = useQueryClient()
+  const router = useRouter()
   const [showCreate, setShowCreate] = useState(false)
   const [filterType, setFilterType] = useState('')
   const [form, setForm] = useState({ accountCode: '', accountName: '', accountType: 'ASSET', openingBalance: '0', description: '' })
@@ -41,7 +45,7 @@ export default function AccountsPage() {
   const createMutation = useMutation({
     mutationFn: (d: any) => financeApi.accounts.create({ ...d, openingBalance: parseFloat(d.openingBalance) || 0 }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); setShowCreate(false); toast.success('Account created') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed'),
+    onError: (e: any) => toast.error(apiError(e, 'The account could not be created')),
   })
 
   const filtered = filterType ? (accounts ?? []).filter((a: any) => a.accountType === filterType) : (accounts ?? [])
@@ -55,7 +59,10 @@ export default function AccountsPage() {
 
   const columns = [
     { header: 'Code', render: (a: Account) => <span className="font-mono text-xs px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--gold-light)' }}>{a.accountCode}</span> },
-    { header: 'Account Name', render: (a: Account) => <span className="font-medium text-sm">{a.accountName}</span> },
+    { header: 'Account Name', render: (a: Account) => (
+      <Link href={`/finance/ledger?account=${a.id}`} className="font-medium text-sm hover:underline" style={{ color: 'var(--text-primary)' }}
+        onClick={e => e.stopPropagation()} title="Open the ledger">{a.accountName}</Link>
+    )},
     { header: 'Type', render: (a: Account) => (
       <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
         style={{ background: `${ACCOUNT_COLORS[a.accountType] ?? '#94a3b8'}18`, color: ACCOUNT_COLORS[a.accountType] ?? '#94a3b8' }}>
@@ -68,14 +75,14 @@ export default function AccountsPage() {
         {formatCurrency(a.currentBalance)}
       </span>
     )},
-    { header: 'Leaf', render: (a: Account) => a.isLeaf ? <Badge variant="success">Leaf</Badge> : <Badge variant="default">Group</Badge> },
+    { header: 'Kind', render: (a: Account) => a.isLeaf ? <Badge variant="success">Ledger</Badge> : <Badge variant="default">Group</Badge> },
   ]
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card">
-          <div className="flex items-center justify-between mb-4">
+      <div className="grid grid-cols-1 2xl:grid-cols-3 gap-4">
+        <div className="2xl:col-span-2 card">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="font-semibold text-base">Chart of Accounts</h2>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{accounts?.length ?? 0} accounts configured</p>
@@ -85,10 +92,17 @@ export default function AccountsPage() {
                 <option value="">All Types</option>
                 {['ASSET','LIABILITY','EQUITY','INCOME','EXPENSE'].map(t => <option key={t} value={t}>{t}</option>)}
               </select>
-              <button onClick={() => setShowCreate(true)} className="btn-primary h-9"><Plus className="w-4 h-4" />Add</button>
+              <PermissionGate permission="FINANCE_CREATE">
+                <Link href="/import?kind=opening-balances" className="btn-secondary h-9">Opening balances</Link>
+              </PermissionGate>
+              <PermissionGate permission="FINANCE_CREATE">
+                <button onClick={() => setShowCreate(true)} className="btn-primary h-9"><Plus className="w-4 h-4" />Add account</button>
+              </PermissionGate>
             </div>
           </div>
-          <DataTable columns={columns} data={filtered} loading={isLoading} keyExtractor={a => a.id} emptyMessage="No accounts found" />
+          <DataTable columns={columns} data={filtered} loading={isLoading} keyExtractor={a => a.id} emptyMessage="No accounts found"
+            onRowClick={a => router.push(`/finance/ledger?account=${a.id}`)} />
+          <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>Click an account to open its ledger: every entry, with a running balance.</p>
         </div>
 
         <div className="card">

@@ -12,7 +12,7 @@
 import type { Metadata } from 'next'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { LegalPage } from '@/components/marketing/LegalPage'
-import { breadcrumbSchema, pageMetadata } from '@/lib/seo'
+import { pageMetadata, pageSchema } from '@/lib/seo'
 import { PRIVACY } from '@/lib/legal'
 
 export const metadata: Metadata = pageMetadata('privacy')
@@ -20,7 +20,7 @@ export const metadata: Metadata = pageMetadata('privacy')
 export default function PrivacyPage() {
   return (
     <>
-      <JsonLd nodes={[breadcrumbSchema('privacy')]} />
+      <JsonLd nodes={pageSchema('privacy')} />
       <LegalPage doc={PRIVACY} />
     </>
   )

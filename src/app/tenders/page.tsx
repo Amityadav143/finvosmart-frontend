@@ -18,6 +18,7 @@ import { SkeletonStats, SkeletonTable } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import toast from 'react-hot-toast'
 import { FileText, Plus, Clock, AlertTriangle, Trophy, Wallet, X, Trash2, ExternalLink, Landmark } from 'lucide-react'
+import { apiError, webLink } from '@/lib/utils'
 
 const fmt = (n?: number) => {
   if (n == null) return '—'
@@ -37,6 +38,7 @@ export default function TendersPage() {
   const { data: summary } = useQuery({ queryKey: ['tenders-summary'], queryFn: tendersApi.summary })
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<Partial<Tender>>({ source: 'GEM', status: 'TRACKING' })
+  const [removing, setRemoving] = useState<string | null>(null)   // asks before removing, in the page (no browser pop-up)
 
   const createMut = useMutation({
     mutationFn: (d: Partial<Tender>) => tendersApi.create(d),
@@ -44,16 +46,16 @@ export default function TendersPage() {
       qc.invalidateQueries({ queryKey: ['tenders'] }); qc.invalidateQueries({ queryKey: ['tenders-summary'] })
       setShowAdd(false); setForm({ source: 'GEM', status: 'TRACKING' }); toast.success('Tender added')
     },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Could not add tender'),
+    onError: (e: any) => toast.error(apiError(e, 'Could not add tender')),
   })
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => tendersApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenders'] }); qc.invalidateQueries({ queryKey: ['tenders-summary'] })
-      toast.success('Tender removed')
+      setRemoving(null); toast.success('Tender removed')
     },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Could not remove tender'),
+    onError: (e: any) => toast.error(apiError(e, 'Could not remove tender')),
   })
 
   const submit = () => {
@@ -63,7 +65,7 @@ export default function TendersPage() {
   }
 
   return (
-    <PermissionGate permission="TENDER_VIEW">
+    <PermissionGate permission="TENDER_VIEW" showDenied>
       <div className="space-y-5">
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
@@ -148,17 +150,24 @@ export default function TendersPage() {
                       {!t.eligibilityConfirmed && t.urgency !== 'CLOSED' && (
                         <span style={{ fontSize: '11.5px', color: '#D97706', fontWeight: 500 }}>· eligibility not confirmed</span>
                       )}
-                      {t.portalUrl && (
-                        <a href={t.portalUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12.5px', color: 'var(--gold)', textDecoration: 'none' }}>
+                      {webLink(t.portalUrl) && (
+                        <a href={webLink(t.portalUrl)!} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12.5px', color: 'var(--gold)', textDecoration: 'none' }}>
                           Portal <ExternalLink size={11} />
                         </a>
                       )}
                     </div>
                   </div>
-                  <button onClick={() => { if (confirm('Remove this tender?')) deleteMut.mutate(t.id) }}
-                    aria-label="Remove tender" className="btn-icon" style={{ flexShrink: 0 }}>
-                    <Trash2 size={15} style={{ color: 'var(--text-muted)' }} />
-                  </button>
+                  {removing === t.id ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>Remove it?</span>
+                      <button className="btn-danger h-8 text-xs" onClick={() => deleteMut.mutate(t.id)} disabled={deleteMut.isPending}>Remove</button>
+                      <button className="btn-ghost h-8 text-xs" onClick={() => setRemoving(null)}>Keep</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setRemoving(t.id)} aria-label="Remove tender" className="btn-icon" style={{ flexShrink: 0 }}>
+                      <Trash2 size={15} style={{ color: 'var(--text-muted)' }} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

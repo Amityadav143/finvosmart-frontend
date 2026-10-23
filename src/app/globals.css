@@ -34,7 +34,7 @@
   --gold-muted:         rgba(245,158,11,0.08);
   --text-primary:       #eef2fc;
   --text-secondary:     #8ea4c4;
-  --text-muted:         #3f5478;
+  --text-muted:         #7a8db0;   /* 4.5:1 or more on every dark surface */
   --text-on-gold:       #0a0f1a;
   --scrollbar:          rgba(255,255,255,0.08);
   --shadow-card:        0 1px 0 rgba(255,255,255,0.04), 0 4px 16px rgba(0,0,0,0.3);
@@ -43,6 +43,10 @@
   --shadow-gold:        0 0 0 1px rgba(245,158,11,0.25), 0 8px 24px rgba(245,158,11,0.12);
   --btn-primary-bg:     linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   --btn-primary-shadow: 0 4px 14px rgba(245,158,11,0.35);
+  --ok-text:            #4ade80;
+  --hero-grid:          rgba(245,158,11,0.045);
+  --hero-glow:          rgba(245,158,11,0.12);
+  --hero-glow-2:        rgba(37,99,235,0.08);
 }
 
 /* ── Light Theme ────────────────────────────────────────────────────────── */
@@ -56,21 +60,25 @@
   --border:             rgba(0,0,0,0.08);
   --border-strong:      rgba(0,0,0,0.13);
   --border-focus:       rgba(180,83,9,0.4);
-  --gold:               #b45309;
+  --gold:               #a84e08;   /* readable as small text on the light page (4.9:1) */
   --gold-light:         #d97706;
   --gold-dark:          #92400e;
   --gold-muted:         rgba(180,83,9,0.06);
   --text-primary:       #1a1208;
   --text-secondary:     #6b5634;
-  --text-muted:         #a08c6e;
+  --text-muted:         #7d6a4c;   /* 4.5:1 or more on every light surface */
   --text-on-gold:       #fefcf8;
   --scrollbar:          rgba(0,0,0,0.12);
   --shadow-card:        0 1px 0 rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.07);
   --shadow-md:          0 4px 20px rgba(0,0,0,0.1);
   --shadow-lg:          0 16px 48px rgba(0,0,0,0.14);
   --shadow-gold:        0 0 0 1px rgba(180,83,9,0.2), 0 8px 24px rgba(180,83,9,0.1);
-  --btn-primary-bg:     linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  --btn-primary-bg:     linear-gradient(135deg, #b75808 0%, #a84e08 100%);   /* white text 4.6:1+ */
   --btn-primary-shadow: 0 4px 14px rgba(180,83,9,0.28);
+  --ok-text:            #166534;
+  --hero-grid:          rgba(26,27,75,0.04);
+  --hero-glow:          rgba(180,83,9,0.07);
+  --hero-glow-2:        rgba(37,99,235,0.05);
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────── */
@@ -261,7 +269,36 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
     padding: 3px 10px;
     font-size: 11px;
     white-space: nowrap;
+    background: var(--badge-bg, rgba(100, 116, 139, 0.12));
+    color: var(--badge-fg, #475569);
   }
+  /* Status colours (StatusBadge / Badge variants) — a tint plus a readable text colour in both themes */
+  .s-green, .status-active, .status-approved, .status-paid, .status-received, .status-won, .status-present
+    { --badge-bg: rgba(22, 163, 74, 0.13); --badge-fg: #15803d; }
+  .s-amber, .status-pending, .status-partial, .status-on_notice, .status-half_day, .status-processing
+    { --badge-bg: rgba(217, 119, 6, 0.14); --badge-fg: #b45309; }
+  .s-red, .status-rejected, .status-terminated, .status-overdue, .status-absent, .status-lost
+    { --badge-bg: rgba(220, 38, 38, 0.12); --badge-fg: #b91c1c; }
+  .s-blue, .status-sent, .status-new, .status-submitted, .status-wfh
+    { --badge-bg: rgba(37, 99, 235, 0.12); --badge-fg: #1d4ed8; }
+  .s-purple, .status-qualified, .status-ordered
+    { --badge-bg: rgba(124, 58, 237, 0.12); --badge-fg: #6d28d9; }
+  .s-teal, .status-on_leave
+    { --badge-bg: rgba(13, 148, 136, 0.13); --badge-fg: #0f766e; }
+  .s-gray, .status-inactive, .status-draft, .status-cancelled, .status-resigned
+    { --badge-bg: rgba(100, 116, 139, 0.13); --badge-fg: #475569; }
+  [data-theme="dark"] .s-green, [data-theme="dark"] .status-active, [data-theme="dark"] .status-approved, [data-theme="dark"] .status-paid,
+  [data-theme="dark"] .status-received, [data-theme="dark"] .status-won, [data-theme="dark"] .status-present { --badge-fg: #4ade80; }
+  [data-theme="dark"] .s-amber, [data-theme="dark"] .status-pending, [data-theme="dark"] .status-partial, [data-theme="dark"] .status-on_notice,
+  [data-theme="dark"] .status-half_day, [data-theme="dark"] .status-processing { --badge-fg: #fbbf24; }
+  [data-theme="dark"] .s-red, [data-theme="dark"] .status-rejected, [data-theme="dark"] .status-terminated, [data-theme="dark"] .status-overdue,
+  [data-theme="dark"] .status-absent, [data-theme="dark"] .status-lost { --badge-fg: #f87171; }
+  [data-theme="dark"] .s-blue, [data-theme="dark"] .status-sent, [data-theme="dark"] .status-new, [data-theme="dark"] .status-submitted,
+  [data-theme="dark"] .status-wfh { --badge-fg: #60a5fa; }
+  [data-theme="dark"] .s-purple, [data-theme="dark"] .status-qualified, [data-theme="dark"] .status-ordered { --badge-fg: #a78bfa; }
+  [data-theme="dark"] .s-teal, [data-theme="dark"] .status-on_leave { --badge-fg: #2dd4bf; }
+  [data-theme="dark"] .s-gray, [data-theme="dark"] .status-inactive, [data-theme="dark"] .status-draft, [data-theme="dark"] .status-cancelled,
+  [data-theme="dark"] .status-resigned { --badge-fg: #cbd5e1; }
 
   /* Utility */
   .text-gold-grad {
@@ -322,12 +359,19 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
 @keyframes shimmer   { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @keyframes slideUp   { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 @keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn   { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }   /* dialogs and search */
 @keyframes float     { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 @keyframes spin      { to { transform: rotate(360deg); } }
 
 .page-enter    { animation: fadeIn 0.25s ease; }
-.slide-up      { animation: slideUp 0.35s cubic-bezier(0.16,1,0.3,1); 
-  /* Danger button — used in security page and destructive actions */
+.slide-up      { animation: slideUp 0.35s cubic-bezier(0.16,1,0.3,1); }
+
+/* The rules below were once left inside the unclosed ".slide-up {" above, so browsers read them as
+   ".slide-up .btn-danger" and so on: danger buttons showed as plain text and the focus ring, tablet
+   grids and phone fixes never applied. Components first (utilities such as h-8 still win), then the
+   plain rules. */
+@layer components {
+  /* Danger button — destructive actions (reject, remove, switch off, end) */
   .btn-danger {
     display: inline-flex;
     align-items: center;
@@ -362,15 +406,16 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
   .animate-spin {
     animation: spin 0.7s linear infinite;
   }
+}
 
   /* ── Responsive visibility utilities ──────────────────────────────────── */
   /* Used by MarketingNav and other responsive layouts. Desktop-first:
-     show desktop nav by default, reveal the mobile controls under 960px.
-     960px (not 860) keeps the full 7-link nav from crowding on small laptops. */
+     show desktop nav by default, reveal the mobile controls under 1180px —
+     the full 7-link nav with both buttons needs about that much room. */
   .mobile-only { display: none !important; }
   .hidden-mobile { display: flex; }
 
-  @media (max-width: 960px) {
+  @media (max-width: 1180px) {
     .hidden-mobile { display: none !important; }
     .mobile-only { display: flex !important; }
   }
@@ -406,7 +451,6 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
   [tabindex]:focus-visible {
     outline: 2px solid var(--gold);
     outline-offset: 2px;
-    border-radius: 4px;
   }
 
   /* ── Global mobile safety net ──────────────────────────────────────────── */
@@ -450,8 +494,6 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
     input, select, textarea { font-size: 16px !important; }
     button, .btn-icon, a.btn { min-height: 40px; }
   }
-
-}
 
 /* Prevent the whole document from ever scrolling sideways on mobile. */
 @media (max-width: 768px) {
@@ -511,4 +553,144 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ── Marketing site: header, menus, footer and landing page ───────────────────
+   Plain CSS, so the public pages look and work right before (or without) any
+   JavaScript: menus open on hover with a mouse, and on click or tap once
+   NavIslands adds .is-open. The header and footer are server components. */
+.mk-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; border-bottom: 1px solid transparent;
+  transition: background 0.3s, box-shadow 0.3s, border-color 0.3s; }
+.mk-nav.is-scrolled { background: var(--bg-surface); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border-bottom-color: var(--border); box-shadow: var(--shadow-md); }
+.mk-nav-inner { max-width: 1200px; height: 68px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center;
+  justify-content: space-between; gap: 16px; }
+.mk-logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.mk-logo-mark { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center;
+  justify-content: center; background: var(--btn-primary-bg); box-shadow: var(--btn-primary-shadow); }
+.mk-logo-mark-sm { width: 28px; height: 28px; border-radius: 8px; box-shadow: none; }
+.mk-logo-text { display: flex; align-items: baseline; gap: 5px; font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
+  background: var(--btn-primary-bg); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.mk-logo-text-sm { font-size: 16px; }
+.mk-logo-by { font-size: 10px; font-weight: 500; letter-spacing: 0.02em; color: var(--text-muted); -webkit-text-fill-color: var(--text-muted); }
+.mk-menu-list { display: flex; align-items: center; gap: 2px; list-style: none; }
+.mk-link { display: inline-flex; align-items: center; gap: 4px; padding: 8px 11px; border: 0; border-radius: 8px; background: none;
+  font: inherit; font-size: 14px; color: var(--text-secondary); text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: color 0.2s, background 0.2s; }
+.mk-link:hover, .mk-dd.is-open > .mk-link { color: var(--text-primary); background: var(--bg-hover); }
+.mk-link[aria-current="page"] { color: var(--gold); font-weight: 500; }
+.mk-dd { position: relative; }
+.mk-dd-trigger svg { transition: transform 0.2s; }
+.mk-dd-panel { position: absolute; top: 100%; left: 50%; z-index: 110; min-width: 330px; margin-top: 6px; padding: 8px;
+  background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: 14px; box-shadow: var(--shadow-lg);
+  opacity: 0; visibility: hidden; transform: translate(-50%, 6px); transition: opacity 0.15s, transform 0.15s, visibility 0.15s; }
+.mk-dd-panel::before { content: ''; position: absolute; left: 0; right: 0; top: -12px; height: 12px; }  /* keeps hover across the gap */
+.mk-dd.is-open .mk-dd-panel { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+.mk-dd.is-open .mk-dd-trigger svg { transform: rotate(180deg); }
+@media (hover: hover) {
+  .mk-dd:hover .mk-dd-panel { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+  .mk-dd:hover .mk-dd-trigger svg { transform: rotate(180deg); }
+}
+.mk-dd-panel ul { list-style: none; }
+.mk-dd-item { display: block; padding: 10px 12px; border-radius: 10px; text-decoration: none; }
+.mk-dd-item:hover, .mk-dd-item:focus-visible { background: var(--bg-hover); }
+.mk-dd-label { display: block; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.mk-dd-item[aria-current="page"] .mk-dd-label { color: var(--gold); }
+.mk-dd-blurb { display: block; margin-top: 2px; font-size: 12.5px; color: var(--text-secondary); }
+.mk-dd-hub { display: block; margin-top: 4px; padding: 10px 12px; border-top: 1px solid var(--border); font-size: 13px;
+  font-weight: 600; color: var(--gold); text-decoration: none; }
+.mk-actions { align-items: center; gap: 10px; }
+.mk-btn-outline { padding: 8px 18px; border: 1px solid var(--border-strong); border-radius: 8px; font-size: 14px;
+  color: var(--text-secondary); text-decoration: none; white-space: nowrap; transition: border-color 0.2s, color 0.2s; }
+.mk-btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+.mk-btn-gold { padding: 9px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--text-on-gold);
+  text-decoration: none; white-space: nowrap; background: var(--btn-primary-bg); box-shadow: var(--btn-primary-shadow);
+  transition: opacity 0.2s, transform 0.2s; }
+.mk-btn-gold:hover { opacity: 0.92; transform: translateY(-1px); }
+.mk-icon-btn { width: 36px; height: 36px; }
+.mk-mobile-panel { position: fixed; top: 68px; left: 0; right: 0; z-index: 99; max-height: calc(100vh - 68px); overflow-y: auto;
+  padding: 4px 24px 24px; background: var(--bg-surface); border-bottom: 1px solid var(--border); box-shadow: var(--shadow-lg); }
+.mk-mobile-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.mk-mobile-title { padding: 10px 0 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.mk-mobile-link { display: block; padding: 11px 0; font-size: 15px; color: var(--text-secondary); text-decoration: none; }
+.mk-mobile-link[aria-current="page"] { color: var(--gold); }
+.mk-mobile-cta { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.mk-mobile-cta a { padding: 12px; text-align: center; font-size: 15px; }
+
+.mk-footer { padding: 56px 0 32px; background: var(--bg-surface); border-top: 1px solid var(--border); }
+.mk-footer-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+.mk-footer-grid { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 40px; margin-bottom: 48px; }
+.mk-footer-tagline { max-width: 300px; margin: 14px 0 20px; font-size: 13.5px; line-height: 1.7; color: var(--text-secondary); }
+.mk-footer-title { margin-bottom: 16px; font-family: inherit; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--text-primary); }
+.mk-footer-list { display: flex; flex-direction: column; gap: 9px; list-style: none; }
+.mk-footer-link { font-size: 13px; color: var(--text-secondary); text-decoration: none; transition: color 0.2s; }
+.mk-footer-link:hover { color: var(--gold); }
+.mk-social { display: flex; gap: 8px; }
+.mk-social-link { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px;
+  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); transition: border-color 0.2s, color 0.2s; }
+.mk-social-link:hover { border-color: var(--gold); color: var(--gold); }
+.mk-footer-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  padding-top: 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+.mk-footer-legal { display: flex; gap: 20px; }
+.mk-footer-legal a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+.mk-footer-legal a:hover { color: var(--gold); }
+@media (max-width: 1024px) {
+  .mk-footer-grid { grid-template-columns: repeat(2, 1fr); }
+  .mk-footer-grid > :first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .mk-footer-grid { gap: 28px 20px; }
+}
+
+/* Landing page: hover lift for cards and buttons (was per-element JavaScript). */
+.lp-card { transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s; }
+.lp-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--accent, var(--gold)) 45%, transparent) !important; box-shadow: var(--shadow-md); }
+.lp-lift { transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; }
+.lp-lift:hover { transform: translateY(-2px); }
+.lp-outline:hover { border-color: var(--gold) !important; }
+a.lp-tile:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--accent, var(--gold)) 50%, transparent) !important; box-shadow: var(--shadow-md); }
+
+/* Content fades in as it scrolls into view — CSS only, in browsers that support scroll-driven
+   animation; everywhere else (and in the server HTML) it is simply visible. */
+@supports (animation-timeline: view()) {
+  .reveal { animation: lp-reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 160px; }
+}
+@keyframes lp-reveal { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+/* Monthly / annual price switch: two radio buttons and CSS, no JavaScript. */
+.billing-radio { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.billing-toggle { display: inline-flex; align-items: center; gap: 4px; padding: 6px; border-radius: 100px;
+  background: var(--bg-card); border: 1px solid var(--border); }
+.billing-toggle label { padding: 8px 18px; border-radius: 100px; font-size: 13px; font-weight: 600; cursor: pointer;
+  color: var(--text-secondary); transition: background 0.2s, color 0.2s; }
+#billing-annual:checked ~ * .billing-toggle label[for="billing-annual"],
+#billing-monthly:checked ~ * .billing-toggle label[for="billing-monthly"] { background: var(--btn-primary-bg); color: var(--text-on-gold); }
+#billing-annual:focus-visible ~ * .billing-toggle label[for="billing-annual"],
+#billing-monthly:focus-visible ~ * .billing-toggle label[for="billing-monthly"] { outline: 2px solid var(--gold); outline-offset: 2px; }
+#billing-annual:checked ~ * .price-monthly, #billing-monthly:checked ~ * .price-annual { display: none; }
+
+/* Questions and answers on <details>: the answers are in the HTML, the browser opens and closes them. */
+.faq-item > summary { list-style: none; cursor: pointer; }
+.faq-item > summary::-webkit-details-marker { display: none; }
+.faq-item > summary .faq-chevron { transition: transform 0.25s; }
+.faq-item[open] { border-color: var(--gold) !important; }
+.faq-item[open] > summary .faq-chevron { transform: rotate(180deg); }
+
+/* A link inside running text: underlined, so it doesn't rely on colour alone (WCAG 1.4.1). */
+.text-link { color: var(--gold); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.text-link:hover { text-decoration-thickness: 2px; }
+
+/* Visible breadcrumbs on the public pages (the same trail as their BreadcrumbList schema). */
+.mk-crumbs { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 18px; list-style: none;
+  font-size: 13px; color: var(--text-muted); }
+.mk-crumbs a { color: var(--text-secondary); text-decoration: none; }
+.mk-crumbs a:hover { color: var(--gold); }
+.mk-crumbs li + li::before { content: '›'; margin-right: 6px; color: var(--text-muted); }
+
+/* Hindi pages: Devanagari from the visitor's own system fonts (Inter has none). */
+[lang|="hi"] { font-family: var(--font-geist), "Noto Sans Devanagari", "Nirmala UI", "Kohinoor Devanagari", Mangal, system-ui, sans-serif; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { animation: none !important; }
 }

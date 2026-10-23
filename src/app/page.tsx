@@ -10,19 +10,28 @@
  */
 
 import type { Metadata } from 'next'
-import HomeClient from '@/components/marketing/HomeClient'
+import LandingPageContent from '@/components/marketing/LandingPageContent'
+import MarketingNav from '@/components/marketing/MarketingNav'
+import MarketingFooter from '@/components/marketing/MarketingFooter'
+import SignedInRedirect from '@/components/marketing/SignedInRedirect'
 import { JsonLd } from '@/components/seo/JsonLd'
-import { pageMetadata, organizationSchema, websiteSchema, softwareSchema, faqSchema } from '@/lib/seo'
+import { pageMetadata, organizationSchema, websiteSchema, softwareSchema, faqSchema, webPageSchema } from '@/lib/seo'
 
-// Server component: owns the homepage's metadata and schema so they are in the
-// initial HTML. The interactive landing page itself lives in HomeClient.
+// Server component, like the whole landing page: metadata, schema and every word of the
+// page are in the initial HTML. Only the header's small islands and the signed-in redirect
+// run in the browser.
 export const metadata: Metadata = pageMetadata('home')
 
 export default function Home() {
   return (
     <>
-      <JsonLd nodes={[organizationSchema(), websiteSchema(), softwareSchema(), faqSchema()]} />
-      <HomeClient />
+      <JsonLd nodes={[organizationSchema(), websiteSchema(), softwareSchema(), webPageSchema('home'), faqSchema()]} />
+      <SignedInRedirect />
+      <MarketingNav />
+      <main>
+        <LandingPageContent />
+      </main>
+      <MarketingFooter />
     </>
   )
 }

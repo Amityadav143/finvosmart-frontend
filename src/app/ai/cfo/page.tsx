@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { aiApi } from '@/lib/api/ai'
@@ -28,7 +29,7 @@ const fmt = (n?: number) => {
   return `₹${n}`
 }
 
-export default function AiCfoPage() {
+function AiCfoPage() {
   const { data: briefing, isLoading } = useQuery({ queryKey: ['cfo-briefing'], queryFn: aiApi.cfo.briefing })
   const [question, setQuestion] = useState('')
   const [asking, setAsking] = useState(false)
@@ -201,4 +202,9 @@ export default function AiCfoPage() {
       </div>
     </PermissionGate>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="ai-cfo"><AiCfoPage /></PreviewGate>
 }

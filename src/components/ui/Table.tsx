@@ -16,11 +16,13 @@ interface Column<T> {
   header: string; key?: keyof T; render?: (row: T) => React.ReactNode; className?: string
 }
 interface TableProps<T> {
-  columns: Column<T>[]; data: T[]; loading?: boolean; emptyMessage?: string
+  columns: Column<T>[]; data: T[]; loading?: boolean; emptyMessage?: React.ReactNode
+  /** Shown instead of the plain message when there is nothing at all yet (an EmptyState with what to do first). */
+  empty?: React.ReactNode
   onRowClick?: (row: T) => void; keyExtractor: (row: T) => string
 }
 
-export function DataTable<T>({ columns, data, loading, emptyMessage = 'No records found', onRowClick, keyExtractor }: TableProps<T>) {
+export function DataTable<T>({ columns, data, loading, emptyMessage = 'No records found', empty, onRowClick, keyExtractor }: TableProps<T>) {
   return (
     <div className="table-wrap">
       <table className="w-full border-collapse text-sm">
@@ -42,12 +44,14 @@ export function DataTable<T>({ columns, data, loading, emptyMessage = 'No record
             ))
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="table-cell text-center py-16">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
-                    style={{ background: 'var(--bg-hover)' }}>📭</div>
-                  <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{emptyMessage}</p>
-                </div>
+              <td colSpan={columns.length} className={cn('table-cell text-center', empty ? 'py-2' : 'py-16')}>
+                {empty ?? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
+                      style={{ background: 'var(--bg-hover)' }}>📭</div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{emptyMessage}</p>
+                  </div>
+                )}
               </td>
             </tr>
           ) : (

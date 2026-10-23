@@ -10,11 +10,28 @@
  */
 
 import axios, { AxiosInstance } from 'axios'
-import { getAccessToken, getRefreshToken } from '@/lib/store/slices/authStore'
+import { getAccessToken, getRefreshToken, useAuthStore } from '@/lib/store/slices/authStore'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
 let refreshPromise: Promise<string | null> | null = null
+
+/**
+ * The session has ended (signed out elsewhere, password changed, or simply too long ago): forget it
+ * and go to sign-in, which says so and brings the person back to this page afterwards. Only the saved
+ * copy is cleared before leaving — clearing the live store would make the app shell start its own
+ * redirect (without the note) in a race with this one.
+ */
+function signInAgain() {
+  if (typeof window === 'undefined') return
+  const { pathname, search } = window.location
+  if (pathname.startsWith('/login')) {
+    try { useAuthStore.getState().logout() } catch { /* nothing to forget */ }
+    return
+  }
+  try { localStorage.removeItem('finvo-auth') } catch { /* storage unavailable */ }
+  window.location.href = `/login?expired=1&next=${encodeURIComponent(pathname + search)}`
+}
 
 export function createApiClient(): AxiosInstance {
   const client = axios.create({ baseURL: API_URL, timeout: 30000 })
@@ -33,7 +50,7 @@ export function createApiClient(): AxiosInstance {
       const original = err.config
       if (err.response?.status === 401 && !original._retry) {
         const refresh = getRefreshToken()
-        if (!refresh) { window.location.href = '/login'; return Promise.reject(err) }
+        if (!refresh) { signInAgain(); return Promise.reject(err) }
 
         original._retry = true
 
@@ -41,25 +58,15 @@ export function createApiClient(): AxiosInstance {
           refreshPromise = axios
             .post(`${API_URL}/auth/refresh`, { refreshToken: refresh })
             .then(r => {
-              const newToken = r.data?.data?.accessToken
-              if (newToken) {
-                // Update store via dynamic import to avoid circular deps
-                import('@/lib/store/slices/authStore').then(({ useAuthStore }) => {
-                  const store = useAuthStore.getState()
-                  if (store.setAuth && r.data?.data) store.setAuth(r.data.data)
-                })
-                return newToken
-              }
-              return null
+              const auth = r.data?.data
+              if (!auth?.accessToken) { signInAgain(); return null }
+              // The renewed session comes with the full profile (and a renewed refresh token).
+              useAuthStore.getState().setAuth(auth)
+              return auth.accessToken as string
             })
-            .catch(() => {
-              // Refresh failed — force logout
-              import('@/lib/store/slices/authStore').then(({ useAuthStore }) => {
-                useAuthStore.getState().logout()
-              })
-              window.location.href = '/login'
-              return null
-            })
+            // Refused by the server: the session is over. No answer at all (offline, a restart):
+            // stay signed in, so the next request can try again.
+            .catch((e: any) => { if (e?.response) signInAgain(); return null })
             .finally(() => { refreshPromise = null })
         }
 

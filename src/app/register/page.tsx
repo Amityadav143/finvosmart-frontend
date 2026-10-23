@@ -18,6 +18,7 @@ import toast from 'react-hot-toast'
 import { Zap, Eye, EyeOff, ArrowRight, CheckCircle2, Copy } from 'lucide-react'
 import { authApi } from '@/lib/api/auth'
 import { useAuthStore } from '@/lib/store/slices/authStore'
+import { apiError } from '@/lib/utils'
 
 type Field = 'companyName' | 'fullName' | 'email' | 'phone' | 'password' | 'gstin' | 'acceptTerms'
 type Form = Record<Exclude<Field, 'acceptTerms'> | 'website', string>
@@ -50,7 +51,7 @@ function Shell({ children }: { children: ReactNode }) {
                 aria-label="Finvosmart home">
             <Zap size={24} style={{ color: 'var(--text-on-gold)' }} />
           </Link>
-          <h1 className="font-serif text-gold-grad" style={{ fontSize: '32px', letterSpacing: '-0.02em' }}>FINVOSMART</h1>
+          <p className="font-serif text-gold-grad" style={{ fontSize: '32px', letterSpacing: '-0.02em' }}>FINVOSMART</p>
         </div>
         {children}
       </div>
@@ -92,7 +93,7 @@ export default function RegisterPage() {
       setAuth(auth)                          // signed in straight away, as the company's admin
       setDone({ code: auth.companyCode ?? '', name: auth.companyName ?? f.companyName.trim() })
     } catch (err: any) {
-      setServerError(err?.response?.data?.message ?? 'We could not create your account. Please try again.')
+      setServerError(apiError(err, 'We could not create your account. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -108,7 +109,7 @@ export default function RegisterPage() {
       <Shell>
         <div className="card text-center" style={cardStyle}>
           <CheckCircle2 size={44} style={{ color: '#22c55e', margin: '0 auto 12px' }} />
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>Your account is ready</h2>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>Your account is ready</h1>
           <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '22px' }}>
             {done.name} is set up, and you&apos;re signed in as its admin.
           </p>
@@ -148,7 +149,7 @@ export default function RegisterPage() {
   return (
     <Shell>
       <div className="card" style={cardStyle}>
-        <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Start your free trial</h2>
+        <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Start your free trial</h1>
         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '22px' }}>
           14 days free · No credit card · Set up in a minute
         </p>

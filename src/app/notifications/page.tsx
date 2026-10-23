@@ -10,68 +10,76 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api/client'
-import { Bell, CheckCheck, ArrowRight, Info, AlertTriangle, CheckCircle2, TrendingUp } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Bell, CheckCheck, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
-import Link from 'next/link'
+import { NOTIFICATION_KEYS, notificationsApi, type AppNotification } from '@/lib/api/notifications'
+import { NOTIFICATION_TYPES, dayGroup, notificationType, safeLink, serverTime, timeAgo } from '@/lib/notifications'
+import { apiError } from '@/lib/utils'
+import { goTo } from '@/lib/hooks/useUrlParams'
 
-interface Notif {
-  id: string; type: string; priority: 'HIGH' | 'MEDIUM' | 'LOW'
-  title: string; message: string; link?: string; read: boolean; createdAt: string
-}
-
-const TYPE_META: Record<string, { color: string; bg: string; icon: any }> = {
-  APPROVAL: { color: '#D97706', bg: 'rgba(217,119,6,0.1)',  icon: AlertTriangle },
-  OVERDUE:  { color: '#DC2626', bg: 'rgba(220,38,38,0.1)',  icon: AlertTriangle },
-  LOW_STOCK:{ color: '#2563EB', bg: 'rgba(37,99,235,0.1)',  icon: Info          },
-  PAYROLL:  { color: '#059669', bg: 'rgba(5,150,105,0.1)',  icon: CheckCircle2  },
-  LEAVE:    { color: '#7C3AED', bg: 'rgba(124,58,237,0.1)', icon: Info          },
-  AI:       { color: '#0D9488', bg: 'rgba(13,148,136,0.1)', icon: TrendingUp    },
-  SYSTEM:   { color: '#6B7280', bg: 'rgba(107,114,128,0.1)',icon: Info          },
-}
-
-function timeAgo(dt: string) {
-  const diff = (Date.now() - new Date(dt).getTime()) / 1000
-  if (diff < 60)    return 'just now'
-  if (diff < 3600)  return `${Math.floor(diff/60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`
-  return `${Math.floor(diff/86400)}d ago`
-}
+const PAGE = 30
 
 export default function NotificationsPage() {
   const qc = useQueryClient()
+  const router = useRouter()
+  const [show, setShow] = useState<'ALL' | 'UNREAD'>('ALL')
+  const [type, setType] = useState<string>('')
 
-  const { data: notifs = [], isLoading } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => api.get('/notifications?size=50').then(r => r.data.data ?? []),
-    refetchInterval: 30000,
+  const q = useInfiniteQuery({
+    queryKey: [...NOTIFICATION_KEYS.list, 'page'],
+    queryFn: ({ pageParam }) => notificationsApi.list(pageParam as number, PAGE),
+    initialPageParam: 0,
+    getNextPageParam: (last, all) => (last.length === PAGE ? all.length : undefined),
+    refetchInterval: 60000,
   })
+  const all: AppNotification[] = useMemo(() => (q.data?.pages ?? []).flat(), [q.data])
 
-  const markRead = useMutation({
-    mutationFn: (id: string) => api.patch(`/notifications/${id}/read`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications', 'notif-count'] }),
-    onError: () => { /* silent — mark-read is a background convenience action */ },
-  })
-
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: NOTIFICATION_KEYS.list })
+    qc.invalidateQueries({ queryKey: NOTIFICATION_KEYS.count })
+  }
+  const markRead = useMutation({ mutationFn: notificationsApi.markRead, onSuccess: refresh, onError: () => {} })
   const markAll = useMutation({
-    mutationFn: () => api.post('/notifications/mark-all-read'),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['notifications', 'notif-count'] })
-      toast.success('All notifications marked as read')
-    },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Could not mark notifications as read'),
+    mutationFn: notificationsApi.markAllRead,
+    onSuccess: n => { refresh(); toast.success(n === 1 ? '1 notification marked as read' : `${n} notifications marked as read`) },
+    onError: (e: any) => toast.error(apiError(e, 'Could not mark notifications as read')),
   })
 
-  const unread = (notifs as Notif[]).filter(n => !n.read).length
+  const unread = all.filter(n => !n.read).length
+  const typesHere = useMemo(() => Array.from(new Set(all.map(n => n.type))).filter(t => NOTIFICATION_TYPES[t]), [all])
+  const shown = all.filter(n => (show === 'ALL' || !n.read) && (!type || n.type === type))
+  const groups = useMemo(() => {
+    const out: { label: string; items: AppNotification[] }[] = []
+    for (const n of shown) {
+      const label = dayGroup(n.createdAt)
+      const g = out.find(x => x.label === label)
+      if (g) g.items.push(n); else out.push({ label, items: [n] })
+    }
+    return out
+  }, [shown])
+
+  const open = (n: AppNotification) => {
+    if (!n.read) markRead.mutate(n.id)
+    const to = safeLink(n.link)
+    if (to) goTo(router, to)
+  }
+
+  const chip = (active: boolean) => ({
+    padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+    border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`,
+    background: active ? 'var(--gold-muted)' : 'var(--bg-card)', color: active ? 'var(--gold)' : 'var(--text-secondary)',
+  })
 
   return (
-    <div style={{ maxWidth: '680px' }}>
-      <div className="flex items-center justify-between mb-5">
+    <div style={{ maxWidth: '720px' }}>
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div>
           <h1 className="page-title">Notifications</h1>
           <p className="page-subtitle">
-            {unread > 0 ? <><b style={{ color: 'var(--gold)' }}>{unread} unread</b> notifications</> : 'All caught up!'}
+            {q.isLoading ? 'Loading…' : unread > 0 ? <><b style={{ color: 'var(--gold)' }}>{unread} unread</b> · newest first</> : "You're all caught up"}
           </p>
         </div>
         {unread > 0 && (
@@ -81,76 +89,104 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {isLoading && (
-        <div className="space-y-2">
-          {[1,2,3,4].map(i => (
-            <div key={i} className="card" style={{ height: '80px', background: 'var(--bg-surface)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+      {all.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap mb-4" role="group" aria-label="Filter notifications">
+          <button style={chip(show === 'ALL' && !type)} onClick={() => { setShow('ALL'); setType('') }}>All</button>
+          <button style={chip(show === 'UNREAD')} onClick={() => setShow(s => (s === 'UNREAD' ? 'ALL' : 'UNREAD'))}>Unread{unread ? ` (${unread})` : ''}</button>
+          {typesHere.map(t => (
+            <button key={t} style={chip(type === t)} onClick={() => setType(x => (x === t ? '' : t))}>{NOTIFICATION_TYPES[t].label}</button>
           ))}
         </div>
       )}
 
-      {!isLoading && (notifs as Notif[]).length === 0 && (
-        <div className="card" style={{ textAlign: 'center', padding: '56px' }}>
-          <Bell size={36} style={{ color: 'var(--text-muted)', margin: '0 auto 14px', display: 'block' }} />
+      {q.isLoading && (
+        <div className="space-y-2">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="card" style={{ height: '76px', background: 'var(--bg-surface)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          ))}
+        </div>
+      )}
+
+      {q.isError && (
+        <div className="card" style={{ padding: '20px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+          Notifications couldn't be loaded. <button className="btn-ghost text-xs h-7 px-2" onClick={() => q.refetch()}>Try again</button>
+        </div>
+      )}
+
+      {!q.isLoading && !q.isError && shown.length === 0 && (
+        <div className="card" style={{ textAlign: 'center', padding: '52px 24px' }}>
+          <Bell size={34} style={{ color: 'var(--text-muted)', margin: '0 auto 14px', display: 'block' }} />
           <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            No notifications yet
+            {all.length === 0 ? 'No notifications yet' : 'Nothing matches this filter'}
           </p>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Notifications for approvals, overdue invoices, low stock, and AI alerts will appear here.
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto', lineHeight: 1.6 }}>
+            {all.length === 0
+              ? 'You will hear here when a customer pays, an invoice goes overdue, a supplier bill falls due, stock runs low, payslips are ready, or something is waiting for your approval.'
+              : 'Clear the filter to see everything.'}
           </p>
         </div>
       )}
 
-      <div className="space-y-2">
-        {(notifs as Notif[]).map(n => {
-          const meta = TYPE_META[n.type] ?? TYPE_META.SYSTEM
-          const Icon = meta.icon
-          return (
-            <div key={n.id}
-              onClick={() => { if (!n.read) markRead.mutate(n.id) }}
-              style={{
-                display: 'flex', alignItems: 'flex-start', gap: '14px',
-                padding: '14px 18px', borderRadius: '14px', cursor: 'pointer',
-                background: n.read ? 'var(--bg-card)' : `${meta.bg}`,
-                border: `1px solid ${n.read ? 'var(--border)' : meta.color + '44'}`,
-                transition: 'all 0.15s',
-                opacity: n.read ? 0.72 : 1,
-              }}>
-              <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: meta.bg,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon size={18} style={{ color: meta.color }} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span style={{ fontSize: '13px', fontWeight: n.read ? 500 : 700, color: 'var(--text-primary)' }}>
-                    {n.title}
+      {groups.map(g => (
+        <section key={g.label} className="mb-4" aria-label={g.label}>
+          <h2 style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 8px 2px' }}>{g.label}</h2>
+          <div className="space-y-2">
+            {g.items.map(n => {
+              const meta = notificationType(n.type)
+              const Icon = meta.icon
+              const link = safeLink(n.link)
+              return (
+                <button
+                  key={n.id}
+                  onClick={() => open(n)}
+                  className="w-full text-left"
+                  data-testid="notification-item"
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '14px', fontFamily: 'inherit',
+                    padding: '14px 16px', borderRadius: '14px', cursor: 'pointer',
+                    background: n.read ? 'var(--bg-card)' : meta.bg,
+                    border: `1px solid ${n.read ? 'var(--border)' : meta.color + '40'}`,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span style={{ width: '36px', height: '36px', borderRadius: '10px', background: n.read ? 'var(--bg-hover)' : 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={17} style={{ color: meta.color }} />
                   </span>
-                  {!n.read && (
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: meta.color, flexShrink: 0 }} />
-                  )}
-                  <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '20px',
-                    background: meta.bg, color: meta.color, fontWeight: 700, marginLeft: 'auto', flexShrink: 0 }}>
-                    {n.priority}
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="flex items-center gap-2" style={{ marginBottom: '3px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: n.read ? 500 : 700, color: 'var(--text-primary)' }}>{n.title}</span>
+                      {!n.read && <span aria-label="unread" style={{ width: '7px', height: '7px', borderRadius: '50%', background: meta.color, flexShrink: 0 }} />}
+                      {n.priority === 'HIGH' && (
+                        <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '20px', background: 'rgba(220,38,38,0.1)', color: '#B91C1C', fontWeight: 700, marginLeft: 'auto', flexShrink: 0 }}>
+                          Important
+                        </span>
+                      )}
+                    </span>
+                    {n.message && <span style={{ display: 'block', fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{n.message}</span>}
+                    <span className="flex items-center gap-3" style={{ marginTop: '5px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }} title={new Date(serverTime(n.createdAt)).toLocaleString('en-IN')}>{timeAgo(n.createdAt)}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{meta.label}</span>
+                      {link && (
+                        <span style={{ fontSize: '11px', color: meta.color, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          Open <ArrowRight size={10} />
+                        </span>
+                      )}
+                    </span>
                   </span>
-                </div>
-                <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '4px', lineHeight: 1.5 }}>
-                  {n.message}
-                </p>
-                <div className="flex items-center gap-3">
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{timeAgo(n.createdAt)}</span>
-                  {n.link && (
-                    <Link href={n.link} onClick={(e: any) => e.stopPropagation()}
-                      style={{ fontSize: '11px', color: meta.color, fontWeight: 600,
-                        display: 'flex', alignItems: 'center', gap: '3px', textDecoration: 'none' }}>
-                      View <ArrowRight size={10} />
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      ))}
+
+      {q.hasNextPage && (
+        <div className="flex justify-center mt-2">
+          <button className="btn-secondary h-9" onClick={() => q.fetchNextPage()} disabled={q.isFetchingNextPage}>
+            {q.isFetchingNextPage ? 'Loading…' : 'Show older notifications'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

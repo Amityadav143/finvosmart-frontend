@@ -10,187 +10,224 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useState } from 'react'
-import { StatusBadge, Badge } from '@/components/ui/Badge'
-import { Modal } from '@/components/ui/Modal'
-import { formatCurrency } from '@/lib/utils'
-import { DollarSign, Play, CheckCircle, Download, ChevronRight, Users, TrendingUp, CreditCard } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { CalendarClock, IndianRupee, Landmark, Play, Settings2, Users, Wallet } from 'lucide-react'
+import { payrollApi, PAYROLL_STATUS_LABEL } from '@/lib/api/payroll'
+import { DataTable } from '@/components/ui/Table'
+import { StatusBadge } from '@/components/ui/Badge'
+import { Modal } from '@/components/ui/Modal'
+import { PermissionGate } from '@/components/ui/PermissionGate'
+import { usePermissions } from '@/lib/hooks/usePermissions'
+import { formatDate } from '@/lib/utils'
+import { inr, todayIST } from '@/lib/money'
+import { errText } from '@/lib/purchases'
+import type { PayrollRun } from '@/types/payroll'
 
-const RUNS = [
-  { id:'1', month:'March 2025',   employees:247, gross:4820000, deductions:620000, net:4200000, status:'PAID',       processedOn:'01 Apr 2025' },
-  { id:'2', month:'February 2025',employees:245, gross:4780000, deductions:615000, net:4165000, status:'PAID',       processedOn:'01 Mar 2025' },
-  { id:'3', month:'January 2025', employees:243, gross:4720000, deductions:608000, net:4112000, status:'PAID',       processedOn:'01 Feb 2025' },
-  { id:'4', month:'December 2024',employees:241, gross:4650000, deductions:598000, net:4052000, status:'PAID',       processedOn:'01 Jan 2025' },
-  { id:'5', month:'November 2024',employees:240, gross:4610000, deductions:595000, net:4015000, status:'PAID',       processedOn:'01 Dec 2024' },
-  { id:'6', month:'April 2025',   employees:0,   gross:0,       deductions:0,      net:0,        status:'DRAFT',      processedOn:'—' },
-]
+const SEE = ['PAYROLL_PROCESS', 'PAYROLL_ADMIN', 'PAYROLL_REPORTS']
+const PREPARE = ['PAYROLL_PROCESS', 'PAYROLL_ADMIN']
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-const TREND = [
-  {m:'Nov',net:40.2},{m:'Dec',net:40.5},{m:'Jan',net:41.1},{m:'Feb',net:41.7},{m:'Mar',net:42.0},
-]
+/** Months payroll can be run for: next month back to 18 months ago, newest first. */
+function monthOptions() {
+  const [y, m] = todayIST().split('-').map(Number)
+  const out: { year: number; month: number; label: string }[] = []
+  for (let i = -1; i <= 18; i++) {
+    const d = new Date(Date.UTC(y, m - 1 - i, 1))
+    out.push({ year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, label: `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}` })
+  }
+  return out
+}
 
-const COMP = [
-  {name:'Basic Salary',  pct:50, color:'#3b82f6'},
-  {name:'HRA',           pct:20, color:'#8b5cf6'},
-  {name:'Allowances',    pct:18, color:'#14b8a6'},
-  {name:'Deductions',    pct:12, color:'#ef4444'},
-]
+const lastDay = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10)
 
-export default function PayrollPage(){
-  const [selected, setSelected] = useState<string|null>(null)
-  const [showProcess, setShowProcess] = useState(false)
-  const sel = RUNS.find(r=>r.id===selected)
+export default function PayrollPage() {
+  const router = useRouter()
+  const { canAny } = usePermissions()
+  const allowed = canAny(...SEE)
+  const [showRun, setShowRun] = useState(false)
+  const { data: runs, isLoading, isError } = useQuery({ queryKey: ['payroll-runs'], queryFn: payrollApi.runs, enabled: allowed })
+
+  const issued = (runs ?? []).filter(r => r.status === 'APPROVED' || r.status === 'PAID')
+  const latest = issued[0]
+  const recent = issued.slice(0, 6).reverse()
+  const maxNet = Math.max(1, ...recent.map(r => Number(r.net)))
+
+  if (!allowed) {
+    return (
+      <div className="space-y-4 max-w-xl">
+        <h1 className="page-title">Payroll</h1>
+        <PermissionGate anyOf={SEE} showDenied><div /></PermissionGate>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Looking for your own payslips? They are in <Link href="/self-service" className="underline">My Portal → Payslips</Link>.
+        </p>
+      </div>
+    )
+  }
+
+  const columns = [
+    {
+      header: 'Month',
+      render: (r: PayrollRun) => (
+        <div>
+          <p className="font-semibold text-sm">{r.label}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {r.status === 'PAID' && r.paidOn ? `Paid ${formatDate(r.paidOn)}` : r.payDate ? `Pay date ${formatDate(r.payDate)}` : ''}
+          </p>
+        </div>
+      ),
+    },
+    { header: 'Status', render: (r: PayrollRun) => <StatusBadge status={r.status} label={PAYROLL_STATUS_LABEL[r.status] ?? r.status} /> },
+    { header: 'Employees', className: 'text-right', render: (r: PayrollRun) => <span className="font-mono text-sm">{r.employees}</span> },
+    { header: 'Gross pay', className: 'text-right', render: (r: PayrollRun) => <span className="font-mono text-sm">{inr(r.gross)}</span> },
+    { header: 'Deductions', className: 'text-right', render: (r: PayrollRun) => <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>{inr(r.deductions)}</span> },
+    { header: 'Net pay', className: 'text-right', render: (r: PayrollRun) => <span className="font-mono text-sm font-semibold">{inr(r.net)}</span> },
+    { header: 'Cost to company', className: 'text-right', render: (r: PayrollRun) => <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>{inr(r.employerCost)}</span> },
+  ]
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="page-title">Payroll</h1>
-        <button onClick={()=>setShowProcess(true)} className="btn-primary h-9 text-sm">
-          <Play className="w-4 h-4"/>Run April 2025 Payroll
-        </button>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="page-title">Payroll</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            Salaries under the new labour codes — PF, ESI, professional tax and TDS worked out, payslips for employees, and the payroll posted to your books
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <PermissionGate anyOf={PREPARE}>
+            <Link href="/hrms/payroll/setup" className="btn-secondary h-9"><Settings2 size={15} />Salary set-up</Link>
+            <button className="btn-primary h-9" onClick={() => setShowRun(true)}><Play size={15} />Run payroll</button>
+          </PermissionGate>
+        </div>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          {label:'Total Payroll (Mar)',  val:formatCurrency(4200000), icon:DollarSign, color:'#f59e0b'},
-          {label:'Employees',           val:'247',                    icon:Users,      color:'#3b82f6'},
-          {label:'Avg Salary',          val:formatCurrency(17004),    icon:TrendingUp, color:'#22c55e'},
-          {label:'Next Run',            val:'Apr 30, 2025',           icon:CreditCard, color:'#8b5cf6'},
-        ].map(k=>(
-          <div key={k.label} className="card">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{color:'var(--text-muted)',letterSpacing:'.07em',fontSize:'9px'}}>{k.label}</p>
-                <p className="font-serif text-xl font-normal" style={{color:'var(--text-primary)'}}>{k.val}</p>
-              </div>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:`${k.color}15`}}>
-                <k.icon className="w-4 h-4" style={{color:k.color}}/>
-              </div>
-            </div>
-          </div>
-        ))}
+        <Stat icon={Wallet} color="var(--gold)" label={latest ? `Net pay — ${latest.label}` : 'Net pay'} value={latest ? inr(latest.net) : '—'}
+          sub={latest ? `${inr(latest.gross)} gross` : 'No approved payroll yet'} />
+        <Stat icon={Users} color="#2563eb" label="Employees paid" value={latest ? String(latest.employees) : '—'} sub={latest ? latest.label : ''} />
+        <Stat icon={IndianRupee} color="#7c3aed" label="Cost to company" value={latest ? inr(latest.employerCost) : '—'}
+          sub={latest ? 'Pay plus employer PF and ESI' : ''} />
+        <Stat icon={Landmark} color="#d97706" label="Statutory dues" value={latest ? inr(Number(latest.pf) + Number(latest.esi) + Number(latest.pt) + Number(latest.tds)) : '—'}
+          sub={latest ? `PF ${inr(latest.pf)} · ESI ${inr(latest.esi)} · TDS ${inr(latest.tds)}` : ''} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Runs list */}
-        <div className="lg:col-span-2 card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="section-title">Payroll Runs</h2>
-          </div>
-          <div className="space-y-2">
-            {RUNS.map(run=>(
-              <button key={run.id} onClick={()=>setSelected(run.id===selected?null:run.id)}
-                className="w-full flex items-center gap-4 p-4 rounded-xl text-left transition-all"
-                style={{background:run.id===selected?'var(--gold-muted)':' var(--bg-hover)',
-                        border:`1px solid ${run.id===selected?'rgba(245,158,11,.2)':'var(--border)'}`}}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{background:run.status==='PAID'?'rgba(34,197,94,.1)':run.status==='DRAFT'?'rgba(100,116,139,.1)':'rgba(245,158,11,.1)'}}>
-                  {run.status==='PAID'
-                    ? <CheckCircle className="w-5 h-5 text-green-500"/>
-                    : <DollarSign className="w-5 h-5" style={{color:'var(--text-muted)'}}/>}
+      {recent.length > 1 && (
+        <div className="card">
+          <h3 className="font-semibold text-sm">Net pay by month</h3>
+          <div className="mt-3 space-y-2">
+            {recent.map(r => (
+              <div key={r.id} className="flex items-center gap-3 text-sm">
+                <span className="w-32 shrink-0" style={{ color: 'var(--text-secondary)' }}>{r.label}</span>
+                <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-surface)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${(Number(r.net) / maxNet) * 100}%`, background: 'var(--gold)' }} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">{run.month}</p>
-                  <p className="text-xs mt-0.5" style={{color:'var(--text-muted)'}}>
-                    {run.employees>0?`${run.employees} employees · Processed ${run.processedOn}`:'Not processed yet'}
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  {run.net>0 && <p className="font-mono text-sm font-bold" style={{color:'var(--text-primary)'}}>{formatCurrency(run.net)}</p>}
-                  <StatusBadge status={run.status}/>
-                </div>
-                <ChevronRight className="w-4 h-4 flex-shrink-0" style={{color:'var(--text-muted)',transform:run.id===selected?'rotate(90deg)':'',transition:'transform .2s'}}/>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Right panel */}
-        <div className="space-y-4">
-          {/* Trend */}
-          <div className="card">
-            <h3 className="text-sm font-semibold mb-3">Net Payroll Trend</h3>
-            <p className="text-xs mb-3" style={{color:'var(--text-muted)'}}>₹ in Lakhs · last 5 months</p>
-            <ResponsiveContainer width="100%" height={100}>
-              <BarChart data={TREND} margin={{top:0,right:0,left:0,bottom:0}}>
-                <XAxis dataKey="m" axisLine={false} tickLine={false} tick={{fontSize:10}}/>
-                <YAxis hide/>
-                <Tooltip formatter={(v:any)=>`₹${v}L`} contentStyle={{background:'var(--bg-elevated)',border:'1px solid var(--border)',borderRadius:'10px',fontSize:'11px'}}/>
-                <Bar dataKey="net" radius={[5,5,0,0]}>
-                  {TREND.map((_,i)=><Cell key={i} fill={i===TREND.length-1?'#f59e0b':'rgba(245,158,11,.35)'}/>)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Composition */}
-          <div className="card">
-            <h3 className="text-sm font-semibold mb-4">Salary Composition</h3>
-            <div className="space-y-3">
-              {COMP.map(c=>(
-                <div key={c.name}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs" style={{color:'var(--text-secondary)'}}>{c.name}</span>
-                    <span className="text-xs font-semibold font-mono" style={{color:c.color}}>{c.pct}%</span>
-                  </div>
-                  <div style={{height:'5px',borderRadius:'4px',background:'var(--border)',overflow:'hidden'}}>
-                    <div style={{height:'100%',borderRadius:'4px',background:c.color,width:`${c.pct}%`}}/>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Expanded run detail */}
-      {sel && sel.status==='PAID' && (
-        <div className="card animate-[slideUp_.25s_ease]">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="section-title">{sel.month} — Breakdown</h2>
-            <button className="btn-secondary h-8 text-xs" onClick={()=>toast.success('Payslip generation queued — employees will receive theirs by email')}><Download className="w-3.5 h-3.5"/>Payslips</button>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              {label:'Gross Payroll',     val:formatCurrency(sel.gross),      color:'#3b82f6'},
-              {label:'Total Deductions',  val:formatCurrency(sel.deductions),  color:'#ef4444'},
-              {label:'Net Disbursement',  val:formatCurrency(sel.net),         color:'#22c55e'},
-            ].map(b=>(
-              <div key={b.label} className="rounded-xl p-4" style={{background:'var(--bg-hover)',border:'1px solid var(--border)'}}>
-                <p className="text-xs mb-1" style={{color:'var(--text-muted)'}}>{b.label}</p>
-                <p className="font-serif text-xl" style={{color:b.color}}>{b.val}</p>
+                <span className="font-mono w-32 text-right shrink-0">{inr(r.net)}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <Modal open={showProcess} onClose={()=>setShowProcess(false)} title="Run April 2025 Payroll" subtitle="This will calculate salaries for all active employees">
-        <div className="space-y-4">
-          <div className="rounded-xl p-4" style={{background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.2)'}}>
-            <p className="text-sm font-semibold mb-1" style={{color:'var(--gold)'}}>⚠ Pre-run checklist</p>
-            <ul className="text-xs space-y-1" style={{color:'var(--text-secondary)'}}>
-              <li>• Attendance for March finalized: ✓</li>
-              <li>• Leave deductions applied: ✓</li>
-              <li>• Salary revisions updated: ✓</li>
-              <li>• New joiners added: ✓</li>
-            </ul>
+      {isError ? (
+        <div className="card text-sm" style={{ color: '#dc2626' }}>Payroll couldn't be loaded. Check your connection and try again.</div>
+      ) : !isLoading && (runs ?? []).length === 0 ? (
+        <div className="card">
+          <h3 className="font-semibold">Run your first payroll</h3>
+          <ol className="mt-3 space-y-2 text-sm list-decimal pl-5" style={{ color: 'var(--text-secondary)' }}>
+            <li><Link href="/hrms/payroll/setup" className="underline">Set up salaries</Link> — monthly pay by component, PF, ESI, work state and tax regime for each employee.</li>
+            <li>Run payroll for the month. Unpaid days come from attendance and approved leave without pay; PF, ESI, professional tax and TDS are worked out, and pay is checked against the labour codes' 50% wage rule.</li>
+            <li>Review, adjust overtime, bonus or recoveries, then approve: employees get their payslips in My Portal and the payroll is posted to your books.</li>
+            <li>Download the bank transfer file, PF ECR and ESI sheet, and mark salaries as paid.</li>
+          </ol>
+        </div>
+      ) : (
+        <DataTable columns={columns} data={runs ?? []} loading={isLoading} keyExtractor={r => r.id}
+          onRowClick={r => router.push(`/hrms/payroll/${r.id}`)} emptyMessage="No payroll yet." />
+      )}
+
+      <RunPayrollModal open={showRun} onClose={() => setShowRun(false)} existing={runs ?? []}
+        onCreated={id => { setShowRun(false); router.push(`/hrms/payroll/${id}`) }} />
+    </div>
+  )
+}
+
+function RunPayrollModal({ open, onClose, existing, onCreated }: {
+  open: boolean; onClose: () => void; existing: PayrollRun[]; onCreated: (id: string) => void
+}) {
+  const options = useMemo(monthOptions, [])
+  const [choice, setChoice] = useState(1)                       // index into options: this month
+  const sel = options[choice]
+  const [payDate, setPayDate] = useState('')
+  const [busy, setBusy] = useState(false)
+  const { data: setups } = useQuery({ queryKey: ['payroll-setups'], queryFn: payrollApi.setups, enabled: open })
+  const done = existing.find(r => r.year === sel.year && r.month === sel.month)
+  const ready = (setups ?? []).filter(s => s.hasSetup).length
+  const notReady = (setups ?? []).filter(s => !s.hasSetup)
+
+  const run = async () => {
+    setBusy(true)
+    try {
+      const d = await payrollApi.create(sel.month, sel.year, payDate || lastDay(sel.year, sel.month))
+      toast.success(`Payroll for ${sel.label} drafted`)
+      onCreated(d.run.id)
+    } catch (e) {
+      toast.error(errText(e, 'Payroll could not be started'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Run payroll" subtitle="Works out every employee's pay for the month as a draft you can check before approving">
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="label" htmlFor="pr-month">Month</label>
+            <select id="pr-month" className="input h-10" value={choice} onChange={e => { setChoice(Number(e.target.value)); setPayDate('') }}>
+              {options.map((o, i) => <option key={o.label} value={i}>{o.label}</option>)}
+            </select>
           </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><label className="label">Pay Month</label><input className="input h-10" value="April 2025" readOnly/></div>
-            <div><label className="label">Pay Date</label><input className="input h-10" type="date" defaultValue="2025-04-30"/></div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2" style={{borderTop:'1px solid var(--border)'}}>
-            <button onClick={()=>setShowProcess(false)} className="btn-secondary">Cancel</button>
-            <button onClick={()=>{toast.success('Payroll run initiated for April 2025');setShowProcess(false)}} className="btn-primary">
-              <Play className="w-4 h-4"/>Process Payroll
-            </button>
+          <div>
+            <label className="label" htmlFor="pr-date">Pay date</label>
+            <input id="pr-date" type="date" className="input h-10" value={payDate || lastDay(sel.year, sel.month)} onChange={e => setPayDate(e.target.value)} />
           </div>
         </div>
-      </Modal>
+        {done ? (
+          <div className="rounded-xl px-4 py-3 text-sm" style={{ background: '#d9770612', border: '1px solid #d9770650' }}>
+            There is already a payroll for {sel.label} ({PAYROLL_STATUS_LABEL[done.status] ?? done.status}). <Link href={`/hrms/payroll/${done.id}`} className="underline">Open it</Link>.
+          </div>
+        ) : (
+          <div className="rounded-xl px-4 py-3 text-sm space-y-1" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <p><CalendarClock size={14} className="inline mr-1.5" style={{ color: 'var(--gold)' }} />
+              {setups ? `${ready} employee${ready === 1 ? '' : 's'} with a salary set-up will be included.` : 'Checking salary set-ups…'}</p>
+            {notReady.length > 0 && (
+              <p style={{ color: '#b45309' }}>
+                {notReady.length} without a salary set-up {notReady.length === 1 ? 'is' : 'are'} left out: {notReady.slice(0, 5).map(s => s.name).join(', ')}{notReady.length > 5 ? '…' : ''}.{' '}
+                <Link href="/hrms/payroll/setup" className="underline">Set them up</Link>
+              </p>
+            )}
+            <p style={{ color: 'var(--text-muted)' }}>Unpaid days are taken from attendance (absent, half days) and approved leave without pay — you can adjust them before approving.</p>
+          </div>
+        )}
+        <div className="flex justify-end gap-3 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={run} disabled={busy || !!done}><Play size={15} />{busy ? 'Working it out…' : `Run payroll for ${sel.label}`}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function Stat({ icon: Icon, color, label, value, sub }: { icon: any; color: string; label: string; value: string; sub?: string }) {
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2"><Icon size={15} style={{ color }} /><span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span></div>
+      <p className="font-serif text-2xl mt-1" style={{ color }}>{value}</p>
+      {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
     </div>
   )
 }

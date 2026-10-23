@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { useState } from 'react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { Heart, AlertTriangle, CheckCircle, TrendingDown, Users } from 'lucide-react'
@@ -36,7 +37,7 @@ const RADAR_DATA = [
   {factor:'Login Hours', val:72}, {factor:'Consistency', val:80},
 ]
 
-export default function WellnessPage(){
+function WellnessPage(){
   const [selDept, setSelDept] = useState('Engineering')
   const [selEmp, setSelEmp] = useState<typeof EMPLOYEES[0]|null>(EMPLOYEES[2])
 
@@ -162,4 +163,9 @@ export default function WellnessPage(){
       </div>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="wellness"><WellnessPage /></PreviewGate>
 }

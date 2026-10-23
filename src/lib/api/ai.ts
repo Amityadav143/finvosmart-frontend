@@ -36,10 +36,6 @@ export const aiApi = {
     },
     history: async () => (await api.get('/voice/history')).data.data ?? [],
   },
-  gst: {
-    reconcile: async (period: string) =>
-      (await api.post('/gst/reconcile', null, { params: { period } })).data.data!,
-  },
   whatsapp: {
     send: async (invoiceId: string, phone: string, name: string) =>
       (await api.post('/whatsapp/invoices/send', { invoiceId, recipientPhone: phone, recipientName: name, includePaymentLink: true })).data.data!,

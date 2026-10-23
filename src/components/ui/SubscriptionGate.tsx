@@ -106,7 +106,7 @@ export function SubscriptionGate({
         Upgrade to unlock {feature.replace(/_/g, ' ')}.
       </p>
       <div className="flex gap-3 justify-center">
-        <Link href="/settings/modules" className="btn-primary h-10 px-6 text-sm" style={{ textDecoration: 'none' }}>
+        <Link href="/pricing" className="btn-primary h-10 px-6 text-sm" style={{ textDecoration: 'none' }}>
           View Plans & Upgrade
         </Link>
         <Link href="/dashboard" className="btn-secondary h-10 px-6 text-sm" style={{ textDecoration: 'none' }}>

@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
               </div>
               <h2 className="font-serif text-xl mb-2" style={{ color: 'var(--text-primary)' }}>Check your inbox</h2>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '24px' }}>
-                If an account exists for <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>, we've sent a link to reset your password. The link expires in 30 minutes.
+                If an account exists for <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>, we've sent a link to reset your password, with your company code. The link expires in 30 minutes.
               </p>
               <Link href="/login" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex', width: '100%', justifyContent: 'center' }}>
                 Back to sign in
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
             <>
               <h2 className="font-serif text-xl mb-2" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Forgot your password?</h2>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '24px' }}>
-                Enter the email linked to your account and we'll send you a secure link to reset it.
+                Enter the email you sign in with. We’ll send a secure link to reset your password — and remind you of your company code.
               </p>
               <form onSubmit={submit}>
                 <div style={{ marginBottom: '20px' }}>

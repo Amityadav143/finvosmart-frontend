@@ -10,22 +10,28 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useState } from 'react'
-import { Shield, Check, X, Info, ChevronDown, ChevronRight, Users, Plus, Edit2 } from 'lucide-react'
-import { usePermissions, PERMS } from '@/lib/hooks/usePermissions'
-import { PermissionGate } from '@/components/ui/PermissionGate'
+import { Fragment, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
+import { Check, ChevronDown, ChevronRight, Shield, X } from 'lucide-react'
+import { api } from '@/lib/api/client'
+import type { ApiResponse } from '@/types'
 
-const SYSTEM_ROLES = [
-  { name: 'SUPER_ADMIN',   display: 'Super Admin',        color: '#f59e0b', desc: 'Full system access — everything',                       users: 1 },
-  { name: 'COMPANY_ADMIN', display: 'Company Admin',      color: '#3b82f6', desc: 'Full access within the company',                        users: 2 },
-  { name: 'MANAGER',       display: 'Manager',            color: '#8b5cf6', desc: 'Approve leaves, POs, expenses; team view',              users: 4 },
-  { name: 'FINANCE_ADMIN', display: 'Finance Admin',      color: '#16a34a', desc: 'Full finance, invoicing, GST, bank reconciliation',     users: 3 },
-  { name: 'HR_ADMIN',      display: 'HR Admin',           color: '#ec4899', desc: 'Full HRMS: employees, payroll, wellness',               users: 2 },
-  { name: 'ACCOUNTANT',    display: 'Accountant',         color: '#0d9488', desc: 'Finance create/edit (no delete), invoicing, TDS',       users: 5 },
-  { name: 'SALES_EXEC',    display: 'Sales Executive',    color: '#ea580c', desc: 'CRM, Invoicing, client portal, WhatsApp',               users: 8 },
-  { name: 'EMPLOYEE',      display: 'Employee',           color: '#64748b', desc: 'Own attendance, leave, payslip, expenses',              users: 42 },
-  { name: 'VIEWER',        display: 'Viewer (Read-only)', color: '#94a3b8', desc: 'Read-only access to assigned modules',                  users: 3 },
-]
+interface RoleInfo { name: string; displayName: string | null; system: boolean; users: number; permissions: string[] }
+
+/** What the built-in roles are for (the permissions themselves come from the server). */
+const ROLE_META: Record<string, { color: string; desc: string }> = {
+  COMPANY_ADMIN: { color: '#2563eb', desc: 'Full access within the company' },
+  MANAGER:       { color: '#7c3aed', desc: 'Approves leave and purchase orders; sees their team' },
+  FINANCE_ADMIN: { color: '#16a34a', desc: 'Accounts, invoices, GST, bank matching' },
+  HR_ADMIN:      { color: '#db2777', desc: 'Employees, attendance, leave and payroll' },
+  ACCOUNTANT:    { color: '#0d9488', desc: 'Day-to-day bookkeeping, invoices, TDS' },
+  SALES_EXEC:    { color: '#ea580c', desc: 'Customers, leads and invoices' },
+  EMPLOYEE:      { color: '#64748b', desc: 'Own leave, attendance and payslips' },
+  VIEWER:        { color: '#94a3b8', desc: 'Read-only access' },
+}
+const meta = (r: RoleInfo) => ROLE_META[r.name] ?? { color: '#a16207', desc: r.system ? 'Built-in role' : 'A role made for your company' }
+const title = (r: RoleInfo) => r.displayName || r.name.replace(/_/g, ' ').toLowerCase().replace(/^./, c => c.toUpperCase())
 
 const PERMISSION_GROUPS = [
   { group: 'HRMS', color: '#2563EB', perms: [
@@ -123,207 +129,150 @@ const PERMISSION_GROUPS = [
   ]},
 ]
 
-// Permission matrix per role (true = has permission)
-const ROLE_PERMS: Record<string, Set<string>> = {
-  SUPER_ADMIN:   new Set(Object.values(PERMS)),
-  COMPANY_ADMIN: new Set(Object.values(PERMS)),
-  MANAGER:       new Set(['DASHBOARD_VIEW','EMPLOYEE_VIEW','EMPLOYEE_EDIT','EMPLOYEE_EXPORT','ATTENDANCE_VIEW','ATTENDANCE_EDIT','ATTENDANCE_ADMIN','LEAVE_VIEW','LEAVE_APPLY','LEAVE_APPROVE','PAYROLL_VIEW','WELLNESS_VIEW','WELLNESS_ADMIN','AI_WELLNESS_VIEW','AI_WELLNESS_ADMIN','FINANCE_VIEW','FINANCE_REPORTS','INVOICE_VIEW','INVOICE_CREATE','INVOICE_EDIT','INVOICE_APPROVE','INVOICE_SEND','INVOICE_EXPORT','CRM_VIEW','CRM_CREATE','CRM_EDIT','CRM_ADMIN','PROCUREMENT_VIEW','PROCUREMENT_CREATE','PROCUREMENT_EDIT','PROCUREMENT_APPROVE','PROCUREMENT_RECEIVE','INVENTORY_VIEW','INVENTORY_ADJUST','PROJECT_VIEW','PROJECT_CREATE','PROJECT_EDIT','PROJECT_MANAGE','REPORTS_VIEW','REPORTS_EXPORT','AI_CASHFLOW_VIEW','AI_CASHFLOW_RUN','AI_SCANNER_USE','BANK_RECON_VIEW','BANK_RECON_RUN','EXPENSE_VIEW','EXPENSE_SUBMIT','EXPENSE_APPROVE','TDS_VIEW','FORECAST_VIEW','WHATSAPP_VIEW','WHATSAPP_SEND','ESIGN_USE','AUTOMATIONS_VIEW','SETTINGS_VIEW','AUDIT_LOG_VIEW']),
-  FINANCE_ADMIN: new Set(['DASHBOARD_VIEW','EMPLOYEE_VIEW','PAYROLL_VIEW','ATTENDANCE_VIEW','FINANCE_VIEW','FINANCE_CREATE','FINANCE_EDIT','FINANCE_DELETE','FINANCE_APPROVE','FINANCE_REPORTS','FINANCE_ADMIN','INVOICE_VIEW','INVOICE_CREATE','INVOICE_EDIT','INVOICE_DELETE','INVOICE_APPROVE','INVOICE_SEND','INVOICE_EXPORT','CRM_VIEW','PROCUREMENT_VIEW','PROCUREMENT_APPROVE','PROCUREMENT_RECEIVE','INVENTORY_VIEW','REPORTS_VIEW','REPORTS_EXPORT','AI_CASHFLOW_VIEW','AI_CASHFLOW_RUN','AI_SCANNER_USE','GST_RECON_VIEW','GST_RECON_RUN','BANK_RECON_VIEW','BANK_RECON_RUN','BANK_RECON_APPROVE','EXPENSE_VIEW','EXPENSE_APPROVE','EXPENSE_ADMIN','SUBSCRIPTIONS_VIEW','SUBSCRIPTIONS_ADMIN','TDS_VIEW','TDS_PROCESS','WHATSAPP_VIEW','WHATSAPP_SEND','ESIGN_USE','SETTINGS_VIEW','AUDIT_LOG_VIEW']),
-  HR_ADMIN:      new Set(['DASHBOARD_VIEW','EMPLOYEE_VIEW','EMPLOYEE_CREATE','EMPLOYEE_EDIT','EMPLOYEE_DELETE','EMPLOYEE_EXPORT','ATTENDANCE_VIEW','ATTENDANCE_CREATE','ATTENDANCE_EDIT','ATTENDANCE_ADMIN','LEAVE_VIEW','LEAVE_APPLY','LEAVE_APPROVE','LEAVE_ADMIN','PAYROLL_VIEW','PAYROLL_PROCESS','PAYROLL_ADMIN','WELLNESS_VIEW','WELLNESS_ADMIN','AI_WELLNESS_VIEW','AI_WELLNESS_ADMIN','EXPENSE_VIEW','EXPENSE_SUBMIT','EXPENSE_APPROVE','EXPENSE_ADMIN','REPORTS_VIEW','REPORTS_EXPORT','ESIGN_USE','SETTINGS_VIEW','SETTINGS_USERS','AUDIT_LOG_VIEW']),
-  ACCOUNTANT:    new Set(['DASHBOARD_VIEW','EMPLOYEE_VIEW','PAYROLL_VIEW','FINANCE_VIEW','FINANCE_CREATE','FINANCE_EDIT','FINANCE_REPORTS','INVOICE_VIEW','INVOICE_CREATE','INVOICE_EDIT','INVOICE_SEND','INVOICE_EXPORT','CRM_VIEW','PROCUREMENT_VIEW','PROCUREMENT_RECEIVE','INVENTORY_VIEW','REPORTS_VIEW','REPORTS_EXPORT','AI_CASHFLOW_VIEW','AI_SCANNER_USE','GST_RECON_VIEW','GST_RECON_RUN','BANK_RECON_VIEW','BANK_RECON_RUN','EXPENSE_VIEW','EXPENSE_SUBMIT','TDS_VIEW','TDS_PROCESS','WHATSAPP_VIEW','WHATSAPP_SEND','SETTINGS_VIEW']),
-  SALES_EXEC:    new Set(['DASHBOARD_VIEW','CRM_VIEW','CRM_CREATE','CRM_EDIT','INVOICE_VIEW','INVOICE_CREATE','INVOICE_EDIT','INVOICE_SEND','INVOICE_EXPORT','INVENTORY_VIEW','PROJECT_VIEW','PROJECT_CREATE','REPORTS_VIEW','PORTAL_VIEW','WHATSAPP_VIEW','WHATSAPP_SEND','ESIGN_USE','EXPENSE_VIEW','EXPENSE_SUBMIT','SETTINGS_VIEW']),
-  EMPLOYEE:      new Set(['DASHBOARD_VIEW','ATTENDANCE_VIEW','LEAVE_APPLY','LEAVE_VIEW','PAYROLL_VIEW','WELLNESS_VIEW','AI_WELLNESS_VIEW','EXPENSE_VIEW','EXPENSE_SUBMIT','PROJECT_VIEW','SETTINGS_VIEW']),
-  VIEWER:        new Set(['DASHBOARD_VIEW','EMPLOYEE_VIEW','ATTENDANCE_VIEW','FINANCE_VIEW','FINANCE_REPORTS','INVOICE_VIEW','CRM_VIEW','PROCUREMENT_VIEW','INVENTORY_VIEW','PROJECT_VIEW','REPORTS_VIEW','SETTINGS_VIEW']),
-}
-
 export default function RolesPage() {
-  const { can } = usePermissions()
-  const [selectedRole, setSelectedRole] = useState('COMPANY_ADMIN')
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['HRMS', 'Finance']))
-  const [showMatrix, setShowMatrix] = useState(false)
+  const { data: roles = [], isLoading, isError } = useQuery({
+    queryKey: ['admin-roles'],
+    queryFn: async () => (await api.get<ApiResponse<RoleInfo[]>>('/admin/roles')).data.data ?? [],
+  })
+  const [selected, setSelected] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(['HRMS', 'Finance']))
+  const [matrix, setMatrix] = useState(false)
+  const role = roles.find(r => r.name === selected) ?? roles[0]
+  const perms = useMemo(() => new Set(role?.permissions ?? []), [role])
 
-  const rolePerms = ROLE_PERMS[selectedRole] || new Set()
-  const totalPerms = Object.values(PERMS).length
-  const rolePermCount = selectedRole === 'SUPER_ADMIN' ? totalPerms : rolePerms.size
-
-  const toggleGroup = (g: string) =>
-    setExpandedGroups(prev => { const next = new Set(prev); next.has(g) ? next.delete(g) : next.add(g); return next })
+  // Permissions the server knows about that the groups above don't list, so nothing is hidden.
+  const known = useMemo(() => new Set(PERMISSION_GROUPS.flatMap(g => g.perms.map(p => p.key))), [])
+  const groups = useMemo(() => {
+    const extra = Array.from(new Set(roles.flatMap(r => r.permissions))).filter(p => !known.has(p)).sort()
+    return extra.length ? [...PERMISSION_GROUPS, { group: 'Other', color: '#64748b', perms: extra.map(k => ({ key: k, label: k.replace(/_/g, ' ').toLowerCase().replace(/^./, c => c.toUpperCase()) })) }] : PERMISSION_GROUPS
+  }, [roles, known])
+  const toggle = (g: string) => setExpanded(prev => { const n = new Set(prev); n.has(g) ? n.delete(g) : n.add(g); return n })
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="page-title">Roles & Permissions</h1>
+          <h1 className="page-title">Roles &amp; permissions</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {SYSTEM_ROLES.length} system roles · {totalPerms} granular permissions across 14 modules
+            What each role can do — exactly what the server checks. To give someone a role, open <Link href="/settings/users" className="underline">Users</Link>.
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowMatrix(v => !v)}
-            className="btn-secondary h-9 text-sm">
-            {showMatrix ? 'Role Detail' : 'Permission Matrix'}
-          </button>
-          <PermissionGate permission="SETTINGS_ROLES">
-            <button className="btn-primary h-9 text-sm">
-              <Plus className="w-4 h-4" />Custom Role
-            </button>
-          </PermissionGate>
+        {roles.length > 0 && <button onClick={() => setMatrix(v => !v)} className="btn-secondary h-9 text-sm">{matrix ? 'One role at a time' : 'All roles side by side'}</button>}
+      </div>
+
+      {isLoading && <div className="card text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</div>}
+      {isError && <div className="card text-sm" style={{ color: '#dc2626' }}>The roles couldn't be loaded.</div>}
+
+      {roles.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+          {roles.map(r => {
+            const m = meta(r), on = role?.name === r.name && !matrix
+            return (
+              <button key={r.name} onClick={() => { setSelected(r.name); setMatrix(false) }} aria-pressed={on}
+                className="card text-left" style={{ borderColor: on ? m.color : 'var(--border)', background: on ? `${m.color}0d` : 'var(--bg-card)' }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: m.color }} aria-hidden />
+                  <span className="text-sm font-semibold truncate">{title(r)}</span>
+                </div>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.users === 1 ? '1 user' : `${r.users} users`} · {r.permissions.length} permissions</p>
+                <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--text-muted)' }}>{m.desc}</p>
+              </button>
+            )
+          })}
         </div>
-      </div>
+      )}
 
-      {/* Role cards */}
-      <div className="grid grid-cols-3 xl:grid-cols-5 gap-3">
-        {SYSTEM_ROLES.map(r => (
-          <button key={r.name}
-            onClick={() => setSelectedRole(r.name)}
-            className="card text-left transition-all duration-200"
-            style={{ borderColor: selectedRole === r.name ? r.color : 'var(--border)', background: selectedRole === r.name ? `${r.color}08` : 'var(--bg-card)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: r.color, flexShrink: 0 }} />
-              <span className="text-xs font-bold truncate" style={{ color: selectedRole === r.name ? r.color : 'var(--text-primary)' }}>{r.display}</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: '22px', color: r.color }}>{r.users}</span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>users</span>
-            </div>
-            <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--text-muted)', lineHeight: 1.4 }}>{r.desc}</p>
-          </button>
-        ))}
-      </div>
-
-      {/* Permission Matrix View */}
-      {showMatrix ? (
+      {roles.length > 0 && matrix && (
         <div className="card overflow-x-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Full Permission Matrix</h3>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>✓ = has permission   —  = no access</p>
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <table className="text-xs" style={{ borderCollapse: 'collapse', minWidth: 720, width: '100%' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                <th style={{ padding: '8px 12px', textAlign: 'left', width: '180px', color: 'var(--text-secondary)', fontWeight: 600 }}>Permission</th>
-                {SYSTEM_ROLES.slice(0, 6).map(r => (
-                  <th key={r.name} style={{ padding: '8px 6px', textAlign: 'center', color: r.color, fontWeight: 700, fontSize: '10px', width: '90px' }}>
-                    {r.display}
-                  </th>
-                ))}
+                <th className="text-left px-3 py-2" style={{ minWidth: 180, color: 'var(--text-secondary)' }}>Permission</th>
+                {roles.map(r => <th key={r.name} className="px-2 py-2 text-center" style={{ color: meta(r).color, minWidth: 84 }}>{title(r)}</th>)}
               </tr>
             </thead>
             <tbody>
-              {PERMISSION_GROUPS.map(grp => (
-                <>
-                  <tr key={`hdr-${grp.group}`} style={{ background: `${grp.color}08`, borderBottom: '1px solid var(--border)' }}>
-                    <td colSpan={7} style={{ padding: '6px 12px', fontWeight: 700, color: grp.color, fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                      {grp.group}
-                    </td>
+              {groups.map(g => (
+                <Fragment key={g.group}>
+                  <tr style={{ background: `${g.color}0d`, borderBottom: '1px solid var(--border)' }}>
+                    <td colSpan={roles.length + 1} className="px-3 py-1.5 font-bold uppercase tracking-wide" style={{ color: g.color }}>{g.group}</td>
                   </tr>
-                  {grp.perms.map(p => (
-                    <tr key={p.key} style={{ borderBottom: '1px solid var(--border)' }}
-                      onMouseEnter={(e: any) => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
-                      onMouseLeave={(e: any) => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
-                      <td style={{ padding: '5px 12px', color: 'var(--text-secondary)' }}>{p.label}</td>
-                      {SYSTEM_ROLES.slice(0, 6).map(r => {
-                        const has = r.name === 'SUPER_ADMIN' || r.name === 'COMPANY_ADMIN' || (ROLE_PERMS[r.name]?.has(p.key) ?? false)
-                        return (
-                          <td key={r.name} style={{ textAlign: 'center', padding: '5px 6px' }}>
-                            {has
-                              ? <Check size={13} color="#22c55e" strokeWidth={3} style={{ margin: '0 auto' }} />
-                              : <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>—</span>
-                            }
-                          </td>
-                        )
-                      })}
+                  {g.perms.map(p => (
+                    <tr key={p.key} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td className="px-3 py-1.5" style={{ color: 'var(--text-secondary)' }}>{p.label}</td>
+                      {roles.map(r => (
+                        <td key={r.name} className="text-center py-1.5">
+                          {r.permissions.includes(p.key)
+                            ? <Check size={13} color="#16a34a" strokeWidth={3} style={{ margin: '0 auto' }} aria-label="Yes" />
+                            : <span style={{ color: 'var(--text-muted)' }} aria-label="No">—</span>}
+                        </td>
+                      ))}
                     </tr>
                   ))}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
         </div>
-      ) : (
-        /* Role Detail View */
-        <div className="grid grid-cols-3 gap-5">
-          <div className="col-span-1">
-            <div className="card">
-              <div className="flex items-center gap-3 mb-4">
-                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: `${SYSTEM_ROLES.find(r=>r.name===selectedRole)?.color ?? '#888'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Shield size={20} color={SYSTEM_ROLES.find(r=>r.name===selectedRole)?.color ?? '#888'} />
-                </div>
-                <div>
-                  <h3 className="font-semibold">{SYSTEM_ROLES.find(r=>r.name===selectedRole)?.display}</h3>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    {rolePermCount}/{totalPerms} permissions
-                  </p>
-                </div>
+      )}
+
+      {role && !matrix && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="card h-fit">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: `${meta(role).color}1a` }}>
+                <Shield size={20} color={meta(role).color} />
               </div>
-
-              {/* Progress bar */}
-              <div style={{ height: '6px', background: 'var(--bg-input)', borderRadius: '3px', marginBottom: '16px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: SYSTEM_ROLES.find(r=>r.name===selectedRole)?.color ?? '#888', borderRadius: '3px', width: `${(rolePermCount/totalPerms)*100}%`, transition: 'width 0.4s' }} />
-              </div>
-
-              <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                {SYSTEM_ROLES.find(r=>r.name===selectedRole)?.desc}
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {PERMISSION_GROUPS.map(grp => {
-                  const has = grp.perms.filter(p => selectedRole === 'SUPER_ADMIN' || selectedRole === 'COMPANY_ADMIN' || rolePerms.has(p.key))
-                  return (
-                    <div key={grp.group} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-surface)', borderRadius: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: grp.color }} />
-                        <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{grp.group}</span>
-                      </div>
-                      <span className="text-xs font-bold" style={{ color: has.length === grp.perms.length ? '#22c55e' : has.length === 0 ? 'var(--text-muted)' : grp.color }}>
-                        {has.length}/{grp.perms.length}
-                      </span>
-                    </div>
-                  )
-                })}
+              <div>
+                <h2 className="font-semibold">{title(role)}</h2>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{role.permissions.length} permissions · {role.users === 1 ? '1 user' : `${role.users} users`}</p>
               </div>
             </div>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>{meta(role).desc}</p>
+            <div className="space-y-1.5">
+              {groups.map(g => {
+                const has = g.perms.filter(p => perms.has(p.key)).length
+                return (
+                  <div key={g.group} className="flex justify-between items-center px-3 py-2 rounded-lg" style={{ background: 'var(--bg-surface)' }}>
+                    <span className="text-xs font-medium inline-flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                      <span className="w-2 h-2 rounded-full" style={{ background: g.color }} aria-hidden />{g.group}
+                    </span>
+                    <span className="text-xs font-bold" style={{ color: has === g.perms.length ? '#16a34a' : has === 0 ? 'var(--text-muted)' : 'var(--text-primary)' }}>{has}/{g.perms.length}</span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-
-          <div className="col-span-2 space-y-3">
-            {PERMISSION_GROUPS.map(grp => {
-              const isExpanded = expandedGroups.has(grp.group)
-              const hasCount = grp.perms.filter(p => selectedRole==='SUPER_ADMIN'||selectedRole==='COMPANY_ADMIN'||rolePerms.has(p.key)).length
+          <div className="lg:col-span-2 space-y-3">
+            {groups.map(g => {
+              const open = expanded.has(g.group)
+              const has = g.perms.filter(p => perms.has(p.key)).length
               return (
-                <div key={grp.group} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                  <button onClick={() => toggleGroup(grp.group)}
-                    className="w-full flex items-center justify-between px-5 py-3 transition-all"
-                    style={{ background: hasCount === grp.perms.length ? `${grp.color}08` : 'transparent' }}>
-                    <div className="flex items-center gap-3">
-                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: grp.color }} />
-                      <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{grp.group}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: `${grp.color}18`, color: grp.color, fontWeight: 600 }}>
-                        {hasCount}/{grp.perms.length}
-                      </span>
-                    </div>
-                    {isExpanded ? <ChevronDown size={15} style={{ color: 'var(--text-muted)' }} />
-                                 : <ChevronRight size={15} style={{ color: 'var(--text-muted)' }} />}
+                <div key={g.group} className="card p-0 overflow-hidden">
+                  <button onClick={() => toggle(g.group)} aria-expanded={open} className="w-full flex items-center justify-between px-5 py-3">
+                    <span className="flex items-center gap-3">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: g.color }} aria-hidden />
+                      <span className="font-semibold text-sm">{g.group}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>{has}/{g.perms.length}</span>
+                    </span>
+                    {open ? <ChevronDown size={15} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={15} style={{ color: 'var(--text-muted)' }} />}
                   </button>
-
-                  {isExpanded && (
-                    <div style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--border)' }}>
-                      <div className="grid grid-cols-2 gap-2">
-                        {grp.perms.map(p => {
-                          const has = selectedRole === 'SUPER_ADMIN' || selectedRole === 'COMPANY_ADMIN' || rolePerms.has(p.key)
-                          return (
-                            <div key={p.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', borderRadius: '8px', background: has ? `${grp.color}06` : 'var(--bg-input)' }}>
-                              <div style={{ width: '20px', height: '20px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: has ? `${grp.color}20` : 'var(--bg-surface)' }}>
-                                {has ? <Check size={11} color={grp.color} strokeWidth={3} /> : <X size={11} color="var(--text-muted)" />}
-                              </div>
-                              <div>
-                                <p className="text-xs font-medium" style={{ color: has ? 'var(--text-primary)' : 'var(--text-muted)' }}>{p.label}</p>
-                                <p style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{p.key}</p>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
+                  {open && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 px-5 pb-4 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                      {g.perms.map(p => {
+                        const yes = perms.has(p.key)
+                        return (
+                          <div key={p.key} className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg" style={{ background: yes ? 'var(--bg-surface)' : 'transparent' }}>
+                            <span className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: yes ? '#16a34a1f' : 'var(--bg-hover)' }}>
+                              {yes ? <Check size={11} color="#16a34a" strokeWidth={3} aria-label="Allowed" /> : <X size={11} color="var(--text-muted)" aria-label="Not allowed" />}
+                            </span>
+                            <span>
+                              <span className="block text-xs font-medium" style={{ color: yes ? 'var(--text-primary)' : 'var(--text-muted)' }}>{p.label}</span>
+                              <span className="block font-mono" style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>{p.key}</span>
+                            </span>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>

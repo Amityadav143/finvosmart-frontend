@@ -10,108 +10,152 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { Suspense, useState } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, PackagePlus, RefreshCw, ListChecks } from 'lucide-react'
+import { usePermissions } from '@/lib/hooks/usePermissions'
+import { apiError } from '@/lib/utils'
 import { inventoryApi } from '@/lib/api/inventory'
-import { formatDate, formatCurrency } from '@/lib/utils'
-import { ArrowDownCircle, ArrowUpCircle, RefreshCw } from 'lucide-react'
+import { Pagination } from '@/components/ui/Pagination'
+import { formatDate } from '@/lib/utils'
+import { inr } from '@/lib/money'
+import { MOVEMENT_LABEL, qty } from '@/lib/inventory'
+import type { MovementType, StockLedgerRow } from '@/types'
 
-const MOCK_MOVEMENTS = [
-  {id:'1',item:'Acer Laptop Model A15',code:'ELEC-001',date:'2025-04-02',type:'IN',qty:5,unit:'PCS',cost:52000,ref:'GRN-2025-00021',stockAfter:23},
-  {id:'2',item:'HP Laser Printer 404',code:'ELEC-002',date:'2025-04-01',type:'OUT',qty:1,unit:'PCS',cost:28000,ref:'INV-2025-000043',stockAfter:7},
-  {id:'3',item:'A4 Copy Paper 80GSM', code:'OFFS-001',date:'2025-04-01',type:'IN',qty:50,unit:'REAM',cost:180,ref:'GRN-2025-00020',stockAfter:145},
-  {id:'4',item:'Ethernet Cable CAT6', code:'NETW-001',date:'2025-03-31',type:'OUT',qty:20,unit:'MTR',cost:25,ref:'MANUAL',stockAfter:80},
-  {id:'5',item:'Dell Monitor 24"',    code:'ELEC-003',date:'2025-03-30',type:'ADJUSTMENT',qty:-2,unit:'PCS',cost:18500,ref:'AUDIT-ADJ',stockAfter:12},
-  {id:'6',item:'Acer Laptop Model A15',code:'ELEC-001',date:'2025-03-28',type:'OUT',qty:3,unit:'PCS',cost:52000,ref:'INV-2025-000041',stockAfter:18},
-]
-
-const TYPE_CONFIG:{[k:string]:{icon:any,color:string,label:string}} = {
-  IN:         {icon:ArrowDownCircle,color:'#22c55e',label:'Stock In'},
-  OUT:        {icon:ArrowUpCircle,  color:'#ef4444',label:'Stock Out'},
-  ADJUSTMENT: {icon:RefreshCw,     color:'#f59e0b',label:'Adjustment'},
-  TRANSFER_IN:{icon:ArrowDownCircle,color:'#3b82f6',label:'Transfer In'},
-  TRANSFER_OUT:{icon:ArrowUpCircle, color:'#8b5cf6',label:'Transfer Out'},
+/** Where a movement came from: a link to the invoice or bill that made it, or its reference. */
+function Reference({ m }: { m: StockLedgerRow }) {
+  const text = m.reference || '—'
+  if (m.referenceId && m.referenceType === 'INVOICE') return <Link href={`/invoicing/${m.referenceId}`} className="underline" style={{ color: 'var(--gold)' }}>{text}</Link>
+  if (m.referenceId && m.referenceType === 'BILL') return <Link href={`/purchases/bills/${m.referenceId}`} className="underline" style={{ color: 'var(--gold)' }}>{text}</Link>
+  return <>{text}</>
 }
 
-export default function StockPage(){
-  const [filter, setFilter] = useState('')
-  const filtered = filter ? MOCK_MOVEMENTS.filter(m=>m.type===filter) : MOCK_MOVEMENTS
+const ICON: Record<MovementType, { icon: any; color: string }> = {
+  IN: { icon: ArrowDownCircle, color: '#16a34a' }, OPENING: { icon: PackagePlus, color: '#2563eb' },
+  OUT: { icon: ArrowUpCircle, color: '#dc2626' }, ADJUSTMENT: { icon: RefreshCw, color: '#d97706' },
+  TRANSFER_IN: { icon: ArrowDownCircle, color: '#2563eb' }, TRANSFER_OUT: { icon: ArrowUpCircle, color: '#7c3aed' },
+}
+const FILTERS: { value: '' | MovementType; label: string }[] = [
+  { value: '', label: 'All' }, { value: 'IN', label: 'Stock in' }, { value: 'OUT', label: 'Stock out' },
+  { value: 'ADJUSTMENT', label: 'Adjustments' }, { value: 'OPENING', label: 'Opening stock' },
+]
 
-  return(
+export default function StockPage() {
+  return <Suspense fallback={<div className="card text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</div>}><StockLedger /></Suspense>
+}
+
+function StockLedger() {
+  const params = useSearchParams()
+  const itemId = params.get('item') || undefined
+  const [type, setType] = useState<'' | MovementType>('')
+  const [page, setPage] = useState(0)
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['stock-ledger', itemId, type, page],
+    queryFn: () => inventoryApi.movements.list({ itemId, type: type || undefined, page, size: 50 }),
+  })
+  const { data: today } = useQuery({ queryKey: ['stock-today'], queryFn: inventoryApi.movements.today })
+  const qc = useQueryClient()
+  const { canAny } = usePermissions()
+  const recheck = useMutation({
+    mutationFn: inventoryApi.movements.recheck,
+    onSuccess: r => {
+      qc.invalidateQueries({ queryKey: ['stock-ledger'] }); qc.invalidateQueries({ queryKey: ['stock-today'] })
+      qc.invalidateQueries({ queryKey: ['inv-items'] }); qc.invalidateQueries({ queryKey: ['low-stock'] })
+      toast.success(r.movementsPosted === 0 ? `Stock matches all ${r.documentsChecked} invoices and bills — nothing to correct`
+        : `${r.movementsPosted} stock ${r.movementsPosted === 1 ? 'movement' : 'movements'} posted from ${r.documentsChecked} documents checked`)
+      if (r.failed > 0) toast.error(`${r.failed} documents couldn't be checked — try again later`)
+    },
+    onError: (e: any) => toast.error(apiError(e, 'Stock could not be re-checked')),
+  })
+  const rows = data?.content ?? []
+  const itemName = itemId && rows[0]?.itemId === itemId ? rows[0].itemName : null
+
+  return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="page-title">Stock Movements</h1>
-          <p className="text-sm mt-0.5" style={{color:'var(--text-muted)'}}>Complete inventory transaction ledger</p>
+          <Link href="/inventory/items" className="text-sm inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><ArrowLeft size={14} />Items and stock</Link>
+          <h1 className="page-title mt-1">{itemId ? `Stock ledger${itemName ? ` — ${itemName}` : ''}` : 'Stock ledger'}</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Every stock movement, newest first: what came in, what went out, and the stock after each. Invoices, credit notes and supplier bills move stock by themselves.</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {canAny('INVENTORY_ADJUST', 'INVENTORY_ADMIN') && (
+            <button className="btn-secondary h-9 text-sm" disabled={recheck.isPending} onClick={() => recheck.mutate()}
+              title="Checks every invoice, credit note and bill against the stock ledger and posts anything missing. Safe to run any time.">
+              <ListChecks className="w-4 h-4" aria-hidden />{recheck.isPending ? 'Checking…' : 'Re-check from documents'}
+            </button>
+          )}
+          {itemId && <Link href="/inventory/stock" className="btn-secondary h-9 text-sm">All items</Link>}
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          {label:'Today In',     val:'+55 units', color:'#22c55e'},
-          {label:'Today Out',    val:'-1 unit',   color:'#ef4444'},
-          {label:'Adjustments',  val:'-2 units',  color:'#f59e0b'},
-          {label:'Transfers',    val:'0',          color:'#3b82f6'},
-        ].map(s=>(
-          <div key={s.label} className="card">
-            <p className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{color:'var(--text-muted)',fontSize:'9px',letterSpacing:'.07em'}}>{s.label}</p>
-            <p className="font-serif text-xl" style={{color:s.color}}>{s.val}</p>
-          </div>
-        ))}
-      </div>
+      {!itemId && today && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: 'Stock-in entries today', val: today.stockIn },
+            { label: 'Stock-out entries today', val: today.stockOut },
+            { label: 'Adjustments today', val: today.adjustments },
+            { label: 'Transfers today', val: today.transfers },
+          ].map(s => (
+            <div key={s.label} className="card">
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
+              <p className="text-2xl font-semibold mt-1" style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif' }}>{s.val}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
-      <div className="flex gap-2">
-        {['','IN','OUT','ADJUSTMENT','TRANSFER_IN','TRANSFER_OUT'].map(t=>(
-          <button key={t} onClick={()=>setFilter(t)}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
-            style={{background:filter===t?'var(--gold-muted)':'var(--bg-hover)',
-                    color:filter===t?'var(--gold)':'var(--text-muted)',
-                    border:`1px solid ${filter===t?'rgba(245,158,11,.2)':'var(--border)'}`}}>
-            {t||'All'}
+      <div className="flex gap-2 flex-wrap" role="group" aria-label="Kind of movement">
+        {FILTERS.map(f => (
+          <button key={f.value || 'all'} onClick={() => { setType(f.value); setPage(0) }} aria-pressed={type === f.value}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold"
+            style={{ background: type === f.value ? 'var(--gold-muted)' : 'var(--bg-hover)', color: type === f.value ? 'var(--gold)' : 'var(--text-muted)', border: `1px solid ${type === f.value ? 'rgba(245,158,11,.2)' : 'var(--border)'}` }}>
+            {f.label}
           </button>
         ))}
       </div>
 
+      {isError && <div className="card text-sm" style={{ color: '#dc2626' }}>The stock ledger couldn't be loaded.</div>}
       <div className="table-wrap">
         <table className="w-full text-sm">
-          <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
-            {['Item','Date','Type','Qty','Unit Cost','Reference','Stock After'].map(h=>(
-              <th key={h} className="table-header">{h}</th>
-            ))}
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
+            {['Item', 'Date', 'Movement', 'Quantity', 'Unit cost', 'Reference', 'Stock after'].map(h => <th key={h} className="table-header">{h}</th>)}
           </tr></thead>
           <tbody>
-            {filtered.map((m,i)=>{
-              const cfg = TYPE_CONFIG[m.type]
-              return(
-                <tr key={m.id} className="table-row" style={{animationDelay:`${i*.04}s`}}>
+            {isLoading && <tr><td colSpan={7} className="table-cell text-center" style={{ color: 'var(--text-muted)' }}>Loading…</td></tr>}
+            {!isLoading && rows.length === 0 && (
+              <tr><td colSpan={7} className="table-cell text-center py-10" style={{ color: 'var(--text-muted)' }}>
+                No stock movements yet. Stock moves when you issue invoices and record supplier bills for your items, with an item&apos;s opening stock, and with stock in / out from the items list.
+              </td></tr>
+            )}
+            {rows.map(m => {
+              const cfg = ICON[m.type] ?? ICON.ADJUSTMENT
+              const n = Number(m.change)
+              return (
+                <tr key={m.id} className="table-row">
                   <td className="table-cell">
-                    <p className="font-semibold text-sm">{m.item}</p>
-                    <p className="font-mono text-xs" style={{color:'var(--gold)',fontSize:'10px'}}>{m.code}</p>
+                    <Link href={`/inventory/stock?item=${m.itemId}`} className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{m.itemName}</Link>
+                    {m.itemCode && <p className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{m.itemCode}</p>}
                   </td>
                   <td className="table-cell text-xs">{formatDate(m.date)}</td>
                   <td className="table-cell">
-                    <span className="flex items-center gap-1.5 text-xs font-semibold" style={{color:cfg.color}}>
-                      <cfg.icon className="w-3.5 h-3.5"/>{cfg.label}
-                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: cfg.color }}><cfg.icon className="w-3.5 h-3.5" aria-hidden />{MOVEMENT_LABEL[m.type] ?? m.type}</span>
+                    {m.remarks && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{m.remarks}</p>}
                   </td>
-                  <td className="table-cell">
-                    <span className="font-mono text-sm font-bold" style={{color:m.qty>0?'#22c55e':'#ef4444'}}>
-                      {m.qty>0?'+':''}{m.qty} {m.unit}
-                    </span>
-                  </td>
-                  <td className="table-cell font-mono text-sm">{formatCurrency(m.cost)}</td>
-                  <td className="table-cell">
-                    <span className="font-mono text-xs" style={{color:'var(--text-secondary)'}}>{m.ref}</span>
-                  </td>
-                  <td className="table-cell">
-                    <span className="font-mono text-sm font-semibold" style={{color:'var(--text-primary)'}}>{m.stockAfter}</span>
-                  </td>
+                  <td className="table-cell font-mono text-sm font-bold" style={{ color: n >= 0 ? '#16a34a' : '#dc2626' }}>{n > 0 ? '+' : n < 0 ? '−' : ''}{qty(Math.abs(n))} <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>{m.unit}</span></td>
+                  <td className="table-cell font-mono text-sm">{m.unitCost == null ? '—' : inr(m.unitCost)}</td>
+                  <td className="table-cell font-mono text-xs" style={{ color: 'var(--text-secondary)' }}><Reference m={m} /></td>
+                  <td className="table-cell font-mono text-sm font-semibold">{qty(m.stockAfter)}</td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
+      {data && data.totalPages > 1 && <Pagination currentPage={data.currentPage} totalPages={data.totalPages} onPageChange={setPage} totalElements={data.totalElements} pageSize={50} />}
     </div>
   )
 }

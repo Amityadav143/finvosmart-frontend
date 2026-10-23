@@ -88,3 +88,15 @@ export function exportToCsv(filename: string, rows: Record<string, any>[]) {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+// The message for a failed API call lives on its own (no dependencies), so plain-TS checks can load it too.
+/**
+ * A web address someone typed (a tender portal, a résumé), or null when it isn't an http(s) link —
+ * so a saved "javascript:…" address can never run when the link is clicked.
+ */
+export function webLink(url: string | null | undefined): string | null {
+  const u = (url ?? '').trim()
+  return /^https?:\/\/[^\s<>"]+$/i.test(u) ? u : null
+}
+
+export { apiError } from '../apiError'

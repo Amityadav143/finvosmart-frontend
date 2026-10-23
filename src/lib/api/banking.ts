@@ -12,11 +12,30 @@
 import { api } from './client'
 import type { ApiResponse } from '@/types'
 
+/** A customer's invoice (money in) or, with kind BILL, a supplier's bill (money out): invoiceId/invoiceNumber then carry the bill's. */
+export interface StatementAllocation { invoiceId: string; invoiceNumber: string; customerName: string; amount: number; tds: number; kind?: 'INVOICE' | 'BILL' }
+export interface StatementSuggestion { confidence: number; reason: string; autoSelect: boolean; allocations: StatementAllocation[] }
+export interface StatementLine {
+  key: string; row: number; date: string; description: string; reference?: string
+  debit?: number; credit?: number; balance?: number; alreadyRecorded: boolean; suggestions: StatementSuggestion[]
+}
+export interface ParsedStatement {
+  fileName: string; layout: string; transactions: number; moneyIn: number; moneyOut: number; totalIn: number; totalOut: number
+  from: string; to: string; suggested: number; alreadyRecorded: number; skippedRows: number; warnings: string[]; lines: StatementLine[]
+}
+export interface StatementConfirmation {
+  key: string; date: string; amount: number; description: string; reference?: string
+  allocations: { invoiceId: string; amount: number; tds: number; kind?: 'INVOICE' | 'BILL' }[]
+}
+export interface ConfirmResult { recorded: number; skippedAlreadyRecorded: number; amount: number; errors: string[] }
+
 export const bankingApi = {
-  reconcile: async (file: File, bank: string) => {
-    const form = new FormData(); form.append('file', file); form.append('bank', bank)
-    return (await api.post<ApiResponse<any>>('/banking/reconcile', form,
+  /** Any bank's statement: CSV, Excel (.xlsx/.xls) or OFX. */
+  parse: async (file: File) => {
+    const form = new FormData(); form.append('file', file)
+    return (await api.post<ApiResponse<ParsedStatement>>('/banking/statements/parse', form,
       { headers: { 'Content-Type': 'multipart/form-data' } })).data.data!
   },
-  post: async (txnIds: string[]) => (await api.post('/banking/reconcile/post', txnIds)).data,
+  confirm: async (lines: StatementConfirmation[]) =>
+    (await api.post<ApiResponse<ConfirmResult>>('/banking/statements/confirm', lines)).data.data!,
 }

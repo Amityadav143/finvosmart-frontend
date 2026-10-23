@@ -10,7 +10,7 @@
  */
 
 import { api } from './client'
-import type { ApiResponse, PageResponse, Customer, Lead } from '@/types'
+import type { ApiResponse, PageResponse, Customer, Lead, LeadUpdate, LeadConversion } from '@/types'
 
 export const crmApi = {
   customers: {
@@ -18,12 +18,18 @@ export const crmApi = {
       (await api.get<ApiResponse<PageResponse<Customer>>>('/crm/customers', { params: p })).data.data!,
     create: async (d: Partial<Customer>) => (await api.post<ApiResponse<Customer>>('/crm/customers', d)).data.data!,
     get: async (id: string) => (await api.get<ApiResponse<Customer>>(`/crm/customers/${id}`)).data.data!,
+    /** Only the fields given change. */
+    update: async (id: string, d: Partial<Customer>) => (await api.put<ApiResponse<Customer>>(`/crm/customers/${id}`, d)).data.data!,
   },
   leads: {
     list: async (): Promise<Lead[]> => (await api.get<ApiResponse<Lead[]>>('/crm/leads')).data.data ?? [],
     create: async (d: Partial<Lead>) => (await api.post<ApiResponse<Lead>>('/crm/leads', d)).data.data!,
     updateStatus: async (id: string, status: string) =>
       (await api.patch<ApiResponse<Lead>>(`/crm/leads/${id}/status`, null, { params: { status } })).data.data!,
+    /** Edits a lead's details; only the fields given change. */
+    update: async (id: string, d: LeadUpdate) => (await api.put<ApiResponse<Lead>>(`/crm/leads/${id}`, d)).data.data!,
+    /** Makes the lead a customer (or links the customer who has its email); doing it again returns the same customer. */
+    convert: async (id: string) => (await api.post<ApiResponse<LeadConversion>>(`/crm/leads/${id}/convert`)).data.data!,
     pipeline: async (): Promise<Record<string,number>> =>
       (await api.get<ApiResponse<Record<string,number>>>('/crm/leads/pipeline')).data.data ?? {},
   },

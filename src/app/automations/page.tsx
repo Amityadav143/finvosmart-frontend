@@ -10,6 +10,8 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
+import { notAvailableYet } from '@/lib/notAvailable'
 import { useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
@@ -28,7 +30,7 @@ const RULES = [
 const TRIGGERS=['Invoice Overdue','Stock Below Reorder','Leave Submitted','PO Approved','Payment Received','Expense Submitted','Employee Birthday']
 const ACTIONS=['Send WhatsApp','Send Email','Credit Hold','Create Task','Notify Manager','Generate Invoice','Auto-Approve']
 
-export default function AutomationsPage(){
+function AutomationsPage(){
   const [showCreate,setShowCreate]=useState(false)
   const [rules,setRules]=useState(RULES)
 
@@ -111,10 +113,15 @@ export default function AutomationsPage(){
             </div></div>
           <div className="flex justify-end gap-3 pt-2" style={{borderTop:'1px solid var(--border)'}}>
             <button onClick={()=>setShowCreate(false)} className="btn-secondary">Cancel</button>
-            <button onClick={()=>{toast.success('Automation rule activated');setShowCreate(false)}} className="btn-primary"><Zap className="w-4 h-4"/>Activate Rule</button>
+            <button onClick={()=>{notAvailableYet('Activating automation rules from this screen')}} className="btn-primary"><Zap className="w-4 h-4"/>Activate Rule</button>
           </div>
         </div>
       </Modal>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="automations"><AutomationsPage /></PreviewGate>
 }

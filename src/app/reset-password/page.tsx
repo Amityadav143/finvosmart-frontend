@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation'
 import { authApi } from '@/lib/api/auth'
 import toast from 'react-hot-toast'
 import { Zap, Eye, EyeOff, Lock, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { apiError } from '@/lib/utils'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -49,7 +50,9 @@ export default function ResetPasswordPage() {
 
   const submit = async (e: any) => {
     e.preventDefault()
-    if (password.length < 8) { toast.error('Password must be at least 8 characters'); return }
+    // Same rule as sign-up and the server.
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) { toast.error('Use at least 8 characters, with a letter and a number.'); return }
+    if (new TextEncoder().encode(password).length > 72) { toast.error('Use 72 characters or fewer.'); return }
     if (password !== confirm) { toast.error('Passwords do not match'); return }
     setLoading(true)
     try {
@@ -57,7 +60,7 @@ export default function ResetPasswordPage() {
       setDone(true)
       setTimeout(() => router.push('/login'), 2500)
     } catch (err: any) {
-      toast.error(err?.response?.data?.error ?? 'This reset link is invalid or has expired. Please request a new one.')
+      toast.error(apiError(err, 'This reset link is invalid or has expired. Please request a new one.'))
     } finally {
       setLoading(false)
     }
@@ -83,7 +86,7 @@ export default function ResetPasswordPage() {
               </div>
               <h2 className="font-serif text-xl mb-2" style={{ color: 'var(--text-primary)' }}>Password reset!</h2>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '20px' }}>
-                Your password has been updated. Redirecting you to sign in…
+                Your password has been updated and you’ve been signed out on every device. Taking you to sign in…
               </p>
               <Link href="/login" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex', width: '100%', justifyContent: 'center' }}>
                 Sign in now
@@ -106,7 +109,7 @@ export default function ResetPasswordPage() {
                 <h2 className="font-serif text-xl" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Set a new password</h2>
               </div>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '24px' }}>
-                Choose a strong password you haven't used before.
+                Use at least 8 characters, with a letter and a number. Your company code is in the email we sent you.
               </p>
               <form onSubmit={submit}>
                 <div style={{ marginBottom: '16px' }}>
@@ -118,7 +121,7 @@ export default function ResetPasswordPage() {
                       type={showPwd ? 'text' : 'password'}
                       value={password}
                       onChange={(e: any) => setPassword(e.target.value)}
-                      placeholder="At least 8 characters"
+                      placeholder="8+ characters, a letter and a number"
                       style={{ paddingLeft: '38px', paddingRight: '42px' }}
                       autoFocus
                     />

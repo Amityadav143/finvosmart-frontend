@@ -10,11 +10,17 @@
  */
 
 import type { Metadata } from 'next'
-import { pageMetadata } from '@/lib/seo'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { organizationSchema, pageMetadata, pageSchema, websiteSchema } from '@/lib/seo'
 
 // Indexable: people search "finvosmart sign up" / "free trial".
 export const metadata: Metadata = pageMetadata('register')
 
 export default function RegisterLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return (
+    <>
+      <JsonLd nodes={[organizationSchema(), websiteSchema(), ...pageSchema('register')]} />
+      {children}
+    </>
+  )
 }

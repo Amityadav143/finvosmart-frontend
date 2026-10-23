@@ -16,19 +16,20 @@ import { emailSettingsApi, type EmailEventConfig } from '@/lib/api/emailSettings
 import { PermissionGate } from '@/components/ui/PermissionGate'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
+import { apiError } from '@/lib/utils'
 import { Mail, ChevronDown, Send, Settings2, Check } from 'lucide-react'
 
 // Groups the events into sections for a cleaner admin experience
 const GROUPS: { title: string; events: string[] }[] = [
   { title: 'Authentication & Account', events: ['WELCOME', 'PASSWORD_RESET', 'PASSWORD_CHANGED', 'OTP_LOGIN', 'NEW_DEVICE_LOGIN'] },
-  { title: 'Invoicing & Finance',      events: ['INVOICE_CREATED', 'INVOICE_SENT', 'PAYMENT_RECEIVED', 'PAYMENT_REMINDER'] },
+  { title: 'Invoicing & Finance',      events: ['INVOICE_CREATED', 'INVOICE_SENT', 'PAYMENT_RECEIVED', 'PAYMENT_REMINDER', 'STATEMENT_SENT'] },
   { title: 'HR & Team',                events: ['EMPLOYEE_ONBOARDED', 'LEAVE_REQUESTED', 'LEAVE_APPROVED', 'LEAVE_REJECTED'] },
   { title: 'Subscription & Billing',   events: ['SUBSCRIPTION_RENEWAL', 'SUBSCRIPTION_EXPIRED'] },
 ]
 
 export default function EmailSettingsPage() {
   const qc = useQueryClient()
-  const { data: configs, isLoading } = useQuery({ queryKey: ['email-settings'], queryFn: emailSettingsApi.list })
+  const { data: configs, isLoading, isError, error } = useQuery({ queryKey: ['email-settings'], queryFn: emailSettingsApi.list })
   const [expanded, setExpanded] = useState<string | null>(null)
 
   const byEvent = (configs ?? []).reduce((acc: Record<string, EmailEventConfig>, c: EmailEventConfig) => { acc[c.event] = c; return acc }, {} as Record<string, EmailEventConfig>)
@@ -36,11 +37,11 @@ export default function EmailSettingsPage() {
   const toggleMutation = useMutation({
     mutationFn: ({ event, enabled }: { event: string; enabled: boolean }) => emailSettingsApi.update(event, { enabled }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['email-settings'] }); toast.success('Email setting updated') },
-    onError: () => toast.error('Could not update setting'),
+    onError: (e: any) => toast.error(apiError(e, 'Could not update setting')),
   })
 
   return (
-    <PermissionGate permission="SETTINGS_COMPANY">
+    <PermissionGate permission="SETTINGS_COMPANY" showDenied>
       <div className="space-y-5">
         <div>
           <h1 className="page-title">Email Notifications</h1>
@@ -51,8 +52,10 @@ export default function EmailSettingsPage() {
 
         {isLoading ? (
           <div className="space-y-4"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>
+        ) : isError ? (
+          <div className="card text-sm" style={{ color: '#dc2626' }}>{apiError(error, 'The email settings could not be loaded. Check your connection and try again.')}</div>
         ) : (
-          GROUPS.map(group => (
+          GROUPS.filter(group => group.events.some(ev => byEvent[ev])).map(group => (
             <div key={group.title}>
               <h2 style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '12px' }}>{group.title}</h2>
               <div className="space-y-2.5" style={{ marginBottom: '28px' }}>
@@ -105,7 +108,7 @@ function EmailEventCard({ config, expanded, onToggleExpand, onToggleEnabled, onS
       })
       toast.success('Saved')
       onSaved()
-    } catch { toast.error('Could not save') }
+    } catch (e) { toast.error(apiError(e, 'Could not save')) }
     finally { setSaving(false) }
   }
 
@@ -115,7 +118,7 @@ function EmailEventCard({ config, expanded, onToggleExpand, onToggleEnabled, onS
     try {
       await emailSettingsApi.sendTest(config.event, testEmail)
       toast.success(`Test email sent to ${testEmail}`)
-    } catch { toast.error('Could not send test email') }
+    } catch (e) { toast.error(apiError(e, 'Could not send the test email')) }
     finally { setSending(false) }
   }
 

@@ -1,0 +1,1410 @@
+{
+ "note": "Generated from the backend controllers by scripts/gen_api_reference.py — do not edit by hand.",
+ "groups": [
+  {
+   "id": "auth",
+   "title": "Authentication",
+   "intro": "Sign in to get an access token for every other call.",
+   "endpoints": [
+    {
+     "method": "POST",
+     "path": "/api/v1/auth/login",
+     "summary": "Login — returns access + refresh JWT tokens",
+     "permissions": [],
+     "public": true
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/auth/refresh",
+     "summary": "Refresh access token using a valid refresh token",
+     "permissions": [],
+     "public": true
+    }
+   ]
+  },
+  {
+   "id": "dashboard",
+   "title": "Dashboard and analytics",
+   "intro": "The figures behind the home dashboard and the analytics page: what customers owe and what you owe, cash, the GST estimate, payroll status, statutory dates ahead, and ageing over 3, 6 or 12 months. Each part is included only for people allowed to see it.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/dashboard/analytics",
+     "summary": "Sales and collections by month, receivables and payables ageing, top customers, headcount and leads (3, 6 or 12 months)",
+     "permissions": [
+      "REPORTS_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/dashboard/setup",
+     "summary": "What is set up already (company details, payment details, first customers, items, invoices, bills, team) — for the getting-started checklist",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/dashboard/summary",
+     "summary": "Money owed and owing, cash, profit, GST, payroll, people, stock, what to do now and statutory dates ahead",
+     "permissions": [],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "invoicing",
+   "title": "Invoices",
+   "intro": "Create, list and update GST invoices; download PDFs.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/invoices",
+     "summary": "Search",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices",
+     "summary": "Create a draft invoice (amounts and GST are worked out by the server)",
+     "permissions": [
+      "INVOICE_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices/bulk-pdf",
+     "summary": "Download up to 50 invoices as a ZIP file of PDFs",
+     "permissions": [
+      "INVOICE_EXPORT"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/invoices/dashboard/stats",
+     "summary": "Stats",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/invoices/export/csv",
+     "summary": "Export issued invoices of a date range as CSV (opens in Excel)",
+     "permissions": [
+      "INVOICE_EXPORT"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices/payments/{paymentId}/void",
+     "summary": "Void a payment recorded by mistake (it is kept, marked void, and reversed in the books)",
+     "permissions": [
+      "FINANCE_EDIT"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/invoices/{id}",
+     "summary": "Get a single invoice",
+     "permissions": [
+      "INVOICE_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/invoices/{id}",
+     "summary": "Edit a draft",
+     "permissions": [
+      "INVOICE_EDIT"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices/{id}/cancel",
+     "summary": "Cancel an invoice that has no payments (the sale is reversed in the books)",
+     "permissions": [
+      "INVOICE_DELETE",
+      "FINANCE_EDIT"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices/{id}/convert",
+     "summary": "Draft the tax invoice for a quotation, proforma or delivery challan (once; it refers back to it)",
+     "permissions": [
+      "INVOICE_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices/{id}/issue",
+     "summary": "Issue a draft without sending it (e.g. handed over in person); it goes into the books",
+     "permissions": [
+      "INVOICE_SEND",
+      "INVOICE_EDIT"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices/{id}/payment-link",
+     "summary": "A card / net-banking payment link from the business's own Razorpay account",
+     "permissions": [
+      "INVOICE_SEND"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/invoices/{id}/payments",
+     "summary": "List payments",
+     "permissions": [
+      "INVOICE_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices/{id}/payments",
+     "summary": "Record a payment received (with any TDS the customer deducted)",
+     "permissions": [
+      "INVOICE_EDIT",
+      "FINANCE_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/invoices/{id}/pdf",
+     "summary": "The invoice as a PDF (inline for preview; ?download=true to save)",
+     "permissions": [
+      "INVOICE_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices/{id}/remind",
+     "summary": "Email a payment reminder now",
+     "permissions": [
+      "INVOICE_SEND"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/invoices/{id}/send",
+     "summary": "Send to the customer by email (PDF attached, view-and-pay link) and/or WhatsApp; drafts are issued first",
+     "permissions": [
+      "INVOICE_SEND"
+     ],
+     "public": false
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/invoices/{id}/status",
+     "summary": "Older clients: issue (SENT), mark PAID (records a payment) or CANCEL",
+     "permissions": [
+      "INVOICE_EDIT"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/public/invoices/{token}",
+     "summary": "The invoice behind a view-and-pay link",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/public/invoices/{token}/accept",
+     "summary": "The customer accepts a quotation from its link (with their name); accepting again changes nothing",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/public/invoices/{token}/pay-online",
+     "summary": "A card / net-banking payment link from the business's own Razorpay account",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/public/invoices/{token}/pdf",
+     "summary": "Pdf",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/public/invoices/{token}/upi-qr.svg",
+     "summary": "Upi qr",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/public/invoices/{token}/viewed",
+     "summary": "Viewed",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/public/razorpay/webhook/{companyId}",
+     "summary": "Razorpay webhook",
+     "permissions": [],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "crm",
+   "title": "CRM",
+   "intro": "Customers and sales leads.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/crm/customers",
+     "summary": "Customers",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/crm/customers",
+     "summary": "Create customer",
+     "permissions": [
+      "CRM_CREATE",
+      "CRM_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/crm/customers/{id}",
+     "summary": "Get customer",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/crm/customers/{id}",
+     "summary": "Update customer",
+     "permissions": [
+      "CRM_EDIT",
+      "CRM_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/crm/leads",
+     "summary": "Leads",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/crm/leads",
+     "summary": "Create lead",
+     "permissions": [
+      "CRM_CREATE",
+      "CRM_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/crm/leads/my",
+     "summary": "My leads",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/crm/leads/pipeline",
+     "summary": "Pipeline",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/crm/leads/{id}",
+     "summary": "Update lead",
+     "permissions": [
+      "CRM_CREATE",
+      "CRM_EDIT",
+      "CRM_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/crm/leads/{id}/convert",
+     "summary": "Convert lead",
+     "permissions": [
+      "CRM_CREATE",
+      "CRM_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/crm/leads/{id}/status",
+     "summary": "Update lead status",
+     "permissions": [
+      "CRM_CREATE",
+      "CRM_EDIT",
+      "CRM_ADMIN"
+     ],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "inventory",
+   "title": "Inventory",
+   "intro": "Items and their stock: add and edit items, record stock in and out, and read the stock ledger.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/inventory/alerts/low-stock",
+     "summary": "Items at or below their reorder level",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/inventory/items",
+     "summary": "List items, by name or code and category",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/inventory/items",
+     "summary": "Add an item (with its opening stock, if any)",
+     "permissions": [
+      "INVENTORY_CREATE",
+      "INVENTORY_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/inventory/items/{id}",
+     "summary": "One item, with its stock",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/inventory/items/{id}",
+     "summary": "Edit an item's details (stock changes only through stock movements)",
+     "permissions": [
+      "INVENTORY_EDIT",
+      "INVENTORY_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/inventory/items/{itemId}/adjust",
+     "summary": "Record stock in, stock out or an adjustment for an item",
+     "permissions": [
+      "INVENTORY_ADJUST",
+      "INVENTORY_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/inventory/items/{itemId}/ledger",
+     "summary": "An item's stock ledger",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/inventory/movements",
+     "summary": "The stock ledger across items, newest first",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/inventory/movements/recheck",
+     "summary": "Re-check stock against invoices and bills and post whatever is missing (safe to repeat)",
+     "permissions": [
+      "INVENTORY_ADJUST",
+      "INVENTORY_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/inventory/movements/today",
+     "summary": "Stock entries made today, by kind",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/inventory/stock/batch",
+     "summary": "Record several stock movements at once (scanner); each is saved or refused on its own",
+     "permissions": [
+      "INVENTORY_ADJUST",
+      "INVENTORY_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/inventory/summary",
+     "summary": "The stock at a glance: items, value at purchase price, low and below-zero stock",
+     "permissions": [],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "imports",
+   "title": "Import",
+   "intro": "Customers, suppliers, items, employees and opening balances from Excel or CSV: check a file row by row, then import it.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/import/kinds",
+     "summary": "What can be imported, the columns each file takes, and which the signed-in person may import",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/import/opening-difference",
+     "summary": "How much of the opening balances is not yet explained (Opening Balance Difference)",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/import/{kind}",
+     "summary": "Import a file: all ready rows are saved together, or none",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/import/{kind}/preview",
+     "summary": "Check a file: what each row would do (nothing is saved)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/import/{kind}/template",
+     "summary": "The CSV template for an import (opens in Excel)",
+     "permissions": [],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "procurement",
+   "title": "Procurement",
+   "intro": "Suppliers (with MSME and TDS details) and purchase orders.",
+   "endpoints": [
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/grn",
+     "summary": "Create g r n",
+     "permissions": [
+      "PROCUREMENT_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/grn/by-po/{poId}",
+     "summary": "Grns by p o",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/purchase-orders",
+     "summary": "List p os",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/purchase-orders",
+     "summary": "Create p o",
+     "permissions": [
+      "PROCUREMENT_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/purchase-orders/summary",
+     "summary": "Po summary",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/purchase-orders/{id}",
+     "summary": "Get p o",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/procurement/purchase-orders/{id}/status",
+     "summary": "Update p o status",
+     "permissions": [
+      "PROCUREMENT_CREATE",
+      "PROCUREMENT_EDIT",
+      "PROCUREMENT_APPROVE",
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/vendors",
+     "summary": "List",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/vendors",
+     "summary": "Create",
+     "permissions": [
+      "PROCUREMENT_CREATE",
+      "FINANCE_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/vendors/by-gstin/{gstin}",
+     "summary": "The saved supplier with this GSTIN",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/vendors/{id}",
+     "summary": "Get",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/vendors/{id}",
+     "summary": "Update",
+     "permissions": [
+      "PROCUREMENT_CREATE",
+      "FINANCE_CREATE"
+     ],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "purchases",
+   "title": "Bills and payables",
+   "intro": "Supplier bills, expenses and credit notes, payments to suppliers, and what is owed — with MSMED Act pay-by dates.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/bills",
+     "summary": "List bills, expenses and supplier credit notes",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/bills",
+     "summary": "Enter a bill, expense or supplier credit note (as a draft, or straight into the books)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/bills/accounts",
+     "summary": "Accounts a bill line can be booked to",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/bills/export/csv",
+     "summary": "Purchase register for a date range, as CSV (opens in Excel)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/bills/payments/{paymentId}/void",
+     "summary": "Void a mistaken payment (kept on record; its entry in the books is reversed)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/bills/tds-suggestion",
+     "summary": "The TDS to deduct on a bill: rate, amount and the limits for the year",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/bills/{id}",
+     "summary": "One bill, expense or credit note with its lines, TDS, MSME pay-by date and GST-credit status",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/bills/{id}",
+     "summary": "Edit a draft, or correct a recorded bill that has nothing paid against it",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/bills/{id}",
+     "summary": "Delete a draft",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/bills/{id}/apply-credit",
+     "summary": "Use a supplier credit note to settle (part of) this bill",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/bills/{id}/cancel",
+     "summary": "Cancel a recorded bill (its entry in the books is reversed); not possible while payments stand against it",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/bills/{id}/credit-notes",
+     "summary": "The same supplier's credit notes that still have something left to use",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/bills/{id}/payments",
+     "summary": "Payments, credit notes used and refunds on a bill",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/bills/{id}/payments",
+     "summary": "Record a payment made against a bill (or a refund received on a supplier credit note)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/bills/{id}/record",
+     "summary": "Record a draft into the books",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payables/msme",
+     "summary": "Payments to micro and small suppliers in a period: on time, late and unpaid",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payables/msme/csv",
+     "summary": "The MSME payments report as CSV — for MSME Form I and the tax audit",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payables/summary",
+     "summary": "Totals, ageing, what is due soon and MSME payments past the legal limit",
+     "permissions": [],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "finance",
+   "title": "Accounting",
+   "intro": "Chart of accounts, vouchers and financial reports.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/finance/accounts",
+     "summary": "Get accounts",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/finance/accounts",
+     "summary": "Create account",
+     "permissions": [
+      "FINANCE_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/finance/accounts/{id}",
+     "summary": "Update account",
+     "permissions": [
+      "FINANCE_EDIT"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/finance/accounts/{id}/ledger",
+     "summary": "Ledger",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/finance/accounts/{id}/ledger/csv",
+     "summary": "Ledger csv",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/finance/accounts/{id}/ledger/pdf",
+     "summary": "Ledger pdf",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/finance/journal-entries",
+     "summary": "List j e",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/finance/journal-entries",
+     "summary": "Create j e",
+     "permissions": [
+      "FINANCE_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/finance/journal-entries/{id}",
+     "summary": "Get j e",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/finance/journal-entries/{id}/reverse",
+     "summary": "Reverse j e",
+     "permissions": [
+      "FINANCE_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/finance/ledger/sync",
+     "summary": "Sync ledger",
+     "permissions": [
+      "FINANCE_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/finance/reports/balance-sheet",
+     "summary": "Balance sheet",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/finance/reports/profit-loss",
+     "summary": "Profit and loss",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/finance/trial-balance",
+     "summary": "Trial balance",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "gst",
+   "title": "GST returns",
+   "intro": "GSTR-1 and GSTR-3B for a month — summary with what to fix, the portal JSON and Excel — and the GSTR-2B input tax credit check.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/gst/export/gstr1/excel",
+     "summary": "GSTR-1 as an Excel workbook: summary, b2b, b2cl, b2cs, cdnr, cdnur, exemp, HSN and documents issued",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/gst/export/gstr1/json",
+     "summary": "GSTR-1 as the JSON file the GST portal accepts (Returns → GSTR-1 → Prepare offline → Upload)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/gst/export/gstr3b/excel",
+     "summary": "GSTR-3B worksheet, table by table, with every bill and how its credit was treated",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/gst/export/gstr3b/json",
+     "summary": "GSTR-3B in GSTN's JSON format (for a GST practitioner's software)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/gst/export/summary",
+     "summary": "GSTR-1 by section and GSTR-3B by table for a month, with what to check before filing",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/gst/itc/documents/{id}",
+     "summary": "One statement document, with the details needed to record it as a bill",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/gst/itc/gstr2b",
+     "summary": "Months uploaded so far",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/gst/itc/gstr2b",
+     "summary": "Upload a month's GSTR-2B (replaces an earlier upload of that month) and check it against the books",
+     "permissions": [
+      "GST_RECON_RUN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/gst/itc/gstr2b/{period}",
+     "summary": "A month's statement compared with the books as they are now",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/gst/itc/gstr2b/{period}",
+     "summary": "Remove a month's statement; its bills go back to not checked",
+     "permissions": [
+      "GST_RECON_RUN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/gst/itc/gstr2b/{period}/csv",
+     "summary": "The month's check as CSV, with the suggested IMS action for each document",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/gst/itc/gstr2b/{period}/recheck",
+     "summary": "Check the month again and update each bill's credit status",
+     "permissions": [
+      "GST_RECON_RUN"
+     ],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "tds",
+   "title": "TDS",
+   "intro": "The TDS register, built from supplier bills.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/tds/natures",
+     "summary": "Kinds of payment with their TDS rates and limits",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/tds/register",
+     "summary": "TDS deducted on supplier bills in a period (default: this quarter), by month and kind of payment",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/tds/register/csv",
+     "summary": "The TDS register as CSV (opens in Excel)",
+     "permissions": [],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "webhook",
+   "title": "Webhooks",
+   "intro": "Register endpoints that receive event notifications.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/webhooks",
+     "summary": "Registered endpoints with the outcome of their last delivery (secrets masked)",
+     "permissions": [
+      "SETTINGS_COMPANY",
+      "SETTINGS_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/webhooks",
+     "summary": "Register an HTTPS endpoint for an event (or * for all); the answer shows its signing secret once",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/webhooks/events",
+     "summary": "The events that are sent",
+     "permissions": [
+      "SETTINGS_COMPANY",
+      "SETTINGS_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/webhooks/{id}",
+     "summary": "Remove an endpoint",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/webhooks/{id}/active",
+     "summary": "Switch an endpoint on or off",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/webhooks/{id}/rotate-secret",
+     "summary": "Replace the signing secret; the answer shows the new one once",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/webhooks/{id}/test",
+     "summary": "Send a test (ping) delivery now",
+     "permissions": [],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "hrms",
+   "title": "HR and payroll",
+   "intro": "Employees, attendance, leave and payroll: salary set-ups, monthly payroll runs under the labour codes, payslips, and the PF, ESI and bank files.",
+   "endpoints": [
+    {
+     "method": "POST",
+     "path": "/api/v1/attendance",
+     "summary": "Add a mark for one employee and day (older clients; use PUT /{employeeId}/{date} to change one)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/attendance/day/{date}",
+     "summary": "Mark a day for several employees at once (days already marked are kept unless overwrite is set)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/attendance/employee/{empId}",
+     "summary": "One employee's marks between two dates (your own, without attendance rights)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/attendance/register",
+     "summary": "The month's attendance register: a mark per employee per day, with the unpaid days payroll will use",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/attendance/{employeeId}/{date}",
+     "summary": "Set one employee's attendance for a day (adds the mark or changes it)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/attendance/{employeeId}/{date}",
+     "summary": "Remove one employee's mark for a day",
+     "permissions": [
+      "ATTENDANCE_EDIT",
+      "ATTENDANCE_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/employees",
+     "summary": "Search employees",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/employees",
+     "summary": "Create new employee",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/employees/dashboard/stats",
+     "summary": "Employee dashboard statistics",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/employees/{id}",
+     "summary": "Get employee by ID",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/employees/{id}",
+     "summary": "Update employee",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/employees/{id}",
+     "summary": "Delete employee (soft)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/employees/{id}/custom-fields",
+     "summary": "Update custom fields",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/employees/{id}/resign",
+     "summary": "Initiate resignation",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/leaves/apply",
+     "summary": "Apply",
+     "permissions": [
+      "LEAVE_APPLY",
+      "LEAVE_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/leaves/decided",
+     "summary": "Decided",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/leaves/employee/{empId}",
+     "summary": "By employee",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/leaves/my",
+     "summary": "My",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/leaves/my/summary",
+     "summary": "My summary",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/leaves/pending",
+     "summary": "Pending",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/leaves/{id}/process",
+     "summary": "Process",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/my/payslips",
+     "summary": "Your own payslips",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/my/payslips/{itemId}/pdf",
+     "summary": "Download one of your payslips (PDF)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/runs",
+     "summary": "Payroll runs, newest month first",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/payroll/runs",
+     "summary": "Start the payroll for a month (a draft worked out from salary set-ups, attendance and leave)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/runs/{id}",
+     "summary": "A payroll run with every employee's pay, warnings and statutory due dates",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/payroll/runs/{id}",
+     "summary": "Delete a draft payroll",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/payroll/runs/{id}/approve",
+     "summary": "Approve: issue the payslips and post the payroll to the books",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/runs/{id}/bank-file",
+     "summary": "Bulk salary transfer sheet for the bank (CSV)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/runs/{id}/ecr",
+     "summary": "PF electronic challan-cum-return (ECR) text file for the EPFO portal",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/runs/{id}/esi",
+     "summary": "ESI monthly contribution sheet for the ESIC portal (CSV)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/payroll/runs/{id}/items/{itemId}",
+     "summary": "Adjust one employee in a draft: unpaid days, overtime, bonus, recoveries, TDS",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/runs/{id}/items/{itemId}/payslip",
+     "summary": "One employee's payslip (PDF)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/payroll/runs/{id}/pay",
+     "summary": "Record that salaries were paid (posts Dr Salaries Payable / Cr Bank)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/runs/{id}/payslips",
+     "summary": "Every payslip of the run as PDFs in a ZIP file",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/payroll/runs/{id}/recalculate",
+     "summary": "Bring a draft up to date with employees, salary set-ups and attendance (amounts entered by hand are kept)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/runs/{id}/register",
+     "summary": "Salary register (CSV)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/payroll/runs/{id}/reopen",
+     "summary": "Back to draft for changes (the posting is reversed)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/payroll/runs/{id}/unpay",
+     "summary": "Undo a salary payment recorded by mistake",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/setup",
+     "summary": "Employees with their salary set-up and what payroll still needs for them",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/payroll/setup/preview",
+     "summary": "Work out a month's pay from a set-up without saving: labour-code wages, PF, ESI, PT, TDS and net pay",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/payroll/setup/{employeeId}",
+     "summary": "One employee's salary set-up",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/payroll/setup/{employeeId}",
+     "summary": "Save an employee's salary set-up",
+     "permissions": [],
+     "public": false
+    }
+   ]
+  }
+ ]
+}

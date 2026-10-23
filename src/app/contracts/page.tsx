@@ -14,11 +14,15 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
 import { PermissionGate } from '@/components/ui/PermissionGate'
+import { usePermissions } from '@/lib/hooks/usePermissions'
+import { todayIST } from '@/lib/money'
+import { EmptyState } from '@/components/ui/EmptyState'
 import {
   Plus, FileText, AlertTriangle, CheckCircle2, Clock,
   RefreshCw, Search, Calendar, ChevronRight, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiError, formatDate } from '@/lib/utils'
 
 type ContractStatus = 'DRAFT' | 'UNDER_REVIEW' | 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'RENEWED'
 type ContractType = 'SERVICE_AGREEMENT' | 'MAINTENANCE_AMC' | 'PURCHASE_AGREEMENT' |
@@ -47,7 +51,7 @@ const CONTRACT_TYPES: ContractType[] = [
 
 const BLANK_FORM = {
   title: '', type: 'SERVICE_AGREEMENT' as ContractType, partyName: '', partyType: 'CUSTOMER',
-  startDate: new Date().toISOString().split('T')[0], endDate: '', contractValue: '',
+  startDate: todayIST(), endDate: '', contractValue: '',
   currency: 'INR', renewalReminderDays: 60, autoRenew: false, description: ''
 }
 
@@ -58,6 +62,10 @@ export default function ContractsPage() {
   const [showNew, setShowNew]     = useState(false)
   const [renewId, setRenewId]     = useState<string | null>(null)
   const [renewDate, setRenewDate] = useState('')
+  const [endId, setEndId]         = useState<string | null>(null)
+  const [endReason, setEndReason] = useState('')
+  const { can } = usePermissions()
+  const manage = can('SETTINGS_COMPANY')
   const [form, setForm]           = useState({ ...BLANK_FORM })
 
   const { data, isLoading } = useQuery({
@@ -82,20 +90,20 @@ export default function ContractsPage() {
       setShowNew(false); setForm({ ...BLANK_FORM })
       toast.success('Contract created')
     },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Failed to create contract'),
+    onError: (e: any) => toast.error(apiError(e, 'Failed to create contract')),
   })
 
   const activateMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/contracts/${id}/activate`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['contracts'] }); toast.success('Contract activated') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Could not activate contract'),
+    onError: (e: any) => toast.error(apiError(e, 'Could not activate contract')),
   })
 
   const terminateMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       api.patch(`/contracts/${id}/terminate`, { reason }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contracts'] }); toast.success('Contract terminated') },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Could not terminate contract'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['contracts-expiring'] }); setEndId(null); toast.success('Contract ended') },
+    onError: (e: any) => toast.error(apiError(e, 'Could not terminate contract')),
   })
 
   const renewMutation = useMutation({
@@ -105,7 +113,7 @@ export default function ContractsPage() {
       qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['contracts-expiring'] })
       setRenewId(null); toast.success('Contract renewed — new draft created')
     },
-    onError: (e: any) => toast.error(e?.response?.data?.error ?? 'Could not renew contract'),
+    onError: (e: any) => toast.error(apiError(e, 'Could not renew contract')),
   })
 
   const contracts = data as Contract[] ?? []
@@ -121,7 +129,7 @@ export default function ContractsPage() {
   }
 
   return (
-    <PermissionGate permission="SETTINGS_VIEW" showDenied>
+    <PermissionGate anyOf={['SETTINGS_COMPANY', 'FINANCE_VIEW', 'PROCUREMENT_VIEW']} showDenied>
       <div className="space-y-5">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -153,10 +161,10 @@ export default function ContractsPage() {
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#DC2626' }}>{c.partyName}</span>
                     <span style={{ fontSize: '11px', color: '#DC2626' }}>— {c.title}</span>
                     <span style={{ fontSize: '11px', fontWeight: 700, color: '#DC2626' }}>({d !== null ? (d <= 0 ? 'EXPIRED' : `${d}d`) : ''})</span>
-                    <button className="btn-ghost text-xs h-6 px-2" style={{ color: '#059669' }}
+                    {manage && <button className="btn-ghost text-xs h-6 px-2" style={{ color: '#059669' }}
                       onClick={() => { setRenewId(c.id); setRenewDate('') }}>
                       Renew
-                    </button>
+                    </button>}
                   </div>
                 )
               })}
@@ -202,9 +210,12 @@ export default function ContractsPage() {
         <div className="space-y-3">
           {isLoading && <div className="card" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Loading contracts...</div>}
           {!isLoading && contracts.length === 0 && (
-            <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
-              <FileText size={32} style={{ color: 'var(--text-muted)', margin: '0 auto 12px' }} />
-              <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>No contracts found. Create your first contract.</p>
+            <div className="card" style={{ padding: 0 }}>
+              {search || statusFilter
+                ? <EmptyState icon={Search} compact title="No contracts match" description="Try another name or clear the status filter." />
+                : <EmptyState icon={FileText} title="Keep every agreement and its renewal date in one place"
+                    description="AMCs, rent and lease agreements, supplier and service contracts — with the value, the other party's GSTIN and a reminder before each one ends."
+                    action={manage ? { label: 'Add a contract', onClick: () => setShowNew(true) } : undefined} />}
             </div>
           )}
           {contracts.map(contract => {
@@ -225,7 +236,7 @@ export default function ContractsPage() {
                   <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text-muted)' }}>
                     <span><b style={{ color: 'var(--text-secondary)' }}>{contract.partyName}</b> · {contract.partyType}</span>
                     <span><Calendar size={11} style={{ display: 'inline', marginRight: '3px' }} />
-                      {contract.startDate}{contract.endDate ? ` → ${contract.endDate}` : ''}
+                      {formatDate(contract.startDate)}{contract.endDate ? ` → ${formatDate(contract.endDate)}` : ' → no end date'}
                     </span>
                     {contract.contractValue && <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{fmtCurrency(contract.contractValue, contract.currency)}</span>}
                     {days !== null && days <= 60 && days > 0 && (
@@ -238,19 +249,19 @@ export default function ContractsPage() {
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '3px 0 0', fontFamily: 'monospace' }}>{contract.contractNumber}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  {contract.status === 'DRAFT' && (
+                  {manage && contract.status === 'DRAFT' && (
                     <button className="btn-primary h-8 text-xs" onClick={() => activateMutation.mutate(contract.id)}>
                       Activate
                     </button>
                   )}
-                  {contract.status === 'ACTIVE' && (
+                  {manage && contract.status === 'ACTIVE' && (
                     <>
                       <button className="btn-secondary h-8 text-xs" onClick={() => { setRenewId(contract.id); setRenewDate('') }}>
                         <RefreshCw size={12} /> Renew
                       </button>
                       <button className="btn-danger h-8 text-xs"
-                        onClick={() => { if (confirm('Terminate this contract?')) terminateMutation.mutate({ id: contract.id, reason: 'Terminated by user' }) }}>
-                        Terminate
+                        onClick={() => { setEndId(contract.id); setEndReason('') }}>
+                        End early
                       </button>
                     </>
                   )}
@@ -346,6 +357,29 @@ export default function ContractsPage() {
                 <button className="btn-primary h-10" disabled={!renewDate || renewMutation.isPending}
                   onClick={() => renewMutation.mutate({ id: renewId, date: renewDate })}>
                   {renewMutation.isPending ? 'Renewing...' : <><RefreshCw size={14} /> Renew</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* End early (terminate) */}
+        {endId && (
+          <div role="dialog" aria-modal="true" aria-label="End the contract early" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+            onClick={() => setEndId(null)}>
+            <div style={{ background: 'var(--bg-card)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '420px' }} onClick={(e: any) => e.stopPropagation()}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>End this contract early?</h2>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                It is marked terminated from today and drops out of renewal reminders. This can&apos;t be undone.
+              </p>
+              <label className="label label-required" htmlFor="ct-end-reason">Reason</label>
+              <textarea id="ct-end-reason" className="input" rows={3} value={endReason} maxLength={500}
+                placeholder="e.g. Services no longer needed; notice given on 1 Oct" onChange={e => setEndReason(e.target.value)} />
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button className="btn-secondary h-10" onClick={() => setEndId(null)}>Keep it</button>
+                <button className="btn-danger h-10" disabled={!endReason.trim() || terminateMutation.isPending}
+                  onClick={() => terminateMutation.mutate({ id: endId, reason: endReason.trim() })}>
+                  {terminateMutation.isPending ? 'Ending...' : 'End the contract'}
                 </button>
               </div>
             </div>

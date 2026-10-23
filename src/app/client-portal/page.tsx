@@ -10,10 +10,12 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
+import { notAvailableYet } from '@/lib/notAvailable'
 import { Globe, Users, CreditCard, MessageCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function ClientPortalPage(){
+function ClientPortalPage(){
   return(
     <div className="space-y-5">
       <div>
@@ -48,9 +50,14 @@ export default function ClientPortalPage(){
           <div><label className="label">Support Email</label><input className="input h-10" type="email" placeholder="accounts@yourcompany.com"/></div>
         </div>
         <div className="flex justify-end mt-4">
-          <button onClick={()=>toast.success('Portal configuration saved — live at yourcompany.finvosmart.in')} className="btn-primary">Activate Portal</button>
+          <button onClick={()=>notAvailableYet('Saving client-portal settings')} className="btn-primary">Activate Portal</button>
         </div>
       </div>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="client-portal"><ClientPortalPage /></PreviewGate>
 }

@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { exportToCsv } from '@/lib/utils'
 import { useState } from 'react'
 import { PermissionGate } from '@/components/ui/PermissionGate'
@@ -70,7 +71,7 @@ const SEED: TimesheetEntry[] = [
 
 const BLANK = { date: new Date().toISOString().split('T')[0], project: PROJECTS[0], task: TASKS[0], hours: 1, billable: true, notes: '' }
 
-export default function TimesheetPage() {
+function TimesheetPage() {
   const [entries, setEntries]   = useState<TimesheetEntry[]>(SEED)
   const [weekOffset, setWeek]   = useState(0)
   const [showAdd, setShowAdd]   = useState(false)
@@ -318,4 +319,9 @@ export default function TimesheetPage() {
       </Modal>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="timesheets"><TimesheetPage /></PreviewGate>
 }

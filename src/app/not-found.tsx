@@ -9,8 +9,15 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Home, ArrowLeft } from 'lucide-react'
+
+// A missing page says so in its title too (it used to carry the homepage's), and is never indexed.
+export const metadata: Metadata = {
+  title: 'Page not found',
+  robots: { index: false, follow: true },
+}
 
 export default function NotFound() {
   return (

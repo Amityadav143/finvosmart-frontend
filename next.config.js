@@ -1,11 +1,37 @@
 const fs = require('fs')
 const path = require('path')
 
+// ── Next.js version guard ────────────────────────────────────────────────────
+// This project is built for Next.js 14 (webpack). If a different major runs the build —
+// e.g. after "npm audit fix --force" or "npx next build" without a local install pulled
+// in Next 16, whose Turbopack default can't use the webpack config below — stop with a
+// clear instruction instead of a confusing error. Checks the binary actually RUNNING.
+;(function assertNextMajor() {
+  const marker = `${path.sep}node_modules${path.sep}next${path.sep}`
+  const bin = process.argv[1] || ''
+  let pkgPath
+  try {
+    pkgPath = bin.includes(marker)
+      ? path.join(bin.slice(0, bin.indexOf(marker) + marker.length), 'package.json')
+      : require.resolve('next/package.json')
+  } catch {
+    return
+  }
+  let version
+  try { version = require(pkgPath).version } catch { return }
+  if (!String(version).startsWith('14.')) {
+    throw new Error(
+      `This project is built for Next.js 14, but Next.js ${version} is running.\n` +
+      `  Fix:  cd frontend && rm -rf node_modules .next && npm ci && npm run build\n` +
+      `  Avoid "npm audit fix --force" and "npx next build" without installing first: both can pull in a newer major.`)
+  }
+})()
+
 // Top-level routes that are public and should be indexed. Every other folder
 // directly under src/app (dashboard, hrms, finance, …) is the signed-in app and
 // gets `X-Robots-Tag: noindex`. Route groups like (marketing) hold the public
 // pages and are skipped. New app modules are covered automatically.
-const PUBLIC_TOP_LEVEL = new Set(['login', 'register'])
+const PUBLIC_TOP_LEVEL = new Set(['login', 'register', 'llms.txt'])
 function privateRoutes() {
   try {
     return fs.readdirSync(path.join(__dirname, 'src', 'app'), { withFileTypes: true })
@@ -27,11 +53,9 @@ const nextConfig = {
 
   // Production builds should not be blocked by lint warnings or non-critical type
   // notes. CI runs `npm run lint` / `tsc --noEmit` separately as quality gates.
- // eslint: {
- //   ignoreDuringBuilds: true,
- // },
-// Silence the Turbopack collision check:
-  turbopack: {},
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   typescript: {
     // Type-checking runs as a separate CI gate (`npm run type-check`). Keeping it out
     // of `next build` prevents a single type note from blocking a deployable image,
@@ -48,13 +72,10 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', 'date-fns', 'recharts', 'lodash'],
   },
   // Modern image formats served automatically when the browser supports them.
-  images: {
-    formats: ['image/avif', 'image/webp'],
-    remotePatterns: [
-      { protocol: 'https', hostname: 'demo.finvosmart.com' },
-      { protocol: 'https', hostname: 'finvosmart.com' },
-    ],
-  },
+  // Image optimizer (/_next/image) switched OFF. No page uses next/image, and on
+  // Next.js 14 the optimizer has unpatched advisories — including a critical remote code
+  // execution when AVIF is enabled. Re-enable only after upgrading to Next.js 15.5+.
+  images: { unoptimized: true },
 
   env: {
     NEXT_PUBLIC_API_URL:   process.env.NEXT_PUBLIC_API_URL,
@@ -68,6 +89,12 @@ const nextConfig = {
   reactStrictMode: true,
 
   // ── Security & caching headers ───────────────────────────────────────────
+  // Index paths without a page of their own. Routing-level redirects are answered before
+  // rendering, so they are real HTTP redirects. Fixed internal destinations only.
+  async redirects() {
+    return [{ source: '/inventory', destination: '/inventory/items', permanent: false }]
+  },
+
   async headers() {
     return [
       {
@@ -75,11 +102,20 @@ const nextConfig = {
         source: '/:path*',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
+      },
+      {
+        // Only our own pages may frame ours — except the embeddable tools under /embed/,
+        // which other sites are invited to put in an iframe (nginx makes the same exception).
+        source: '/:path((?!embed/).*)',
+        headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
+      },
+      {
+        source: '/embed/:path*',
+        headers: [{ key: 'Content-Security-Policy', value: 'frame-ancestors *' }],
       },
       // Signed-in app screens: keep them out of search results. (They're allowed in
       // robots.txt so crawlers can actually see this header.)

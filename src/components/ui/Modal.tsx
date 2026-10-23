@@ -30,10 +30,11 @@ export function Modal({ open, onClose, title, subtitle, children, size = 'md', f
   const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-2xl', xl: 'max-w-4xl' }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4"
       style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)' }}
       onClick={onClose}>
-      <div className={cn('w-full animate-[scaleIn_0.2s_cubic-bezier(0.16,1,0.3,1)]', widths[size])}
+      {/* my-auto centres the dialog, yet a dialog taller than the screen scrolls from its top */}
+      <div role="dialog" aria-modal="true" aria-label={title} className={cn('w-full my-auto animate-[scaleIn_0.2s_cubic-bezier(0.16,1,0.3,1)]', widths[size])}
         style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', borderRadius: '20px', boxShadow: 'var(--shadow-modal)' }}
         onClick={(e: any) => e.stopPropagation()}>
         {/* Header */}
@@ -42,7 +43,7 @@ export function Modal({ open, onClose, title, subtitle, children, size = 'md', f
             <h2 className="font-serif text-xl" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{title}</h2>
             {subtitle && <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
           </div>
-          <button onClick={onClose} className="btn-icon w-8 h-8 ml-4 flex-shrink-0">
+          <button onClick={onClose} className="btn-icon w-8 h-8 ml-4 flex-shrink-0" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>

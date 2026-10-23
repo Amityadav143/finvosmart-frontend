@@ -10,6 +10,8 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
+import { notAvailableYet } from '@/lib/notAvailable'
 import { StatusBadge, Badge } from '@/components/ui/Badge'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { Package, CheckCircle, Plus } from 'lucide-react'
@@ -23,7 +25,7 @@ const GRNS = [
   {id:'5',grnNumber:'GRN-2025-00017',poNumber:'PO-2025-00092',vendor:'Cisco Systems',receivedDate:'2025-03-10',status:'ACCEPTED',  items:1,value:1200000},
 ]
 
-export default function GRNPage(){
+function GRNPage(){
   return(
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -67,7 +69,7 @@ export default function GRNPage(){
                 <td className="table-cell"><StatusBadge status={g.status}/></td>
                 <td className="table-cell">
                   {g.status==='QUALITY_CHECK' && (
-                    <button onClick={()=>toast.success(`GRN ${g.grnNumber} accepted`)}
+                    <button onClick={()=>notAvailableYet('Accepting or rejecting goods receipts')}
                       className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-medium"
                       style={{background:'rgba(34,197,94,.1)',color:'#22c55e',border:'1px solid rgba(34,197,94,.2)'}}>
                       <CheckCircle className="w-3 h-3"/>Accept
@@ -81,4 +83,9 @@ export default function GRNPage(){
       </div>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="goods-receipts"><GRNPage /></PreviewGate>
 }

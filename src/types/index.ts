@@ -31,14 +31,19 @@ export interface AuthResponse {
 // ── HRMS ──────────────────────────────────────────────────────────────────────
 export interface Employee {
   id: string; employeeCode: string; firstName: string; middleName?: string
-  lastName: string; fullName: string; officialEmail?: string; phonePrimary?: string
-  departmentId?: string; departmentName?: string; designationName?: string
+  lastName: string; fullName: string; officialEmail?: string; personalEmail?: string; phonePrimary?: string
+  departmentId?: string; departmentName?: string; designationId?: string; designationName?: string; reportingManagerId?: string
   branchId?: string; branchName?: string; companyId: string
   employmentType: 'PERMANENT'|'CONTRACT'|'INTERN'|'CONSULTANT'|'PART_TIME'
   status: 'ACTIVE'|'INACTIVE'|'ON_NOTICE'|'RESIGNED'|'TERMINATED'|'ON_LEAVE'
-  dateOfJoining?: string; dateOfBirth?: string; ctcAnnual?: number
+  dateOfJoining?: string; dateOfBirth?: string; dateOfExit?: string; ctcAnnual?: number
   photoUrl?: string; gender?: string; customData?: Record<string,string>
+  /** PAN, PF/ESI numbers and bank details: in full for HR and payroll, masked (XXXX1234) for others. */
+  panNumber?: string; pfNumber?: string; esiNumber?: string; bankName?: string; bankAccountNumber?: string; bankIfsc?: string
+  currentAddress?: string; city?: string; state?: string; pincode?: string; privateDetails?: boolean
 }
+export interface Department { id: string; name: string }
+export interface Designation { id: string; name: string; departmentId?: string }
 export interface EmployeeStats { totalActive: number; onNotice: number; onLeave: number; terminated: number }
 
 export interface LeaveApplication {
@@ -49,18 +54,31 @@ export interface LeaveApplication {
   approvalRemarks?: string; createdAt: string
 }
 
+export type AttendanceStatus = 'PRESENT'|'ABSENT'|'HALF_DAY'|'WFH'|'ON_LEAVE'|'HOLIDAY'|'WEEKEND'
 export interface AttendanceRecord {
   id: string; employeeId: string; employeeName?: string; employeeCode?: string
   attendanceDate: string; checkInTime?: string; checkOutTime?: string
-  status: 'PRESENT'|'ABSENT'|'HALF_DAY'|'WFH'|'ON_LEAVE'|'HOLIDAY'|'WEEKEND'
+  status: AttendanceStatus
   source?: string; hoursWorked?: number; remarks?: string
 }
-
-export interface PayrollRun {
-  id: string; payMonth: string; payYear: number; employeeCount: number
-  grossPayroll: number; totalDeductions: number; netPayroll: number
-  status: 'DRAFT'|'PROCESSING'|'PROCESSED'|'PAID'; processedAt?: string
+/** P present, W work from home, H half day, A absent, L paid leave, U leave without pay, HO holiday, WO weekly off, '' not marked, X not employed. */
+export type AttendanceCode = 'P'|'W'|'H'|'A'|'L'|'U'|'HO'|'WO'|''|'X'
+export interface AttendanceCounts { present: number; wfh: number; halfDays: number; absent: number; paidLeave: number; unpaidLeave: number; holidays: number; unmarked: number }
+export interface AttendanceRegisterRow {
+  employeeId: string; name: string; code: string; department?: string | null
+  days: AttendanceCode[]; counts: AttendanceCounts; unpaidDays: number | string
 }
+export interface AttendanceRegister {
+  month: string; label: string; days: number
+  /** 1 = Monday … 7 = Sunday, for the 1st of the month */
+  firstWeekday: number
+  today: string
+  payrollStatus?: string | null; payrollNote?: string | null
+  canEdit: boolean
+  employees: AttendanceRegisterRow[]
+}
+
+export type { PayrollRun } from './payroll'
 
 // ── Finance ───────────────────────────────────────────────────────────────────
 export interface Account {
@@ -71,30 +89,44 @@ export interface Account {
 }
 export interface JournalEntryLine {
   id?: string; accountId: string; accountName?: string; accountCode?: string
-  debitAmount: number; creditAmount: number; narration?: string
+  debitAmount: number | string; creditAmount: number | string; narration?: string
 }
+export type JournalEntryType = 'JOURNAL'|'PAYMENT'|'RECEIPT'|'CONTRA'|'OPENING'
 export interface JournalEntry {
   id: string; entryNumber: string; entryDate: string
-  entryType: 'JOURNAL'|'PAYMENT'|'RECEIPT'|'CONTRA'|'OPENING'
-  narration: string; totalDebit: number; totalCredit: number
-  isPosted: boolean; lines: JournalEntryLine[]
+  entryType: JournalEntryType
+  narration: string; totalDebit: number | string; totalCredit: number | string
+  posted: boolean
+  /** "Manual entry", "Invoice", "Supplier bill", "Payroll"… */
+  source: string
+  /** Posted by the system from a document; corrected through that document. */
+  automatic: boolean
+  /** A manual entry that can still be reversed. */
+  reversible: boolean
+  reversedBy?: string | null
+  lines: JournalEntryLine[]
 }
 export interface TrialBalance { accountId: string; accountCode: string; accountName: string; accountType: string; debit: number; credit: number; balance: number }
 
 // ── Invoicing ─────────────────────────────────────────────────────────────────
 export interface InvoiceLineItem {
-  id?: string; itemId?: string; itemName: string; description?: string
+  id?: string; itemId?: string; description: string; hsnSacCode?: string
   quantity: number; unit?: string; unitPrice: number; discountPct?: number
-  gstRate: number; cgst: number; sgst: number; igst: number; lineTotal: number
+  taxableAmount: number; gstRate: number; cgstAmount: number; sgstAmount: number; igstAmount: number; totalAmount: number
 }
+export type InvoiceType = 'TAX_INVOICE'|'PROFORMA'|'QUOTATION'|'CREDIT_NOTE'|'DEBIT_NOTE'|'DELIVERY_CHALLAN'|'OPENING_BALANCE'
+export type InvoiceStatus = 'DRAFT'|'SENT'|'VIEWED'|'PARTIAL'|'PAID'|'OVERDUE'|'CANCELLED'
 export interface Invoice {
-  id: string; invoiceNumber: string; invoiceDate: string; dueDate?: string
+  id: string; invoiceNumber: string; invoiceType: InvoiceType; status: InvoiceStatus
+  invoiceDate: string; dueDate?: string; financialYear?: string
   customerId: string; customerName: string; customerGstin?: string
   billingAddress?: string; shippingAddress?: string
-  invoiceType: 'TAX_INVOICE'|'PROFORMA'|'QUOTATION'|'CREDIT_NOTE'|'DEBIT_NOTE'|'DELIVERY_CHALLAN'
-  status: 'DRAFT'|'SENT'|'PAID'|'OVERDUE'|'PARTIAL'|'CANCELLED'
-  subtotal: number; totalDiscount: number; totalGst: number; totalAmount: number; outstanding: number
-  lineItems?: InvoiceLineItem[]; notes?: string; termsAndConditions?: string; paymentTerms?: string
+  placeOfSupply?: string; placeOfSupplyName?: string; interState?: boolean; reverseCharge?: boolean
+  subtotal: number; discountAmount: number; taxableAmount: number
+  cgstAmount: number; sgstAmount: number; igstAmount: number
+  totalAmount: number; paidAmount: number; outstanding: number
+  currency?: string; paymentTerms?: string; notes?: string; terms?: string; irn?: string
+  lineItems?: InvoiceLineItem[]
   // Reference / linkage fields
   customerPoNumber?: string    // Customer Purchase Order number
   workOrderNumber?: string     // Work Order / SOW number
@@ -105,22 +137,61 @@ export interface Invoice {
   dcReferenceNumber?: string   // Delivery Challan reference
   rfqNumber?: string           // RFQ / Tender reference
   additionalReference?: string // Any other reference
+  // Delivery and collection
+  payUrl?: string; sentAt?: string; viewedAt?: string; lastReminderAt?: string; reminderCount?: number
+  cancelledAt?: string; cancelReason?: string
+  /** e.g. credit beyond the MSMED Act's 45 days */
+  warning?: string
+  /** Whether issuing it moves the stock of the items on it (tax invoices and credit notes) */
+  movesStock?: boolean
+  /** The quotation, proforma or challan this invoice was made from */
+  sourceId?: string | null; sourceNumber?: string | null; sourceType?: InvoiceType | null
+  /** For a quotation, proforma or challan: the invoice made from it */
+  convertedToId?: string | null; convertedToNumber?: string | null; convertedToStatus?: InvoiceStatus | null
+  /** A quotation the customer accepted from its link */
+  acceptedAt?: string | null; acceptedBy?: string | null
 }
-export interface InvoiceStats { draft: number; sent: number; paid: number; overdue: number; partial: number; outstanding: number; totalRevenue: number }
+export interface InvoicePaymentRecord {
+  id: string; invoiceId: string; paymentDate: string; amount: number; tdsAmount: number
+  mode: string; reference?: string; source: 'MANUAL'|'BANK'|'RAZORPAY'|'LEGACY'; notes?: string
+  voided: boolean; voidedAt?: string; voidReason?: string; createdAt?: string
+}
+export interface InvoiceStats {
+  draft: number; sent: number; viewed?: number; paid: number; overdue: number; partial: number
+  outstanding: number; totalRevenue: number; monthly?: { month: string; amount: number }[]
+}
 
 // ── Procurement ───────────────────────────────────────────────────────────────
-export interface PurchaseOrderLineItem { itemId?: string; itemName: string; quantity: number; unit?: string; unitPrice: number; taxRate?: number; lineTotal: number }
+export interface PurchaseOrderLineItem {
+  id?: string; itemId?: string | null; description: string; hsnSacCode?: string; unit?: string
+  quantity: number; unitPrice: number; gstRate?: number; totalAmount: number; receivedQty?: number
+}
+/** A supplier bill entered against a purchase order */
+export interface PurchaseOrderBill { id: string; referenceNumber: string; billNumber?: string | null; status: string; billDate: string; totalAmount: number }
+export type PurchaseOrderStatus = 'DRAFT'|'SUBMITTED'|'APPROVED'|'ORDERED'|'PARTIALLY_RECEIVED'|'RECEIVED'|'CANCELLED'
 export interface PurchaseOrder {
   id: string; poNumber: string; vendorId: string; vendorName: string
   poDate: string; expectedDeliveryDate?: string
-  status: 'DRAFT'|'SUBMITTED'|'APPROVED'|'ORDERED'|'PARTIALLY_RECEIVED'|'RECEIVED'|'CANCELLED'
-  subtotal: number; taxAmount: number; totalAmount: number; notes?: string
+  status: PurchaseOrderStatus
+  subtotal: number; taxAmount: number; totalAmount: number
+  paymentTerms?: string; remarks?: string
   lineItems?: PurchaseOrderLineItem[]
+  /** On a single order: the bills entered for it */
+  bills?: PurchaseOrderBill[] | null
 }
 export interface Vendor {
   id: string; vendorCode?: string; name: string; gstin?: string; pan?: string
-  email?: string; phone?: string; city?: string; state?: string
-  status: 'ACTIVE'|'INACTIVE'|'BLOCKED'; creditDays?: number; totalOrders?: number; totalValue?: number
+  email?: string; phone?: string; city?: string; state?: string; stateCode?: string
+  contactPerson?: string; billingAddress?: string; paymentTerms?: string; creditLimit?: number | string
+  bankAccount?: string; bankIfsc?: string
+  status: 'ACTIVE'|'INACTIVE'|'BLACKLISTED'
+  /** MSMED Act: MICRO / SMALL / MEDIUM, and MANUFACTURING / SERVICES / TRADING */
+  msmeCategory?: string | null; msmeActivity?: string | null; udyamNumber?: string | null
+  /** Default TDS on their bills (CONTRACTOR, PROFESSIONAL, …) and an optional fixed rate */
+  tdsNature?: string | null; tdsRate?: number | string | null
+  expenseAccountCode?: string | null
+  /** Open bills less unused credit notes */
+  outstanding?: number | string
 }
 export interface GoodsReceiptNote {
   id: string; grnNumber: string; purchaseOrderId: string; poNumber?: string
@@ -131,30 +202,63 @@ export interface GoodsReceiptNote {
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
 export interface InventoryItem {
-  id: string; itemCode: string; itemName: string; category?: string
-  unit: string; purchasePrice: number; sellingPrice: number; gstRate: number
-  currentStock: number; reorderLevel: number; isActive: boolean; description?: string
+  id: string; itemCode: string; itemName: string; category?: string; hsnSacCode?: string
+  unit: string; purchasePrice?: number | null; sellingPrice?: number | null; gstRate: number
+  currentStock: number; reorderLevel: number; minOrderQty?: number
+  /** JSON name of the entity's isActive flag */
+  active: boolean; description?: string
+  /** Whether stock is kept: invoices and bills move it (off for services) */
+  trackStock?: boolean
 }
+export type MovementType = 'IN'|'OUT'|'ADJUSTMENT'|'TRANSFER_IN'|'TRANSFER_OUT'|'OPENING'
 export interface StockMovement {
   id: string; itemId: string; itemCode?: string; itemName?: string
-  movementDate: string; movementType: 'IN'|'OUT'|'ADJUSTMENT'|'TRANSFER_IN'|'TRANSFER_OUT'
+  movementDate: string; movementType: MovementType
   quantity: number; unitCost?: number; referenceType?: string; referenceNumber?: string
   stockAfter: number; remarks?: string
 }
-export interface LowStockAlert { id: string; itemCode: string; itemName: string; currentStock: number; reorderLevel: number; unit: string }
+/** One line of the stock ledger across items; change is + for stock in, − for stock out. */
+export interface StockLedgerRow {
+  id: string; itemId: string; itemCode?: string; itemName: string; unit?: string; date: string; type: MovementType
+  change: number; unitCost?: number | null; reference?: string | null; stockAfter: number; remarks?: string | null
+  /** INVOICE or BILL when a document made the movement (referenceId is its id); MANUAL, OPENING… otherwise */
+  referenceType?: string | null; referenceId?: string | null
+}
+export interface StockRecheckResult { documentsChecked: number; movementsPosted: number; failed: number }
+export interface StockDaySummary { date: string; stockIn: number; stockOut: number; adjustments: number; transfers: number }
+/** What the item form sends (stock changes only through movements; opening stock on create). */
+export interface InventoryItemInput {
+  itemCode?: string; itemName: string; category?: string; hsnSacCode?: string; unit?: string
+  purchasePrice?: number | null; sellingPrice?: number | null; gstRate?: number; reorderLevel?: number | null
+  description?: string; active?: boolean; openingStock?: number | null; trackStock?: boolean
+}
+/** An item at or below its reorder level (the server sends the whole item). */
+export interface LowStockAlert extends InventoryItem {}
+/** The stock at a glance */
+export interface StockSummary { items: number; tracked: number; stockValue: number; lowStock: number; belowZero: number }
 
 // ── CRM ───────────────────────────────────────────────────────────────────────
 export interface Customer {
   id: string; customerCode?: string; name: string; email?: string; phone?: string
   gstin?: string; pan?: string; address?: string; city?: string; state?: string
-  customerType?: 'RETAIL'|'CORPORATE'|'GOVERNMENT'|'PREMIUM'; creditLimit: number; outstanding: number
+  billingAddress?: string; shippingAddress?: string; paymentTerms?: string; notes?: string
+  customerType?: 'REGULAR'|'PREMIUM'|'GOVERNMENT'|'INSTITUTIONAL'; creditLimit: number; outstanding: number
+  /** automatic payment reminders for this customer's invoices */
+  remindersEnabled?: boolean; active?: boolean
 }
 export interface Lead {
   id: string; name: string; email?: string; phone?: string; companyName?: string
   source?: string; estimatedValue?: number
   status: 'NEW'|'CONTACTED'|'QUALIFIED'|'PROPOSAL'|'NEGOTIATION'|'WON'|'LOST'
   assignedTo?: string; notes?: string; createdAt?: string
+  nextFollowUp?: string; expectedCloseDate?: string; convertedToCustomerId?: string | null; industry?: string
 }
+/** What the lead card sends when its details are edited (only the fields present change) */
+export interface LeadUpdate {
+  name?: string; email?: string; phone?: string; companyName?: string; source?: string; industry?: string
+  estimatedValue?: number | null; expectedCloseDate?: string | null; nextFollowUp?: string | null; clearFollowUp?: boolean; notes?: string
+}
+export interface LeadConversion { lead: Lead; customer: Customer; created: boolean }
 
 // ── Workflow ──────────────────────────────────────────────────────────────────
 export interface WorkflowInstance {
@@ -194,6 +298,8 @@ export interface PlanModule {
   category: 'CORE'|'ERP'|'AI'|'SMART'
   base_price_month: number; price_per_user: number; min_users: number
   is_core: boolean; sort_order: number; icon_name: string; accent_color: string
+  /** Still being built: shown on the plan builder, but can't be chosen or priced yet. */
+  coming_soon?: boolean
 }
 export interface CustomQuote {
   monthlyTotal: number; annualTotal: number; annualMonthly: number

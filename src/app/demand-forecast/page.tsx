@@ -10,6 +10,8 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
+import { notAvailableYet } from '@/lib/notAvailable'
 import { useState } from 'react'
 import { AlertTriangle, Package, CheckCircle, ShoppingCart } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -25,7 +27,7 @@ const ITEMS = [
 
 const RISK_COLOR:{[k:string]:string}={CRITICAL:'#ef4444',WARNING:'#f59e0b',MODERATE:'#d97706',HEALTHY:'#22c55e'}
 
-export default function DemandForecastPage(){
+function DemandForecastPage(){
   const [selected,setSelected]=useState<string[]>([])
 
   const toggle=(code:string)=>setSelected(s=>s.includes(code)?s.filter(c=>c!==code):[...s,code])
@@ -41,7 +43,7 @@ export default function DemandForecastPage(){
           <p className="text-sm mt-0.5" style={{color:'var(--text-muted)'}}>AI analyses 12-month velocity, seasonality and lead times to prevent stockouts</p>
         </div>
         {selected.length>0&&(
-          <button onClick={()=>{toast.success(`${selected.length} draft POs created for approval`);setSelected([])}} className="btn-primary h-9">
+          <button onClick={()=>{notAvailableYet('Creating purchase orders from the forecast');setSelected([])}} className="btn-primary h-9">
             <ShoppingCart className="w-4 h-4"/>Generate {selected.length} PO{selected.length>1?'s':''}
           </button>
         )}
@@ -111,4 +113,9 @@ export default function DemandForecastPage(){
       </div>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="demand-forecast"><DemandForecastPage /></PreviewGate>
 }

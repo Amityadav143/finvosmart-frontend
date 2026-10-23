@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { useState, useEffect } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import {
@@ -56,7 +57,7 @@ function Tip({active,payload,label}:any){
   )
 }
 
-export default function CashFlowOraclePage(){
+function CashFlowOraclePage(){
   const [animated, setAnimated] = useState(false)
   useEffect(()=>{ const t=setTimeout(()=>setAnimated(true),200); return()=>clearTimeout(t) },[])
 
@@ -186,4 +187,9 @@ export default function CashFlowOraclePage(){
       </div>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="cashflow"><CashFlowOraclePage /></PreviewGate>
 }

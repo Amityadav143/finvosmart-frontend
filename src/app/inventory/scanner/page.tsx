@@ -16,6 +16,7 @@ import { api } from '@/lib/api/client'
 import { PermissionGate } from '@/components/ui/PermissionGate'
 import { Camera, Search, Plus, Minus, Package, CheckCircle2, AlertTriangle, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiError } from '@/lib/utils'
 
 interface InventoryItem {
   id: string; itemCode: string; itemName: string; unit: string
@@ -108,7 +109,7 @@ export default function InventoryScannerPage() {
       setEntries([])
       qc.invalidateQueries({ queryKey: ['inventory'] })
     },
-    onError: (err: any) => toast.error(err?.response?.data?.error ?? 'Failed to record movements'),
+    onError: (err: any) => toast.error(apiError(err, 'Failed to record movements')),
   })
 
   useEffect(() => () => { stopCamera() }, [])
@@ -117,7 +118,7 @@ export default function InventoryScannerPage() {
   const totalOut = entries.filter(e => e.type === 'OUT').reduce((s, e) => s + e.quantity, 0)
 
   return (
-    <PermissionGate permission="INVENTORY_CREATE" showDenied>
+    <PermissionGate anyOf={['INVENTORY_ADJUST', 'INVENTORY_ADMIN']} showDenied>
       <div style={{ maxWidth: '720px' }}>
         <div className="flex items-center justify-between mb-5">
           <div>

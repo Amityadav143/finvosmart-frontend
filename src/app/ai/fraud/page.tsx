@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { aiApi } from '@/lib/api/ai'
@@ -27,7 +28,7 @@ const fmt = (n?: number) => {
 const sevColor = (s: string) => s === 'CRITICAL' ? '#DC2626' : s === 'HIGH' ? '#EA580C' : s === 'MEDIUM' ? '#D97706' : '#6b7280'
 const catIcon = (c: string) => c === 'Invoices' ? Receipt : c === 'Vendors' ? Users : c === 'Payments' ? CreditCard : FileWarning
 
-export default function FraudPage() {
+function FraudPage() {
   const { data: result, isLoading } = useQuery({ queryKey: ['fraud-scan'], queryFn: aiApi.fraud.scan })
   const [filter, setFilter] = useState<string>('')
 
@@ -145,4 +146,9 @@ function Stat({ label, value, color }: { label: string; value: any; color?: stri
       <div style={{ fontSize: '20px', fontWeight: 700, color: color ?? 'var(--text-primary)' }}>{value}</div>
     </div>
   )
+}
+
+/** Still on demo data: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="fraud"><FraudPage /></PreviewGate>
 }

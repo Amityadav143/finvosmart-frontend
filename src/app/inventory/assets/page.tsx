@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PreviewGate } from '@/components/ui/PreviewGate'
 import { formatCurrency } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { Building2, Monitor, Car, Wrench } from 'lucide-react'
@@ -24,7 +25,7 @@ const ASSETS = [
 
 const CATICON:{[k:string]:any} = {Electronics:Monitor,Furniture:Building2,Vehicles:Car,Infrastructure:Wrench}
 
-export default function AssetsPage(){
+function AssetsPage(){
   const totalValue    = ASSETS.reduce((s,a)=>s+a.value,0)
   const totalWdv      = ASSETS.reduce((s,a)=>s+a.wdv,0)
   const totalDeprec   = totalValue - totalWdv
@@ -84,4 +85,9 @@ export default function AssetsPage(){
       </div>
     </div>
   )
+}
+
+/** Still being built: shown only when preview features are switched on. */
+export default function Page() {
+  return <PreviewGate feature="fixed-assets"><AssetsPage /></PreviewGate>
 }

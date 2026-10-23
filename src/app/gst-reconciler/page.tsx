@@ -10,157 +10,234 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useState } from 'react'
-import { formatCurrency, exportToCsv } from '@/lib/utils'
-import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Download, FileText } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { Download, FileUp, RefreshCw, Trash2 } from 'lucide-react'
+import { itcApi } from '@/lib/api/purchases'
+import { PermissionGate } from '@/components/ui/PermissionGate'
+import { Modal } from '@/components/ui/Modal'
+import { Notice } from '@/components/invoicing/InvoiceForm'
+import { formatDate } from '@/lib/utils'
+import { inr } from '@/lib/money'
+import { IMS_LABEL, ITC_LINE, errText } from '@/lib/purchases'
+import type { ItcLine, ItcLineStatus, ItcReport } from '@/types/purchases'
 
-const MISMATCHES = [
-  {inv:'WIP-2025-0341',vendor:'Wipro Ltd.',gstin:'29AABCW5678E1Z8',books:'₹4,20,000',gstr2a:'₹3,91,000',diff:'₹29,000',type:'AMOUNT_MISMATCH',itcRisk:'₹52,200',color:'#f59e0b'},
-  {inv:'NAD-2025-122', vendor:'Nadeem Traders',gstin:'27AAGPN9012F2Y7',books:'₹85,000',gstr2a:'—',diff:'₹85,000',type:'NOT_IN_2A',itcRisk:'₹15,300',color:'#ef4444'},
-  {inv:'FLX-2025-441', vendor:'Flexon Corp.',gstin:'29AABCF3456G3X6',books:'—',gstr2a:'₹1,80,000',diff:'₹1,80,000',type:'NOT_IN_BOOKS',itcRisk:'₹0',color:'#3b82f6'},
-]
-
-const TYPE_LABELS: Record<string,string> = {
-  AMOUNT_MISMATCH:'Amount differs',NOT_IN_2A:'Missing in GSTR-2A',NOT_IN_BOOKS:'Not in purchase register'
+const ORDER: ItcLineStatus[] = ['MISMATCH', 'ONLY_IN_2B', 'ONLY_IN_BOOKS', 'PROBABLE', 'NOT_AVAILABLE', 'MATCHED', 'OTHER']
+const KIND: Record<string, string> = {
+  INVOICE: 'Invoice', DEBIT_NOTE: 'Debit note', CREDIT_NOTE: 'Credit note', BILL_OF_ENTRY: 'Bill of entry', ISD_INVOICE: 'ISD invoice', ISD_CREDIT_NOTE: 'ISD credit note',
 }
 
-export default function GstReconcilerPage(){
-  const [period, setPeriod] = useState('March 2025')
-  const [running, setRunning] = useState(false)
-  const [done, setDone] = useState(false)
+export default function GstCreditCheckPage() {
+  const qc = useQueryClient()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [period, setPeriod] = useState<string>('')
+  const [show, setShow] = useState<ItcLineStatus | 'ALL'>('ALL')
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const run = () => {
-    setRunning(true)
-    setTimeout(()=>{ setRunning(false); setDone(true); toast.success('Reconciliation complete — 8 mismatches found') }, 2000)
+  const { data: statements = [] } = useQuery({ queryKey: ['itc-statements'], queryFn: itcApi.statements })
+  useEffect(() => { if (!period && statements.length) setPeriod(statements[0].period) }, [statements, period])
+  const { data: report, isLoading, isError } = useQuery({ queryKey: ['itc-report', period], queryFn: () => itcApi.report(period), enabled: !!period })
+
+  const after = (r: ItcReport, msg: string) => {
+    qc.setQueryData(['itc-report', r.statement.period], r)
+    qc.invalidateQueries({ queryKey: ['itc-statements'] })
+    qc.invalidateQueries({ queryKey: ['bills'] })
+    setPeriod(r.statement.period)
+    setShow('ALL')
+    toast.success(msg)
+  }
+  const upload = useMutation({
+    mutationFn: (files: File[]) => itcApi.upload(files),
+    onSuccess: r => after(r, `GSTR-2B for ${r.statement.periodLabel} checked: ${r.summary.documents} documents`),
+    onError: (e: any) => toast.error(errText(e, 'The file could not be read')),
+  })
+  const recheck = useMutation({ mutationFn: () => itcApi.recheck(period), onSuccess: r => after(r, 'Checked again against your books'), onError: (e: any) => toast.error(errText(e, 'Could not check again')) })
+  const remove = useMutation({
+    mutationFn: () => itcApi.remove(period),
+    onSuccess: () => { toast.success('Statement removed'); setConfirmDelete(false); setPeriod(''); qc.invalidateQueries({ queryKey: ['itc-statements'] }); qc.removeQueries({ queryKey: ['itc-report', period] }) },
+    onError: (e: any) => toast.error(errText(e, 'Could not remove it')),
+  })
+
+  const onFiles = (list: FileList | null) => {
+    const files = Array.from(list ?? []).filter(f => /\.(json|zip)$/i.test(f.name))
+    if (!files.length) { toast.error('Choose the .json (or .zip) file downloaded from the GST portal'); return }
+    upload.mutate(files)
   }
 
-  return(
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const l of report?.lines ?? []) c[l.status] = (c[l.status] ?? 0) + 1
+    return c
+  }, [report])
+  const lines = (report?.lines ?? []).filter(l => show === 'ALL' || l.status === show)
+  const s = report?.summary
+
+  return (
     <div className="space-y-5">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-base">🇮🇳</span>
-          <span className="text-xs font-bold uppercase tracking-widest" style={{color:'#14b8a6',letterSpacing:'.08em'}}>GST Feature — USP 05</span>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="page-title">GST credit check</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Compare GSTR-2B — what your suppliers reported — with the bills in your books, before you file GSTR-3B</p>
         </div>
-        <h1 className="page-title">GST Auto-Reconciler</h1>
-        <p className="text-sm mt-0.5" style={{color:'var(--text-muted)'}}>One-click GSTR-2A vs purchase books · ITC optimisation · India-exclusive feature</p>
-      </div>
-
-      {/* Controls */}
-      <div className="card">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-3">
-            <label className="label mb-0">Period</label>
-            <select className="input h-10 w-44" value={period} onChange={e=>setPeriod(e.target.value)}>
-              {['March 2025','February 2025','January 2025','December 2024'].map(m=><option key={m}>{m}</option>)}
+        {statements.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <select className="input h-9 text-sm" style={{ maxWidth: 260 }} value={period} onChange={e => setPeriod(e.target.value)} aria-label="Month">
+              {statements.map(st => <option key={st.period} value={st.period}>{st.periodLabel} · {st.documentCount} documents</option>)}
             </select>
+            <PermissionGate permission="GST_RECON_RUN">
+              <button className="btn-secondary h-9" disabled={!period || recheck.isPending} onClick={() => recheck.mutate()} title="After recording or correcting bills"><RefreshCw size={14} />{recheck.isPending ? 'Checking…' : 'Check again'}</button>
+            </PermissionGate>
+            <button className="btn-secondary h-9" disabled={!period} onClick={() => itcApi.csv(period).catch(() => toast.error('Export failed'))}><Download size={14} />CSV with IMS actions</button>
+            <PermissionGate permission="GST_RECON_RUN">
+              <button className="btn-icon w-9 h-9" aria-label="Remove this month's statement" disabled={!period} onClick={() => setConfirmDelete(true)}><Trash2 size={14} /></button>
+            </PermissionGate>
           </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <button onClick={run} disabled={running} className="btn-primary h-10">
-              {running ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 rounded-full" style={{borderColor:'rgba(26,18,8,.3)',borderTopColor:'var(--text-on-gold)',animation:'spin .7s linear infinite'}}/>
-                  Fetching GSTR-2A...
-                </span>
-              ) : <><RefreshCw className="w-4 h-4"/>Run Reconciliation</>}
-            </button>
-            {done && <button className="btn-secondary h-10" onClick={()=>toast.success('GSTR reconciliation report exported')}><Download className="w-4 h-4"/>Export Report</button>}
-          </div>
-        </div>
+        )}
       </div>
 
-      {done && (
+      <PermissionGate permission="GST_RECON_RUN">
+        <div className="card">
+          <div className="flex items-start gap-4 flex-wrap">
+            <div className="flex-1 min-w-[260px]">
+              <h3 className="font-semibold text-sm">Upload a month's GSTR-2B</h3>
+              <ol className="text-sm mt-2 space-y-1 list-decimal pl-5" style={{ color: 'var(--text-secondary)' }}>
+                <li>On the GST portal, open <strong>Returns → GSTR-2B</strong> (or the IMS dashboard) and pick the month.</li>
+                <li>Choose <strong>Download → Generate JSON file</strong>. A large month may come as a .zip — upload it as it is.</li>
+                <li>Upload it here. Uploading a month again replaces it (for example after the statement is recomputed).</li>
+              </ol>
+              <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>The file is read on our server and kept with your company. Nothing is sent to the GST portal, and no GST login is needed.</p>
+            </div>
+            <div className="w-full md:w-72 rounded-xl flex flex-col items-center justify-center gap-2 p-5 text-center cursor-pointer"
+              style={{ border: '2px dashed var(--border-strong)', background: 'var(--bg-surface)' }}
+              onClick={() => fileRef.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); onFiles(e.dataTransfer.files) }}
+              role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') fileRef.current?.click() }} aria-label="Choose the GSTR-2B file">
+              <FileUp size={22} style={{ color: 'var(--gold)' }} />
+              <p className="text-sm font-medium">{upload.isPending ? 'Reading the statement…' : 'Choose or drop the file'}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>.json or .zip, up to 40 MB</p>
+              <input ref={fileRef} type="file" accept=".json,.zip,application/json,application/zip" multiple hidden onChange={e => { onFiles(e.target.files); e.target.value = '' }} />
+            </div>
+          </div>
+        </div>
+      </PermissionGate>
+
+      {!statements.length && !upload.isPending && (
+        <div className="card text-sm" style={{ color: 'var(--text-muted)' }}>No statement uploaded yet. Once you upload one, each bill in your books shows whether its GST credit is on GSTR-2B.</div>
+      )}
+      {isLoading && period && <div className="card text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</div>}
+      {isError && <div className="card text-sm" style={{ color: '#dc2626' }}>The check for this month couldn't be loaded.</div>}
+
+      {report && s && (
         <>
-          {/* Summary */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {[
-              {label:'Total Invoices',  val:'182',     color:'#3b82f6'},
-              {label:'Matched',        val:'174 (95.6%)',color:'#22c55e'},
-              {label:'Mismatches',     val:'8',         color:'#f59e0b'},
-              {label:'ITC Available',  val:'₹14.2L',    color:'#22c55e'},
-              {label:'ITC At Risk',    val:'₹1.8L',     color:'#ef4444'},
-            ].map(s=>(
-              <div key={s.label} className="card">
-                <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{color:'var(--text-muted)',fontSize:'9px',letterSpacing:'.07em'}}>{s.label}</p>
-                <p className="font-serif text-xl" style={{color:s.color}}>{s.val}</p>
-              </div>
+          {report.statement.warnings.map(w => <Notice key={w} tone="amber">{w}</Notice>)}
+          {report.statement.gstin && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {report.statement.source} for {report.statement.periodLabel} · GSTIN {report.statement.gstin}{report.statement.generatedOn ? ` · generated ${formatDate(report.statement.generatedOn)}` : ''}{report.statement.fileName ? ` · ${report.statement.fileName}` : ''}
+          </p>}
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card label="Credit available on GSTR-2B" value={inr(s.itcIn2b)} color="var(--gold)" sub={`In your books for these bills: ${inr(s.itcInBooks)}`} />
+            <Card label="Matched" value={inr(s.itcMatched)} color="#16a34a" sub={`${s.matched + s.probable} document${s.matched + s.probable === 1 ? '' : 's'}${s.probable ? ` (${s.probable} probable)` : ''}`} />
+            <Card label="Differences to sort out" value={inr(s.itcMismatched)} color="#d97706" sub={`${s.mismatched} document${s.mismatched === 1 ? '' : 's'} differ`} onClick={() => setShow('MISMATCH')} />
+            <Card label="At risk: not on GSTR-2B" value={inr(s.itcOnlyInBooks)} color="#dc2626" sub={`${s.onlyInBooks} bill${s.onlyInBooks === 1 ? '' : 's'} the suppliers haven't reported`} onClick={() => setShow('ONLY_IN_BOOKS')} />
+            <Card label="On GSTR-2B, not in your books" value={inr(s.itcOnlyIn2b)} color="#2563eb" sub={`${s.onlyIn2b} document${s.onlyIn2b === 1 ? '' : 's'} — record or reject`} onClick={() => setShow('ONLY_IN_2B')} />
+            <Card label="No credit available" value={inr(s.itcNotAvailable)} color="#64748b" sub={`${s.notAvailable} document${s.notAvailable === 1 ? '' : 's'}`} onClick={() => setShow('NOT_AVAILABLE')} />
+            {Number(s.reverseChargeTax) > 0 && <Card label="Reverse charge (pay yourself)" value={inr(s.reverseChargeTax)} color="#7c3aed" sub="Paid in cash through GSTR-3B, then claimed" />}
+            {Number(s.importsIgst) > 0 && <Card label="IGST on imports" value={inr(s.importsIgst)} color="#0d9488" sub="From bills of entry" />}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button className={show === 'ALL' ? 'btn-primary h-8 text-xs' : 'btn-secondary h-8 text-xs'} onClick={() => setShow('ALL')}>All · {report.lines.length}</button>
+            {ORDER.filter(st => counts[st]).map(st => (
+              <button key={st} className={show === st ? 'btn-primary h-8 text-xs' : 'btn-secondary h-8 text-xs'} onClick={() => setShow(st)} title={ITC_LINE[st].help}>
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background: ITC_LINE[st].color }} />{ITC_LINE[st].label} · {counts[st]}
+              </button>
             ))}
           </div>
 
-          {/* ITC optimiser */}
-          <div className="card" style={{background:'rgba(20,184,166,.05)',border:'1px solid rgba(20,184,166,.2)'}}>
-            <div className="flex items-center gap-2 mb-3">
-              <CheckCircle className="w-4 h-4" style={{color:'#14b8a6'}}/>
-              <h2 className="section-title">ITC Optimisation Summary</h2>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                {label:'Total ITC in GSTR-2A',  val:'₹14,20,000', desc:'Claimable from portal'},
-                {label:'Risk-adjusted ITC',      val:'₹12,40,000', desc:'After removing mismatches'},
-                {label:'Recommended claim',      val:'₹11,80,000', desc:'Conservative estimate for safety'},
-              ].map(s=>(
-                <div key={s.label} className="rounded-xl p-4" style={{background:'var(--bg-card)',border:'1px solid var(--border)'}}>
-                  <p className="text-xs mb-1" style={{color:'var(--text-muted)'}}>{s.label}</p>
-                  <p className="font-serif text-2xl mb-0.5" style={{color:'#14b8a6'}}>{s.val}</p>
-                  <p className="text-xs" style={{color:'var(--text-muted)'}}>{s.desc}</p>
-                </div>
-              ))}
-            </div>
+          <div className="card p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                  <th className="text-left font-medium px-4 py-3">Result</th>
+                  <th className="text-left font-medium px-3 py-3">Supplier</th>
+                  <th className="text-left font-medium px-3 py-3">On GSTR-2B</th>
+                  <th className="text-left font-medium px-3 py-3">In your books</th>
+                  <th className="text-left font-medium px-3 py-3">What to do</th>
+                  <th className="text-left font-medium px-4 py-3">IMS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((l, i) => <Row key={(l.documentId ?? '') + (l.billId ?? '') + i} l={l} />)}
+                {lines.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nothing here.</td></tr>}
+              </tbody>
+            </table>
           </div>
-
-          {/* Mismatches table */}
-          <div className="card">
-            <h2 className="section-title mb-4">Mismatch Details ({MISMATCHES.length} items)</h2>
-            <div className="table-wrap">
-              <table className="w-full text-sm">
-                <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
-                  {['Invoice No.','Vendor','Type','In Books','In GSTR-2A','Difference','ITC Risk','Action'].map(h=>(
-                    <th key={h} className="table-header">{h}</th>
-                  ))}
-                </tr></thead>
-                <tbody>
-                  {MISMATCHES.map((m,i)=>(
-                    <tr key={i} className="table-row">
-                      <td className="table-cell"><span className="font-mono text-xs" style={{color:'var(--gold)'}}>{m.inv}</span></td>
-                      <td className="table-cell">
-                        <p className="font-semibold text-sm">{m.vendor}</p>
-                        <p className="font-mono text-xs" style={{color:'var(--text-muted)',fontSize:'10px'}}>{m.gstin}</p>
-                      </td>
-                      <td className="table-cell">
-                        <span className="text-xs px-2 py-1 rounded-full font-semibold"
-                          style={{background:`${m.color}12`,color:m.color,border:`1px solid ${m.color}20`}}>
-                          {TYPE_LABELS[m.type]}
-                        </span>
-                      </td>
-                      <td className="table-cell font-mono text-sm">{m.books}</td>
-                      <td className="table-cell font-mono text-sm">{m.gstr2a}</td>
-                      <td className="table-cell font-mono text-sm font-semibold" style={{color:m.color}}>{m.diff}</td>
-                      <td className="table-cell font-mono text-sm" style={{color:'#ef4444'}}>{m.itcRisk}</td>
-                      <td className="table-cell">
-                        <button onClick={()=>toast(`Contact ${m.vendor} to resolve mismatch`)}
-                          className="text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all"
-                          style={{background:'var(--bg-hover)',border:'1px solid var(--border)',color:'var(--text-secondary)'}}>
-                          Resolve
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            IMS = the Invoice Management System on the GST portal, where you accept, reject or keep pending each supplier document before GSTR-2B is finalised.
+            Documents you don't act on are treated as accepted. Suggestions here are a guide — the decision is yours.
+          </p>
         </>
       )}
 
-      {!done && !running && (
-        <div className="card flex flex-col items-center py-16 gap-4">
-          <FileText className="w-12 h-12" style={{color:'var(--text-muted)'}}/>
-          <div className="text-center">
-            <p className="font-serif text-xl mb-2">Ready to reconcile {period}</p>
-            <p className="text-sm" style={{color:'var(--text-muted)'}}>Click "Run Reconciliation" to fetch GSTR-2A and compare against your purchase register</p>
+      {confirmDelete && (
+        <Modal open onClose={() => setConfirmDelete(false)} title="Remove this month's statement?" size="sm">
+          <div className="space-y-3">
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Bills found in it go back to "not checked". You can upload the statement again at any time.</p>
+            <div className="flex justify-end gap-2">
+              <button className="btn-secondary h-10" onClick={() => setConfirmDelete(false)}>Keep it</button>
+              <button className="btn-danger h-10" disabled={remove.isPending} onClick={() => remove.mutate()}>{remove.isPending ? 'Removing…' : 'Remove'}</button>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
+  )
+}
+
+function Card({ label, value, color, sub, onClick }: { label: string; value: string; color: string; sub?: string; onClick?: () => void }) {
+  const body = <>
+    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</p>
+    <p className="font-serif text-2xl mt-1" style={{ color }}>{value}</p>
+    {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
+  </>
+  return onClick ? <button className="card text-left" onClick={onClick}>{body}</button> : <div className="card">{body}</div>
+}
+
+function Row({ l }: { l: ItcLine }) {
+  const st = ITC_LINE[l.status]
+  const ims = l.imsAction ? IMS_LABEL[l.imsAction] : null
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border)', verticalAlign: 'top' }}>
+      <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: st.color }}><span className="w-2 h-2 rounded-full" style={{ background: st.color }} />{st.label}</span></td>
+      <td className="px-3 py-3">
+        <p className="font-medium">{l.supplierName ?? '—'}</p>
+        {l.supplierGstin && <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{l.supplierGstin}</p>}
+      </td>
+      <td className="px-3 py-3">
+        {l.documentNumber || l.kind ? <>
+          <p className="font-mono text-xs">{KIND[l.kind ?? ''] ?? l.kind} {l.documentNumber}</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatDate(l.documentDate)} · value {inr(l.taxable)}</p>
+          <p className="text-xs">GST <span className="font-mono">{inr(l.tax)}</span>{l.reverseCharge ? ' · reverse charge' : ''}</p>
+        </> : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>}
+      </td>
+      <td className="px-3 py-3">
+        {l.billId ? <>
+          <Link href={`/purchases/bills/${l.billId}`} className="font-mono text-xs underline">{l.billReference}</Link>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{l.billNumber ? `No. ${l.billNumber} · ` : ''}{formatDate(l.billDate)}</p>
+          <p className="text-xs">GST <span className="font-mono">{inr(l.billTax)}</span>{l.billCreditBlocked ? ' · credit blocked' : ''}</p>
+        </> : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>}
+      </td>
+      <td className="px-3 py-3 text-xs" style={{ maxWidth: 360 }}>
+        {l.differences.map(d => <p key={d} style={{ color: d.startsWith('Date') || d.startsWith('Number') ? 'var(--text-secondary)' : '#b45309' }}>{d}</p>)}
+        {l.advice && <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>{l.advice}</p>}
+        {l.status === 'ONLY_IN_2B' && l.documentId && (
+          <PermissionGate anyOf={['PROCUREMENT_CREATE', 'FINANCE_CREATE']}>
+            <Link href={`/purchases/bills/new?from2b=${l.documentId}`} className="btn-secondary h-7 text-xs mt-2 inline-flex">Record this bill</Link>
+          </PermissionGate>
+        )}
+      </td>
+      <td className="px-4 py-3">{ims ? <span className="text-xs font-semibold" style={{ color: ims.color }}>{ims.label}</span> : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+    </tr>
   )
 }
