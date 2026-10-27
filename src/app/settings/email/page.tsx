@@ -21,7 +21,7 @@ import { Mail, ChevronDown, Send, Settings2, Check } from 'lucide-react'
 
 // Groups the events into sections for a cleaner admin experience
 const GROUPS: { title: string; events: string[] }[] = [
-  { title: 'Authentication & Account', events: ['WELCOME', 'PASSWORD_RESET', 'PASSWORD_CHANGED', 'OTP_LOGIN', 'NEW_DEVICE_LOGIN'] },
+  { title: 'Authentication & Account', events: ['WELCOME', 'PASSWORD_RESET', 'PASSWORD_CHANGED', 'OTP_LOGIN', 'NEW_DEVICE_LOGIN', 'SIGN_IN_METHOD_CHANGED'] },
   { title: 'Invoicing & Finance',      events: ['INVOICE_CREATED', 'INVOICE_SENT', 'PAYMENT_RECEIVED', 'PAYMENT_REMINDER', 'STATEMENT_SENT'] },
   { title: 'HR & Team',                events: ['EMPLOYEE_ONBOARDED', 'LEAVE_REQUESTED', 'LEAVE_APPROVED', 'LEAVE_REJECTED'] },
   { title: 'Subscription & Billing',   events: ['SUBSCRIPTION_RENEWAL', 'SUBSCRIPTION_EXPIRED'] },

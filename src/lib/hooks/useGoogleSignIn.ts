@@ -12,88 +12,121 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { authApi } from '@/lib/api/auth'
 
 /**
- * Loads Google Identity Services (GIS) and initialises it with the configured
- * client id. When the user completes Google sign-in, GIS calls back with an ID
- * token, which we hand to `onToken` (the login page then posts it to
- * /auth/social/google and receives a FINVOSMART JWT).
+ * Google's own "Continue with Google" button (Google Identity Services, GIS).
  *
- * The client id comes from NEXT_PUBLIC_GOOGLE_CLIENT_ID (a build-time env var).
- * If it isn't set, this hook stays dormant and reports `ready: false`, so the
- * login page can show a "not configured" message instead of a broken button.
+ * The OAuth client ID comes from the server (GET /auth/providers, set by GOOGLE_CLIENT_ID), so Google
+ * sign-in is switched on or off on the server alone — no rebuild of the web app, and the browser and
+ * the server can't disagree about it. Nothing is loaded from Google until the server says it is on.
+ *
+ * When the person finishes in Google's window, GIS gives us an ID token and `onToken` sends it to the
+ * server: to sign in (login page) or to link the Google account (Settings → Sign-in & security).
  */
+
+const GIS_SRC = 'https://accounts.google.com/gsi/client'
+
+/** The client ID, asked once per page load (asked again after a failure). */
+let clientIdAnswer: Promise<string | null> | null = null
+function askClientId(): Promise<string | null> {
+  if (!clientIdAnswer) {
+    clientIdAnswer = authApi.providers()
+      .then(p => p?.google?.clientId || null)
+      .catch(() => { clientIdAnswer = null; return null })
+  }
+  return clientIdAnswer
+}
+
+let gisScript: Promise<boolean> | null = null
+function loadGis(): Promise<boolean> {
+  if ((window as any).google?.accounts?.id) return Promise.resolve(true)
+  if (!gisScript) {
+    gisScript = new Promise<boolean>(resolve => {
+      const s = document.createElement('script')
+      s.src = GIS_SRC
+      s.async = true
+      s.defer = true
+      s.onload = () => resolve(!!(window as any).google?.accounts?.id)
+      s.onerror = () => { gisScript = null; resolve(false) }     // blocked or offline: try again on the next page
+      document.head.appendChild(s)
+    })
+  }
+  return gisScript
+}
+
+// GIS keeps one callback per page; the button on screen now receives the token.
+let initialisedWith: string | null = null
+let onScreen: ((idToken: string) => void) | null = null
+
 export function useGoogleSignIn(onToken: (idToken: string) => void) {
+  const [clientId, setClientId] = useState<string | null | undefined>(undefined)   // undefined: still asking
   const [ready, setReady] = useState(false)
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const [failed, setFailed] = useState(false)
   const cbRef = useRef(onToken)
   cbRef.current = onToken
 
   useEffect(() => {
-    if (!clientId) return               // not configured — stay dormant
-    if (typeof window === 'undefined') return
-
-    const SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
-
-    function initGis() {
+    let live = true
+    const mine = (idToken: string) => cbRef.current(idToken)
+    onScreen = mine
+    askClientId().then(async id => {
+      if (!live) return
+      setClientId(id)
+      if (!id) return
+      const loaded = await loadGis()
+      if (!live) return
       const g = (window as any).google
-      if (!g?.accounts?.id) return
+      if (!loaded || !g?.accounts?.id) { setFailed(true); return }
       try {
-        g.accounts.id.initialize({
-          client_id: clientId,
-          callback: (response: { credential?: string }) => {
-            if (response?.credential) cbRef.current(response.credential)
-          },
-          auto_select: false,
-          cancel_on_tap_outside: true,
-          use_fedcm_for_prompt: true,
-        })
+        if (initialisedWith !== id) {
+          g.accounts.id.initialize({
+            client_id: id,
+            callback: (response: { credential?: string }) => { if (response?.credential) onScreen?.(response.credential) },
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            use_fedcm_for_prompt: true,
+          })
+          initialisedWith = id
+        }
         setReady(true)
       } catch {
-        setReady(false)
+        setFailed(true)
       }
-    }
+    })
+    return () => { live = false; if (onScreen === mine) onScreen = null }
+  }, [])
 
-    // If the script is already present, just initialise.
-    if ((window as any).google?.accounts?.id) { initGis(); return }
-
-    // Otherwise inject the GIS script once.
-    let script = document.querySelector<HTMLScriptElement>(`script[src="${SCRIPT_SRC}"]`)
-    if (!script) {
-      script = document.createElement('script')
-      script.src = SCRIPT_SRC
-      script.async = true
-      script.defer = true
-      script.onload = initGis
-      document.head.appendChild(script)
-    } else {
-      script.addEventListener('load', initGis)
-    }
-  }, [clientId])
-
-  /** Trigger the Google sign-in prompt / one-tap. */
+  /** Google's One Tap prompt (the official button below is the dependable way in). */
   function prompt() {
     const g = (window as any).google
     if (g?.accounts?.id) g.accounts.id.prompt()
   }
 
-  /** Render an official Google button into the given element (optional). */
   /**
-   * Render Google's official "Sign in with Google" button into `el`. Unlike the
-   * One Tap prompt, this always opens the Google popup when clicked — Google
-   * suppresses One Tap for a cooling-off period after a user dismisses it once,
-   * which made a custom button that called prompt() silently do nothing.
+   * Draw Google's official button into `el`. It always opens Google's window when clicked — unlike
+   * One Tap, which Google holds back for a while after someone dismisses it once.
    */
-  function renderButton(el: HTMLElement | null) {
+  function renderButton(el: HTMLElement | null, text: 'continue_with' | 'signin_with' | 'signup_with' = 'continue_with') {
     const g = (window as any).google
     if (!el || !g?.accounts?.id) return
-    el.innerHTML = ''                                       // avoid stacking duplicates on re-render
-    const width = Math.min(400, Math.max(200, el.clientWidth || 320))   // GIS accepts 200–400px
+    el.innerHTML = ''                                                 // no second button on a re-render
+    const width = Math.min(400, Math.max(200, el.clientWidth || 320))  // GIS draws 200–400px wide
     g.accounts.id.renderButton(el, {
-      theme: 'outline', size: 'large', text: 'continue_with',
-      shape: 'rectangular', logo_alignment: 'left', width,
+      theme: 'outline', size: 'large', text, shape: 'rectangular', logo_alignment: 'left', width,
     })
   }
 
-  return { ready, configured: !!clientId, prompt, renderButton }
+  return {
+    /** Google's button can be drawn now. */
+    ready,
+    /** The server has Google sign-in switched on. */
+    configured: !!clientId,
+    /** Still asking the server. */
+    checking: clientId === undefined,
+    /** Switched on, but Google's script didn't load (offline, or blocked by an extension). */
+    failed,
+    prompt,
+    renderButton,
+  }
 }

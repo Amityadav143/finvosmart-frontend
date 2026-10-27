@@ -10,14 +10,16 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
-  AlertTriangle, Check, Copy, Download, Eye, EyeOff, KeyRound, LogOut, Monitor, RefreshCw, Shield, ShieldCheck, Smartphone,
+  AlertTriangle, Check, Copy, Download, Eye, EyeOff, KeyRound, LogIn, LogOut, Monitor, RefreshCw, Shield, ShieldCheck, Smartphone,
 } from 'lucide-react'
 import { api } from '@/lib/api/client'
+import { authApi, type GoogleLink } from '@/lib/api/auth'
+import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
 import { apiError } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import type { AuthResponse } from '@/types'
@@ -57,8 +59,9 @@ export default function SecurityPage() {
   return (
     <div style={{ maxWidth: '680px' }}>
       <h1 className="page-title">Sign-in &amp; security</h1>
-      <p className="page-subtitle">Your password, two-step sign-in and the devices signed in to your account.</p>
+      <p className="page-subtitle">How you sign in, two-step sign-in and the devices signed in to your account.</p>
       <PasswordCard />
+      <GoogleCard />
       <TwoStepCard />
       <DevicesCard />
     </div>
@@ -68,7 +71,11 @@ export default function SecurityPage() {
 // ── Password ──────────────────────────────────────────────────────────────────
 
 function PasswordCard() {
+  const qc = useQueryClient()
   const setAuth = useAuthStore(s => s.setAuth)
+  // A login made with Google has no password until one is set here (no "current password" then).
+  const { data: pw } = useQuery({ queryKey: ['password-status'], queryFn: authApi.passwordStatus })
+  const first = pw?.hasPassword === false
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
   const [show, setShow] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -76,16 +83,18 @@ function PasswordCard() {
   const mismatch = !!pwForm.confirm && pwForm.confirm !== pwForm.next
 
   const changePassword = async () => {
-    if (!pwForm.current) return toast.error('Enter your current password.')
+    if (!first && !pwForm.current) return toast.error('Enter your current password.')
     const p = passwordProblem(pwForm.next)
     if (p) return toast.error(p)
     if (pwForm.next !== pwForm.confirm) return toast.error('The new passwords don’t match.')
     setSaving(true)
     try {
-      const res = await api.post('/auth/change-password', { currentPassword: pwForm.current, newPassword: pwForm.next })
+      const res = await api.post('/auth/change-password', first ? { newPassword: pwForm.next } : { currentPassword: pwForm.current, newPassword: pwForm.next })
       const auth = res.data?.data as AuthResponse | undefined
       if (auth?.accessToken) setAuth(auth)        // this device stays signed in with fresh tokens
-      toast.success('Password changed. Your other devices have been signed out.')
+      toast.success(first ? 'Password set. You can now also sign in with your email, password and company code.'
+                          : 'Password changed. Your other devices have been signed out.')
+      qc.setQueryData(['password-status'], { hasPassword: true })
       setPwForm({ current: '', next: '', confirm: '' })
     } catch (e: any) {
       toast.error(apiError(e, 'The password could not be changed. Please try again.'))
@@ -102,16 +111,20 @@ function PasswordCard() {
 
   return (
     <Card icon={<KeyRound size={20} style={{ color: 'var(--gold)' }} />} title="Password">
-      <p style={{ ...muted, marginBottom: '16px' }}>
-        Changing it signs you out on every other device — handy if you think someone else knows it.
+      <p data-testid="password-intro" style={{ ...muted, marginBottom: '16px' }}>
+        {first
+          ? 'You signed up with Google, so your login has no password yet. Set one to also sign in with your email, password and company code — Google keeps working.'
+          : 'Changing it signs you out on every other device — handy if you think someone else knows it.'}
       </p>
       <form onSubmit={e => { e.preventDefault(); changePassword() }}
         style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '360px' }}>
-        <div>
-          <label className="label" htmlFor="pw-current">Current password</label>
-          <input id="pw-current" type={show ? 'text' : 'password'} className="input h-10" autoComplete="current-password"
-            value={pwForm.current} onChange={e => setPwForm(f => ({ ...f, current: e.target.value }))} />
-        </div>
+        {!first && (
+          <div>
+            <label className="label" htmlFor="pw-current">Current password</label>
+            <input id="pw-current" type={show ? 'text' : 'password'} className="input h-10" autoComplete="current-password"
+              value={pwForm.current} onChange={e => setPwForm(f => ({ ...f, current: e.target.value }))} />
+          </div>
+        )}
         <div>
           <label className="label" htmlFor="pw-new">New password</label>
           <input id="pw-new" type={show ? 'text' : 'password'} className="input h-10" autoComplete="new-password"
@@ -133,13 +146,126 @@ function PasswordCard() {
         <button type="button" className="btn-ghost text-xs" onClick={() => setShow(v => !v)} style={{ alignSelf: 'flex-start', height: '28px' }}>
           {show ? <EyeOff size={13} /> : <Eye size={13} />} {show ? 'Hide passwords' : 'Show passwords'}
         </button>
-        <button type="submit" className="btn-primary h-10" disabled={saving || !pwForm.current || !!problem || mismatch || !pwForm.confirm}>
-          {saving ? 'Changing…' : 'Change password'}
+        <button type="submit" className="btn-primary h-10" disabled={saving || (!first && !pwForm.current) || !!problem || mismatch || !pwForm.confirm}>
+          {saving ? 'Saving…' : first ? 'Set password' : 'Change password'}
         </button>
-        <p style={{ ...muted, fontSize: '12px', color: 'var(--text-muted)' }}>
-          Forgot your current password? Sign out and choose “Forgot password?” on the sign-in page.
-        </p>
+        {!first && (
+          <p style={{ ...muted, fontSize: '12px', color: 'var(--text-muted)' }}>
+            Forgot your current password? Sign out and choose “Forgot password?” on the sign-in page.
+          </p>
+        )}
       </form>
+    </Card>
+  )
+}
+
+// ── Google sign-in ────────────────────────────────────────────────────────────
+
+const day = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+
+/**
+ * The Google account that opens this login. Shown only where the server has Google sign-in switched
+ * on. Linking uses Google's own button, so only the holder of the Google account can link it.
+ */
+function GoogleCard() {
+  const qc = useQueryClient()
+  const { data: link, isLoading, isError, refetch } = useQuery<GoogleLink>({ queryKey: ['google-link'], queryFn: authApi.googleLink })
+  const { data: pw } = useQuery({ queryKey: ['password-status'], queryFn: authApi.passwordStatus })
+  const [busy, setBusy] = useState(false)
+  const [asking, setAsking] = useState(false)
+  const btnRef = useRef<HTMLDivElement>(null)
+
+  const google = useGoogleSignIn(async (idToken: string) => {
+    setBusy(true)
+    try {
+      const res = await authApi.linkGoogle(idToken)
+      qc.setQueryData(['google-link'], res)
+      toast.success(`Linked. You can now sign in with ${res.email ?? 'this Google account'}.`)
+    } catch (e: any) {
+      toast.error(apiError(e, 'That Google account couldn’t be linked. Please try again.'), { duration: 9000 })
+    } finally { setBusy(false) }
+  })
+
+  const showButton = !!link?.available && !link.linked
+  useEffect(() => {
+    if (google.ready && showButton) google.renderButton(btnRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [google.ready, showButton])
+
+  const unlink = async () => {
+    setBusy(true)
+    try {
+      const res = await authApi.unlinkGoogle()
+      qc.setQueryData(['google-link'], res)
+      setAsking(false)
+      toast.success('Google sign-in removed from your login.')
+    } catch (e: any) {
+      toast.error(apiError(e, 'That didn’t work. Please try again.'))
+    } finally { setBusy(false) }
+  }
+
+  if (isLoading) return null
+  if (isError) {
+    return (
+      <Card icon={<LogIn size={20} style={{ color: 'var(--text-muted)' }} />} title={'Google sign\u2011in'}>
+        <div style={{ ...muted, color: '#dc2626' }}>
+          This could not be loaded. <button className="btn-ghost text-xs" onClick={() => refetch()}>Try again</button>
+        </div>
+      </Card>
+    )
+  }
+  if (!link?.available) return null                     // Google sign-in isn't set up on this server
+
+  const badge = (
+    <span data-testid="google-state" className="badge" style={{
+      background: link.linked ? 'rgba(5,150,105,0.12)' : 'rgba(100,116,139,0.12)', color: link.linked ? '#059669' : 'var(--text-muted)', fontWeight: 700,
+    }}>{link.linked ? 'Linked' : 'Not linked'}</span>
+  )
+
+  return (
+    <Card icon={<LogIn size={20} style={{ color: 'var(--gold)' }} />} title={'Google sign\u2011in'} badge={badge}>
+      {link.linked ? (
+        <div data-testid="google-card">
+          <p style={{ ...muted, marginBottom: '14px' }}>
+            You can sign in with the Google account <strong data-testid="google-email" style={{ color: 'var(--text-primary)' }}>{link.email}</strong>
+            {link.linkedAt ? <> (linked {day(link.linkedAt)})</> : null}. If two-step sign-in is on, it still asks for its code.
+          </p>
+          {asking ? (
+            <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+              <p style={{ ...muted, marginBottom: '10px' }}>
+                {pw?.hasPassword === false
+                  ? 'Remove Google sign-in? Your login has no password yet, so you’ll sign in with a code sent to your email — or set a password above first.'
+                  : 'Remove Google sign-in? You’ll sign in with your password or a code sent to your email instead.'}
+                {link.loginIsGmail ? ' Your own Gmail address still works with Google sign-in.' : ''}
+              </p>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button className="btn-danger h-9 text-sm" onClick={unlink} disabled={busy}>{busy ? 'Removing…' : 'Yes, remove it'}</button>
+                <button className="btn-secondary h-9 text-sm" onClick={() => setAsking(false)} disabled={busy}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn-secondary h-9 text-sm" onClick={() => setAsking(true)}>Remove Google sign-in</button>
+          )}
+        </div>
+      ) : (
+        <div data-testid="google-card">
+          <p style={{ ...muted, marginBottom: '14px' }}>
+            {link.loginIsGmail
+              ? 'Your login is a Gmail address, so you can already sign in with that Google account. To use a different Google account, link it here.'
+              : 'Sign in with one click using a Google account. A Google Workspace address that is your login works already; to use any other Google account, link it here.'}
+          </p>
+          {google.ready ? (
+            <div ref={btnRef} data-testid="google-link-button" aria-busy={busy} style={{ maxWidth: '320px', minHeight: '44px', opacity: busy ? 0.6 : 1 }} />
+          ) : google.failed ? (
+            <p role="status" style={{ ...muted, fontSize: '12px' }}>Google’s button couldn’t load — check your connection or browser extensions, then reload the page.</p>
+          ) : (
+            <div className="skeleton" style={{ height: '44px', maxWidth: '320px', borderRadius: '6px' }} />
+          )}
+          <p style={{ ...muted, fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px' }}>
+            You’ll pick the account in Google’s window. We get its name and email address only — never its password.
+          </p>
+        </div>
+      )}
     </Card>
   )
 }

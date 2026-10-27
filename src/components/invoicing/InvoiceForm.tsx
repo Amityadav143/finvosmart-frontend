@@ -119,7 +119,7 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
     presetApplied.current = true
     setCustomer(presetCustomer)
     setGstin(presetCustomer.gstin ?? '')
-    setBilling(presetCustomer.billingAddress ?? presetCustomer.address ?? '')
+    setBilling(presetCustomer.billingAddress ?? '')
     setShipping(presetCustomer.shippingAddress ?? '')
     if (presetCustomer.paymentTerms) { setTerms(presetCustomer.paymentTerms); setDueTouched(false) }
   }, [presetCustomer]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -243,7 +243,7 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
         <CustomerPicker value={customer} onChange={c => {
           setCustomer(c)
           setGstin(c?.gstin ?? '')
-          setBilling(c?.billingAddress ?? c?.address ?? '')
+          setBilling(c?.billingAddress ?? '')
           setShipping(c?.shippingAddress ?? '')
           if (c?.paymentTerms && !editing) { setTerms(c.paymentTerms); setDueTouched(false) }
           setPos('')

@@ -86,7 +86,7 @@ const COMMANDS: { group: string; items: Command[] }[] = [
     { label: 'Document templates',  href: '/settings/templates',     icon: Settings,  perm: 'SETTINGS_VIEW' },
     { label: 'Email alerts',        href: '/settings/email',         icon: Settings,  perm: 'SETTINGS_COMPANY' },
     { label: 'Audit log',           href: '/settings/audit-log',     icon: FileText,  perm: 'AUDIT_LOG_VIEW' },
-    { label: 'Sign-in & security: password, two-step sign-in, devices', href: '/settings/security', icon: Settings },
+    { label: 'Sign-in & security: password, Google sign-in, two-step sign-in, devices', href: '/settings/security', icon: Settings },
     { label: 'Webhooks',            href: '/webhooks',               icon: Settings,  perm: 'SETTINGS_VIEW' },
     { label: 'Recurring billing',   href: '/subscriptions',          icon: Building2, perm: 'SUBSCRIPTIONS_VIEW' },
   ]},

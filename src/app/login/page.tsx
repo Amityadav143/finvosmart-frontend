@@ -17,6 +17,8 @@ import { useAuthStore } from '@/lib/store/slices/authStore'
 import { authApi } from '@/lib/api/auth'
 import { useTheme } from '@/lib/context/ThemeContext'
 import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
+import { handOverGoogleSignIn, takeGoogleSignIn } from '@/lib/googleHandoff'
+import { checkNewSession, explainSignInProblem, sessionEndedNote, type SignInProblem } from '@/lib/auth/sessionCheck'
 import toast from 'react-hot-toast'
 import { Zap, Eye, EyeOff, ArrowRight, Sun, Moon } from 'lucide-react'
 import { apiError } from '@/lib/utils'
@@ -45,16 +47,21 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false)
   const [welcomeNew, setWelcomeNew] = useState(false)
   const [expired, setExpired] = useState(false)       // sent here because the session ended
+  const [endedWhy, setEndedWhy] = useState('')        // …and why, as the server said (EXPIRED, NOT_RECOGNISED…)
+  // Signed in, but the server refused the new session straight away: a server set-up problem, explained
+  const [problem, setProblem] = useState<SignInProblem | null>(null)
   const [useBackup, setUseBackup] = useState(false)   // second step: a backup code instead of the app
 
   // ── Multi-channel login state ──────────────────────────────────────────
-  const [tab, setTab] = useState<'password'|'otp'|'social'>('password')
+  const [tab, setTab] = useState<'password'|'otp'>('password')
   const [otpChannel, setOtpChannel] = useState<'SMS'|'EMAIL'>('SMS')
   const [otpId, setOtpId] = useState('')            // phone or email
   const [otpCode, setOtpCode] = useState('')
   const [otpSent, setOtpSent] = useState(false)
   const [otpCompany, setOtpCompany] = useState('')  // shown only if multiple companies
   const [companyChoices, setCompanyChoices] = useState<{companyCode:string;companyName:string}[]>([])
+  // A Google account no login uses: offer to start a company with it
+  const [newGoogle, setNewGoogle] = useState<{ email: string } | null>(null)
   const [devHint, setDevHint] = useState('')
 
   useEffect(() => {
@@ -62,7 +69,7 @@ export default function LoginPage() {
     // New visitors arriving from a "Start Free Trial" CTA get a friendly welcome.
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
-      if (params.get('expired') === '1') setExpired(true)
+      if (params.get('expired') === '1') { setExpired(true); setEndedWhy(params.get('reason') ?? '') }
       if (params.get('register') === '1' || params.get('trial') === '1') {
         // Old "start trial" links pointed here; self-service sign-up now has its own page.
         router.replace('/register')
@@ -77,7 +84,22 @@ export default function LoginPage() {
     return useAuthStore.persist.onFinishHydration(go)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const finishLogin = (auth: any) => {
+  /**
+   * The last step of every way of signing in: check the server takes the new session, then open
+   * the app. A session the server refuses is not kept — opening the app with it only sent people
+   * back here (after a burst of failing requests) with no reason given.
+   */
+  const openApp = async (auth: any, greeting = 'Welcome') => {
+    const refused = await checkNewSession(auth?.accessToken)
+    if (refused) { setProblem(refused); setStep('login'); return false }
+    setProblem(null)
+    setAuth(auth)
+    toast.success(`${greeting}${auth.fullName ? ', ' + auth.fullName.split(' ')[0] : ''}!`)
+    router.push(nextPath())
+    return true
+  }
+
+  const finishLogin = async (auth: any) => {
     // Multi-company users get a chooser instead of tokens
     if (auth?.companyChooser?.length) {
       setCompanyChoices(auth.companyChooser)
@@ -88,30 +110,49 @@ export default function LoginPage() {
       setMfaSession(auth.mfaSessionToken); setMfaCode(''); setUseBackup(false); setStep('mfa')
       return false
     }
-    setAuth(auth)
-    toast.success(`Welcome${auth.fullName ? ', ' + auth.fullName.split(' ')[0] : ''}!`)
-    router.push(nextPath())
-    return true
+    return openApp(auth)
   }
 
+  // How the person got to the company chooser: picking a company repeats that sign-in with it.
+  const chooserVia = useRef<'password'|'otp'|'google'>('password')
+  const googleToken = useRef('')
+
   // ── Google sign-in (GIS) ───────────────────────────────────────────────
-  // When Google returns an ID token, exchange it for a FINVOSMART session.
-  const google = useGoogleSignIn(async (idToken: string) => {
+  // Shown only when the server has Google sign-in switched on (GOOGLE_CLIENT_ID). Google's window
+  // returns an ID token; the server checks it and opens the login it belongs to — or, when no login
+  // uses that address, says so and the page offers to start a free trial with the same Google account.
+  const signInWithGoogle = async (idToken: string) => {
     setLoading(true)
     try {
-      const auth = await authApi.google(idToken, form.companyCode || undefined)
-      finishLogin(auth)
+      googleToken.current = idToken
+      chooserVia.current = 'google'
+      const auth = await authApi.google(idToken)
+      if (auth?.signUpWithGoogle) { setNewGoogle({ email: auth.email }); return }
+      await finishLogin(auth)
     } catch (err: any) {
-      toast.error(apiError(err, 'Google sign-in failed'))
+      toast.error(apiError(err, 'Google sign-in didn’t work. Please try again.'), { duration: 9000 })
     } finally { setLoading(false) }
-  })
+  }
+  const google = useGoogleSignIn(signInWithGoogle)
 
-  // Show Google's official button in the Social tab once GIS has loaded.
+  // Google's official button, drawn again whenever the sign-in form is back on screen.
   const googleBtnRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (tab === 'social' && google.ready) google.renderButton(googleBtnRef.current)
+    if (google.ready && step === 'login' && companyChoices.length === 0 && !newGoogle) google.renderButton(googleBtnRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, google.ready])
+  }, [google.ready, step, companyChoices.length, newGoogle])
+
+  // Sent here from sign-up by a Google account that already has a login: sign in with it.
+  useEffect(() => {
+    const handed = takeGoogleSignIn()
+    if (handed) signInWithGoogle(handed)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const startTrialWithGoogle = () => {
+    handOverGoogleSignIn(googleToken.current)
+    router.push('/register')
+  }
 
   // ── OTP handlers ───────────────────────────────────────────────────────
   const sendOtp = async () => {
@@ -131,31 +172,23 @@ export default function LoginPage() {
     if (!otpCode) { toast.error('Enter the code'); return }
     setLoading(true)
     try {
+      chooserVia.current = 'otp'
       const auth = await authApi.verifyOtp(otpId, otpCode, otpChannel, otpCompany || undefined)
-      finishLogin(auth)
+      await finishLogin(auth)
     } catch (err: any) {
       toast.error(apiError(err, 'Invalid code'))
     } finally { setLoading(false) }
   }
 
-  // ── Social handlers ────────────────────────────────────────────────────
-  const socialLogin = async (provider: 'GOOGLE') => {
-    if (provider !== 'GOOGLE' || !google.configured) return
-    if (!google.ready) {
-      toast('Google sign-in is still loading — please try again in a moment.')
-      return
-    }
-    google.prompt()   // GIS callback (set above) exchanges the token and logs in
-  }
-
   const chooseCompany = async (code: string) => {
     setLoading(true)
     try {
-      const auth = tab === 'otp'
-        ? await authApi.verifyOtp(otpId, otpCode, otpChannel, code)
+      const via = chooserVia.current
+      const auth = via === 'google' ? await authApi.google(googleToken.current, code)
+        : via === 'otp' ? await authApi.verifyOtp(otpId, otpCode, otpChannel, code)
         : await authApi.login(form.email, form.password, code)
       setCompanyChoices([])
-      finishLogin(auth)
+      await finishLogin(auth)
     } catch (err: any) {
       toast.error(apiError(err, 'Could not sign in to that company'))
     } finally { setLoading(false) }
@@ -168,9 +201,11 @@ export default function LoginPage() {
       return
     }
     setLoading(true)
+    setProblem(null)
     try {
+      chooserVia.current = 'password'
       const auth = await authApi.login(form.email, form.password, form.companyCode)
-      finishLogin(auth)
+      await finishLogin(auth)
     } catch (err: any) {
       toast.error(apiError(err, 'Invalid credentials. Please try again.'))
     } finally {
@@ -236,15 +271,44 @@ export default function LoginPage() {
           )}
           {expired && step === 'login' && (
             <div role="status" data-testid="session-ended" style={{ marginBottom: '18px', padding: '12px 14px', borderRadius: '12px', background: 'var(--gold-muted)', border: '1px solid var(--border-strong)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Your session ended. Sign in again to pick up where you left off.
+              {sessionEndedNote(endedWhy)}
             </div>
           )}
           <h1 className="font-serif text-xl mb-5" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em', fontWeight: 400 }}>
             {welcomeNew ? 'Get started' : 'Sign in to Finvosmart'}
           </h1>
 
-          {/* Company chooser (multi-company users) */}
-          {companyChoices.length > 0 ? (
+          {problem && (() => {
+            const why = explainSignInProblem(problem)
+            return (
+              <div role="alert" data-testid="sign-in-problem" data-reason={problem.reason}
+                style={{ marginBottom: '18px', padding: '12px 14px', borderRadius: '12px', background: 'rgba(220,38,38,0.07)',
+                         border: '1px solid rgba(220,38,38,0.3)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{why.title}</p>
+                <p style={{ margin: '0 0 6px' }}>{why.detail}</p>
+                {why.fix && <p style={{ margin: 0, fontSize: '12px' }}>{why.fix}</p>}
+              </div>
+            )
+          })()}
+
+          {/* A Google account no login uses: start a free trial with it */}
+          {newGoogle ? (
+            <div data-testid="google-new" className="space-y-3">
+              <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                No Finvosmart login uses <strong style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>{newGoogle.email}</strong> yet.
+              </p>
+              <button type="button" className="btn-primary w-full" style={{ height: '44px' }} onClick={startTrialWithGoogle}>
+                Start a free trial with this Google account <ArrowRight size={16} />
+              </button>
+              <button type="button" className="btn-secondary w-full" style={{ height: '40px' }} onClick={() => setNewGoogle(null)}>
+                Use a different Google account
+              </button>
+              <p className="text-xs" style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Joining your company’s Finvosmart instead? Ask its admin to invite {newGoogle.email}, or sign in with the
+                Google account of the email you were invited with.
+              </p>
+            </div>
+          ) : companyChoices.length > 0 ? (
             <div className="space-y-3">
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 Your account exists in multiple companies. Choose one:
@@ -274,7 +338,7 @@ export default function LoginPage() {
               setLoading(true)
               try {
                 const auth = await authApi.verifyMfa(mfaSession, mfaCode)
-                setAuth(auth); toast.success(`Welcome back${auth.fullName ? ', ' + auth.fullName.split(' ')[0] : ''}!`); router.push(nextPath())
+                await openApp(auth, 'Welcome back')
               } catch (err: any) {
                 const msg = apiError(err, 'That code didn’t match. Try again.')
                 toast.error(msg)
@@ -307,7 +371,7 @@ export default function LoginPage() {
           <>
           {/* Tab switcher */}
           <div style={{ display: 'flex', gap: '4px', padding: '4px', background: 'var(--bg-surface)', borderRadius: '12px', marginBottom: '20px' }}>
-            {([['password','Password'],['otp','Mobile / Email'],['social','Google']] as const).filter(([id]) => id !== 'social' || google.configured).map(([id,label]) => (
+            {([['password','Password'],['otp','Mobile / Email']] as const).map(([id,label]) => (
               <button key={id} type="button" onClick={() => { setTab(id); setOtpSent(false); setDevHint('') }}
                 style={{ flex: 1, padding: '8px 6px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer',
                   borderRadius: '8px', border: 'none', fontFamily: 'inherit',
@@ -422,24 +486,26 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* GOOGLE TAB — shown only where Google sign-in is set up (NEXT_PUBLIC_GOOGLE_CLIENT_ID) */}
-          {tab === 'social' && (
-            <div className="space-y-3">
-              <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Use the Google account with the same email as your Finvosmart login. You must already be added to a company.
-              </p>
+          {/* GOOGLE — only where the server has Google sign-in switched on (GOOGLE_CLIENT_ID) */}
+          {google.configured && (
+            <div data-testid="google-signin" style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>or</span>
+                <span style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+              </div>
               {google.ready ? (
-                <div ref={googleBtnRef} style={{ display: 'flex', justifyContent: 'center', minHeight: '44px' }} />
+                <div ref={googleBtnRef} aria-busy={loading} style={{ display: 'flex', justifyContent: 'center', minHeight: '44px', opacity: loading ? 0.6 : 1 }} />
+              ) : google.failed ? (
+                <p role="status" className="text-xs text-center" style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Google sign-in couldn’t load — check your connection or browser extensions, or sign in above.
+                </p>
               ) : (
-                <button type="button" onClick={() => socialLogin('GOOGLE')} disabled={loading}
-                  className="w-full flex items-center justify-center gap-2.5"
-                  style={{ height: '44px', borderRadius: '10px', background: '#ffffff', color: '#1f1f1f', border: '1px solid #dadce0',
-                    cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px', fontWeight: 600 }}>
-                  <span style={{ fontWeight: 800, fontSize: '15px' }}>G</span> Continue with Google
-                </button>
+                <div className="skeleton" aria-label="Loading Google sign-in" style={{ height: '44px', borderRadius: '6px' }} />
               )}
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Google confirms who you are; we then match your verified email to your Finvosmart account.
+              <p className="text-xs mt-2.5 text-center" style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Works with the Gmail or Google Workspace address you sign in with. Using another Google account?
+                Link it first under Settings → Sign-in &amp; security. New to Finvosmart? Continue with Google to start a free trial.
               </p>
             </div>
           )}

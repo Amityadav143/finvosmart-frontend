@@ -18,7 +18,7 @@ const SECTIONS = [
   { href: '/settings/company',   icon: Building2,   title: 'Company',          text: 'Business name, GSTIN, address and financial year.' },
   { href: '/settings/users',     icon: Users,       title: 'Users',            text: 'Invite people and manage who can sign in.' },
   { href: '/settings/roles',     icon: ShieldCheck, title: 'Roles & permissions', text: 'Decide what each role can see and do.' },
-  { href: '/settings/security',  icon: Lock,        title: 'Sign-in & security', text: 'Your password, two-step sign-in and signed-in devices.' },
+  { href: '/settings/security',  icon: Lock,        title: 'Sign-in & security', text: 'Your password, Google sign-in, two-step sign-in and signed-in devices.' },
   { href: '/settings/modules',   icon: LayoutGrid,  title: 'Modules',          text: 'Turn product modules on or off for your company.' },
   { href: '/settings/workflow',  icon: GitBranch,   title: 'Approval workflows', text: 'Who approves leave, purchases and expenses.' },
   { href: '/settings/email',     icon: Mail,        title: 'Email',            text: 'Email delivery and notification settings.' },

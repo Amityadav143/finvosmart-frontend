@@ -44,12 +44,12 @@ function privateRoutes() {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // NOTE: This project is deployed manually on a VPS (not Docker), so it uses the
-  // default Next.js build output and is served with `next start`. `next start`
-  // serves the compiled CSS/JS and the public/ folder automatically — no separate
-  // "copy the static folder" step, which is what previously caused CSS to 404 on
-  // the server. (If you ever switch to Docker, re-enable `output: 'standalone'`
-  // and have the Dockerfile copy .next/static + public into the standalone dir.)
+  // Two ways to run it. On a VPS without Docker it uses the default build output and is served
+  // with `next start`, which serves the compiled CSS/JS and the public/ folder itself — no
+  // separate "copy the static folder" step (missing that step is what made CSS 404 on a server
+  // once). The Docker image (frontend/Dockerfile) sets NEXT_OUTPUT=standalone for its build and
+  // copies .next/static and public/ next to the standalone server.js.
+  output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
 
   // Production builds should not be blocked by lint warnings or non-critical type
   // notes. CI runs `npm run lint` / `tsc --noEmit` separately as quality gates.
@@ -78,6 +78,10 @@ const nextConfig = {
   images: { unoptimized: true },
 
   env: {
+    // Where the browser finds the API, baked in at build time. A production build defaults to /api/v1
+    // on the same site (nginx sends /api/ to the backend), so a plain `npm run build` on the server is
+    // right — an unset value used to bake in http://localhost:8080, i.e. each visitor's own computer.
+    // `next dev` talks to a local backend directly. Set NEXT_PUBLIC_API_URL for anything else.
     NEXT_PUBLIC_API_URL:   process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_APP_NAME:  'FINVOSMART',
     NEXT_PUBLIC_VERSION:   '1.0.0',

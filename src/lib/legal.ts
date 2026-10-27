@@ -20,8 +20,8 @@
  *  • Have a lawyer review before relying on these documents.
  */
 
-export const LEGAL_VERSION = '2026-10-05'
-export const LEGAL_UPDATED = '5 October 2026'
+export const LEGAL_VERSION = '2026-10-23'
+export const LEGAL_UPDATED = '23 October 2026'
 
 export const LEGAL_ENTITY = {
   name: 'Navgrow Engineering Service Pvt. Ltd.',
@@ -49,7 +49,7 @@ export const PRIVACY: LegalDoc = {
     { id: 'collect', h2: 'Personal data we collect', bullets: [
       'Account details: your name, email address, mobile number (if you give it) and password. Passwords are stored only as a one-way bcrypt hash, which nobody — including us — can read.',
       'Company details: your business name and, if you add them, your GSTIN, address and other registration details.',
-      'If you sign in with Google: your name and email address, after Google confirms your identity. We never see your Google password.',
+      'If you sign up or sign in with Google: your name, email address and profile photo, after Google confirms your identity, and Google\'s ID for your Google account, so we recognise it next time. We never see your Google password.',
       'Records you add while using Finvosmart, such as invoices, customer and vendor details, and employee records.',
       'Security and usage data: IP address, browser type, sign-in times and server logs of requests to our service.',
       'Messages you send us, such as support requests.',
@@ -69,7 +69,7 @@ export const PRIVACY: LegalDoc = {
     ], bullets: [
       'Our hosting provider, which runs the servers that store Finvosmart\'s data.',
       'Our email delivery provider, which sends account emails such as sign-in codes and password resets.',
-      'Google, if you choose "Sign in with Google": we send Google your sign-in token so it can confirm the token is genuine.',
+      'Google, if you sign up or sign in with Google: the button and the sign-in window come from Google, which handles that step under its own privacy policy and then tells us who you are. We check its answer with the public keys Google publishes; we don\'t send your data to Google.',
       'Meta\'s WhatsApp Business service, only if your business turns on WhatsApp sending: the recipient\'s number and the message or invoice being sent.',
       'The Government of India\'s e-invoice (IRP) and e-way bill systems, only when you generate an e-invoice or e-way bill: the invoice details the law requires, including your customer\'s GSTIN.',
     ], after: [
@@ -77,6 +77,7 @@ export const PRIVACY: LegalDoc = {
     ]},
     { id: 'cookies', h2: 'Cookies and tracking', paragraphs: [
       'We do not use advertising or analytics trackers. To keep you signed in, the app stores your session in your browser\'s local storage, together with preferences such as the light or dark theme. Signing out removes your session.',
+      'Where Google sign-in is offered, the sign-in and sign-up pages load Google\'s button from Google, which may use Google\'s own cookies under Google\'s privacy policy.',
     ]},
     { id: 'security', h2: 'How we protect it', bullets: [
       'Encrypted connections (HTTPS) between your browser and our servers.',

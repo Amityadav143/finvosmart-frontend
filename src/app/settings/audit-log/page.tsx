@@ -32,6 +32,8 @@ const ACTIONS: { value: string; label: string; color: string }[] = [
   { value: 'TWO_STEP_ON',          label: 'Two-step sign-in on',       color: '#16a34a' },
   { value: 'TWO_STEP_OFF',         label: 'Two-step sign-in off',      color: '#d97706' },
   { value: 'BACKUP_CODES_RENEWED', label: 'New backup codes',          color: '#64748b' },
+  { value: 'GOOGLE_LINKED',        label: 'Google sign-in linked',     color: '#16a34a' },
+  { value: 'GOOGLE_UNLINKED',      label: 'Google sign-in removed',    color: '#d97706' },
   { value: 'EXPORT',        label: 'Exported',         color: '#7c3aed' },
 ]
 const actionMeta = (a: string) => ACTIONS.find(x => x.value === a) ?? { value: a, label: a, color: '#64748b' }
@@ -50,7 +52,9 @@ function summary(e: AuditEntry): string {
   const f = fields(e)
   if (e.action === 'UPDATE' && f.length === 1) return `${human(f[0])}: ${show(e.before?.[f[0]])} → ${show(e.after?.[f[0]])}`
   if (e.action === 'UPDATE') return `${f.length} fields changed`
-  if (e.action.startsWith('LOGIN')) return show((e.after ?? {})['reason'] ?? '')
+  // Failed or blocked: why. Signed in: how (password, Google, a code by email).
+  if (e.action.startsWith('LOGIN')) return show((e.after ?? {})['reason'] ?? (e.after ?? {})['method'] ?? '')
+  if (e.action.startsWith('GOOGLE_')) return show((e.after ?? {})['googleEmail'] ?? '')
   if (e.action === 'CREATE') return `${f.length} fields recorded`
   if (e.action === 'DELETE') return 'Record removed'
   return f.length ? `${f.length} details` : ''

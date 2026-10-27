@@ -26,6 +26,8 @@ export interface AuthResponse {
   companyName?: string; companyCode?: string; subscriptionPlan?: string
   mfaPending?: boolean; mfaSessionToken?: string
   companyChooser?: { companyCode: string; companyName: string }[]
+  /** Google sign-in for an address no login uses: no tokens — offer to sign up with it (email, fullName say whose). */
+  signUpWithGoogle?: boolean
 }
 
 // ── HRMS ──────────────────────────────────────────────────────────────────────
@@ -240,7 +242,7 @@ export interface StockSummary { items: number; tracked: number; stockValue: numb
 // ── CRM ───────────────────────────────────────────────────────────────────────
 export interface Customer {
   id: string; customerCode?: string; name: string; email?: string; phone?: string
-  gstin?: string; pan?: string; address?: string; city?: string; state?: string
+  gstin?: string; pan?: string; city?: string; state?: string
   billingAddress?: string; shippingAddress?: string; paymentTerms?: string; notes?: string
   customerType?: 'REGULAR'|'PREMIUM'|'GOVERNMENT'|'INSTITUTIONAL'; creditLimit: number; outstanding: number
   /** automatic payment reminders for this customer's invoices */

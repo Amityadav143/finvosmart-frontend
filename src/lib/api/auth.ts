@@ -100,4 +100,62 @@ export const authApi = {
     })
     return res.data.data!
   },
+
+  // ── Sign up with Google ──────────────────────────────────────────────────
+  /** Who the Google account is, and whether it already opens a login. Changes nothing. */
+  googleSignupCheck: async (idToken: string): Promise<GoogleSignupCheck> => {
+    const res = await api.post<ApiResponse<GoogleSignupCheck>>('/auth/register/google/check', { idToken })
+    return res.data.data!
+  },
+
+  /** A NEW company with you as its admin, linked to your Google account; you are signed in straight away. */
+  registerWithGoogle: async (d: {
+    idToken: string; companyName: string; fullName: string; phone?: string; gstin?: string; website?: string
+    acceptTerms: boolean   // must be true — the server enforces it too
+  }): Promise<AuthResponse> => {
+    const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/register/google', d)
+    return data.data!
+  },
+
+  /** Whether the signed-in login has a password (one made with Google has none until it is set). */
+  passwordStatus: async (): Promise<{ hasPassword: boolean }> => {
+    const res = await api.get<ApiResponse<{ hasPassword: boolean }>>('/auth/password')
+    return res.data.data!
+  },
+
+  /** Public: the ways of signing in switched on for this server — Google's client ID when it is set up. */
+  providers: async (): Promise<SignInProviders> => {
+    const res = await api.get<ApiResponse<SignInProviders>>('/auth/providers')
+    return res.data.data ?? { google: null }
+  },
+
+  // ── The Google account linked to the signed-in login ─────────────────────
+  googleLink: async (): Promise<GoogleLink> => {
+    const res = await api.get<ApiResponse<GoogleLink>>('/auth/google')
+    return res.data.data!
+  },
+
+  linkGoogle: async (idToken: string): Promise<GoogleLink> => {
+    const res = await api.post<ApiResponse<GoogleLink>>('/auth/google/link', { idToken })
+    return res.data.data!
+  },
+
+  unlinkGoogle: async (): Promise<GoogleLink> => {
+    const res = await api.post<ApiResponse<GoogleLink>>('/auth/google/unlink')
+    return res.data.data!
+  },
+}
+
+export interface SignInProviders { google: { clientId: string } | null }
+
+/** Sign-up with Google, first step: the account, and whether it can already sign in. */
+export interface GoogleSignupCheck { email: string; name: string | null; hasLogins: boolean }
+
+/** The Google account that opens this login, if any (Settings → Sign-in & security). */
+export interface GoogleLink {
+  available: boolean          // Google sign-in is set up on this server
+  linked: boolean
+  email: string | null        // the Google account's address when it was linked
+  linkedAt: string | null
+  loginIsGmail: boolean       // the login's own address is Gmail: Google sign-in works for it without linking
 }

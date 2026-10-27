@@ -145,7 +145,7 @@ export const PAGES: Record<PageKey, PageSeo> = {
 export const CONTENT_UPDATED: Record<PageKey, string> = {
   home: '2026-10-22', features: '2026-10-22', pricing: '2026-10-22', customPlan: '2026-10-15',
   about: '2026-10-21', contact: '2026-10-21', login: '2026-10-21', register: '2026-10-21',
-  privacy: '2026-10-05', terms: '2026-10-05',   // must equal LEGAL_VERSION (validated)
+  privacy: '2026-10-23', terms: '2026-10-23',   // must equal LEGAL_VERSION (validated)
   gstBilling: '2026-10-22', eInvoicing: '2026-10-15', gstCalculator: '2026-10-21',
   tallyAlternative: '2026-10-22', developers: '2026-10-22', gstinChecker: '2026-10-21',
   gstInvoiceFormat: '2026-10-21', accountingSoftware: '2026-10-21', payrollSoftware: '2026-10-21',
