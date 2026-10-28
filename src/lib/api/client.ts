@@ -42,13 +42,22 @@ function signInAgain(reason?: unknown) {
   window.location.href = `/login?expired=1${why}&next=${encodeURIComponent(pathname + search)}`
 }
 
+/**
+ * The public sign-in endpoints: signing in and up, renewing, the password-reset link, sign-in codes,
+ * Google, the second sign-in step, the server's sign-in options. They never get the saved session
+ * (an old one sent along only made the server log a refused sign-in for every attempt), and their
+ * 401 is the page's to show — never a reason to renew the session or leave the page.
+ */
+const PUBLIC_AUTH = /^\/?auth\/(login|register|refresh|forgot-password|reset-password|otp\/|social\/|providers|mfa\/verify)/
+export const isPublicAuth = (url?: string) => !!url && PUBLIC_AUTH.test(url.replace(API_URL, ''))
+
 export function createApiClient(): AxiosInstance {
   const client = axios.create({ baseURL: API_URL, timeout: 30000 })
 
   // Attach access token from Zustand store (single source of truth)
   client.interceptors.request.use((config: any) => {
     const token = getAccessToken()
-    if (token) config.headers.Authorization = `Bearer ${token}`
+    if (token && !isPublicAuth(config.url)) config.headers.Authorization = `Bearer ${token}`
     return config
   })
 
@@ -61,7 +70,7 @@ export function createApiClient(): AxiosInstance {
     },
     async (err: any) => {
       const original = err.config
-      if (err.response?.status === 401 && !original._retry) {
+      if (err.response?.status === 401 && original && !original._retry && !isPublicAuth(original.url)) {
         // "No sign-in came with the request" for a request sent without one is an ordinary ending
         // (signed out in another tab); only when one was sent does it mean the header got lost.
         const said = err.response?.data?.reason

@@ -28,6 +28,8 @@ export interface AuthResponse {
   companyChooser?: { companyCode: string; companyName: string }[]
   /** Google sign-in for an address no login uses: no tokens — offer to sign up with it (email, fullName say whose). */
   signUpWithGoogle?: boolean
+  /** Signed in with a password printed in the guides (the demo administrator's Admin@123): a new one is chosen before the app opens. */
+  passwordChangeRequired?: boolean
 }
 
 // ── HRMS ──────────────────────────────────────────────────────────────────────

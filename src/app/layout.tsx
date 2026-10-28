@@ -14,6 +14,7 @@ import { SITE, PAGES } from '@/lib/seo'
 import './globals.css'
 import { Providers } from './providers'
 import { Inter, JetBrains_Mono, Instrument_Serif } from 'next/font/google'
+import { RELEASE } from '@/lib/release'
 
 // Self-hosted, optimised fonts (no render-blocking external CSS request).
 // `display: swap` avoids invisible text while fonts load, improving LCP.
@@ -110,6 +111,9 @@ export const metadata: Metadata = {
   manifest: '/site.webmanifest',
   // Set these env vars at build time to verify ownership (or verify the domain
   // via a DNS TXT record in Search Console, which needs no code at all).
+  // Which update this web build is (<meta name="finvosmart-release">): scripts/check-sign-in.sh reads it
+  // to tell an old web build still running from the files on the server.
+  other: { 'finvosmart-release': RELEASE },
   verification: {
     ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
       ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : {}),

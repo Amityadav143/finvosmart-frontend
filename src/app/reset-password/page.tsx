@@ -14,9 +14,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authApi } from '@/lib/api/auth'
-import toast from 'react-hot-toast'
 import { Zap, Eye, EyeOff, Lock, CheckCircle2, ShieldCheck } from 'lucide-react'
 import { apiError } from '@/lib/utils'
+import { ServerNotice } from '@/components/auth/ServerNotice'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -27,6 +27,7 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [noToken, setNoToken] = useState(false)
+  const [failed, setFailed] = useState('')
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -51,16 +52,17 @@ export default function ResetPasswordPage() {
   const submit = async (e: any) => {
     e.preventDefault()
     // Same rule as sign-up and the server.
-    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) { toast.error('Use at least 8 characters, with a letter and a number.'); return }
-    if (new TextEncoder().encode(password).length > 72) { toast.error('Use 72 characters or fewer.'); return }
-    if (password !== confirm) { toast.error('Passwords do not match'); return }
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) { setFailed('Use at least 8 characters, with a letter and a number.'); return }
+    if (new TextEncoder().encode(password).length > 72) { setFailed('Use 72 characters or fewer.'); return }
+    if (password !== confirm) { setFailed('The two passwords don’t match.'); return }
     setLoading(true)
+    setFailed('')
     try {
       await authApi.resetPassword(token, password)
       setDone(true)
       setTimeout(() => router.push('/login'), 2500)
     } catch (err: any) {
-      toast.error(apiError(err, 'This reset link is invalid or has expired. Please request a new one.'))
+      setFailed(apiError(err, 'This reset link is invalid or has expired. Please request a new one.'))
     } finally {
       setLoading(false)
     }
@@ -104,6 +106,13 @@ export default function ResetPasswordPage() {
             </div>
           ) : (
             <>
+              <ServerNotice />
+              {failed && (
+                <div role="alert" data-testid="reset-error" style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '12px',
+                  background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.3)', fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                  {failed}{/(expired|not valid|incomplete)/.test(failed) && <> <Link href="/forgot-password" style={{ color: 'var(--gold)' }}>Request a new link</Link>.</>}
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <ShieldCheck size={20} style={{ color: 'var(--gold)' }} />
                 <h2 className="font-serif text-xl" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Set a new password</h2>

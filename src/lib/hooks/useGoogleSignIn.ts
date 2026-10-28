@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { authApi } from '@/lib/api/auth'
+import { askServer } from '@/lib/auth/server'
 
 /**
  * Google's own "Continue with Google" button (Google Identity Services, GIS).
@@ -28,14 +28,9 @@ import { authApi } from '@/lib/api/auth'
 const GIS_SRC = 'https://accounts.google.com/gsi/client'
 
 /** The client ID, asked once per page load (asked again after a failure). */
-let clientIdAnswer: Promise<string | null> | null = null
+// Google's client ID comes with the server's answer the sign-in pages share (one request per page).
 function askClientId(): Promise<string | null> {
-  if (!clientIdAnswer) {
-    clientIdAnswer = authApi.providers()
-      .then(p => p?.google?.clientId || null)
-      .catch(() => { clientIdAnswer = null; return null })
-  }
-  return clientIdAnswer
+  return askServer().then(a => ('info' in a ? a.info.google?.clientId ?? null : null))
 }
 
 let gisScript: Promise<boolean> | null = null

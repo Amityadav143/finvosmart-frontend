@@ -51,6 +51,43 @@ export async function checkNewSession(accessToken: string | null | undefined): P
 }
 
 /**
+ * A session saved in this browser, checked before the sign-in page sends anyone on to the app (it
+ * used to send them straight on, and an old session then came back here after a burst of refused
+ * requests). 'ok' — the server takes it, renewed when the access part had run out (`renewed` is the
+ * new session); 'ended' — the server refused it: forget it; 'unknown' — no clear answer (offline, a
+ * restart): keep it and stay.
+ */
+export async function verifyStoredSession(access: string | null | undefined, refresh: string | null | undefined):
+    Promise<{ state: 'ok' | 'ended' | 'unknown'; renewed?: any }> {
+  if (access) {
+    try {
+      await axios.get(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${access}` }, timeout: 15000 })
+      return { state: 'ok' }
+    } catch (e: any) {
+      if (e?.response?.status !== 401) return { state: 'unknown' }
+    }
+  }
+  if (!refresh) return { state: 'ended' }
+  try {
+    const r = await axios.post(`${API_URL}/auth/refresh`, { refreshToken: refresh }, { timeout: 15000 })
+    return r.data?.data?.accessToken ? { state: 'ok', renewed: r.data.data } : { state: 'ended' }
+  } catch (e: any) {
+    return { state: e?.response ? 'ended' : 'unknown' }
+  }
+}
+
+/**
+ * The new password chosen right after signing in with one printed in the guides, before the session
+ * is kept: changed with the new session's own access token. The server answers with a fresh session
+ * (other devices are signed out).
+ */
+export async function changePasswordAs(accessToken: string, currentPassword: string, newPassword: string) {
+  const r = await axios.post(`${API_URL}/auth/change-password`, { currentPassword, newPassword },
+    { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 30000 })
+  return r.data?.data
+}
+
+/**
  * The note on the sign-in page after a session ended (/login?expired=1&reason=…): an ordinary ending
  * (password changed, signed out of other devices, too long ago) or a server set-up problem.
  */

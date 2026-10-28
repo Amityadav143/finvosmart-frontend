@@ -123,12 +123,6 @@ export const authApi = {
     return res.data.data!
   },
 
-  /** Public: the ways of signing in switched on for this server — Google's client ID when it is set up. */
-  providers: async (): Promise<SignInProviders> => {
-    const res = await api.get<ApiResponse<SignInProviders>>('/auth/providers')
-    return res.data.data ?? { google: null }
-  },
-
   // ── The Google account linked to the signed-in login ─────────────────────
   googleLink: async (): Promise<GoogleLink> => {
     const res = await api.get<ApiResponse<GoogleLink>>('/auth/google')
@@ -145,8 +139,6 @@ export const authApi = {
     return res.data.data!
   },
 }
-
-export interface SignInProviders { google: { clientId: string } | null }
 
 /** Sign-up with Google, first step: the account, and whether it can already sign in. */
 export interface GoogleSignupCheck { email: string; name: string | null; hasLogins: boolean }

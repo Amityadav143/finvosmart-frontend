@@ -16,24 +16,29 @@ import { authApi } from '@/lib/api/auth'
 import { useTheme } from '@/lib/context/ThemeContext'
 import toast from 'react-hot-toast'
 import { Zap, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { ServerNotice } from '@/components/auth/ServerNotice'
+import { apiError } from '@/lib/apiError'
 
 export default function ForgotPasswordPage() {
   const { isDark } = useTheme()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  const [failed, setFailed] = useState('')
 
   const submit = async (e: any) => {
     e.preventDefault()
     if (!email.trim()) { toast.error('Please enter your email'); return }
     setLoading(true)
+    setFailed('')
     try {
       await authApi.forgotPassword(email)
       setSent(true)
-    } catch {
-      // The API always returns success to avoid account enumeration; show the
-      // same confirmation even on error so we never reveal whether the email exists.
-      setSent(true)
+    } catch (err: any) {
+      // The server says the same for every address (no telling who has an account), so an error here
+      // is the server or the connection: say so — "check your inbox" would send someone to wait for
+      // an email that was never sent.
+      setFailed(apiError(err, 'The reset link couldn’t be requested. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -69,9 +74,20 @@ export default function ForgotPasswordPage() {
                 Didn't get it? Check spam, or{' '}
                 <button onClick={() => setSent(false)} style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontWeight: 500, padding: 0 }}>try again</button>.
               </p>
+              <p data-testid="no-email-hint" style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.6 }}>
+                Nothing arrives? Email may not be set up on the server yet. Its administrator finds the link in the
+                server’s log, or sets a new password for you with scripts/set-password.sh.
+              </p>
             </div>
           ) : (
             <>
+              <ServerNotice />
+              {failed && (
+                <div role="alert" data-testid="reset-request-error" style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '12px',
+                  background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.3)', fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                  {failed}
+                </div>
+              )}
               <h2 className="font-serif text-xl mb-2" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Forgot your password?</h2>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '24px' }}>
                 Enter the email you sign in with. We’ll send a secure link to reset your password — and remind you of your company code.

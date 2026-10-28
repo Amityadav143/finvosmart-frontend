@@ -22,6 +22,7 @@ import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
 import { handOverGoogleSignIn, takeGoogleSignIn } from '@/lib/googleHandoff'
 import { checkNewSession, explainSignInProblem } from '@/lib/auth/sessionCheck'
 import { apiError } from '@/lib/utils'
+import { ServerNotice } from '@/components/auth/ServerNotice'
 
 type Field = 'companyName' | 'fullName' | 'email' | 'phone' | 'password' | 'gstin' | 'acceptTerms'
 type Form = Record<Exclude<Field, 'acceptTerms'> | 'website', string>
@@ -206,6 +207,7 @@ export default function RegisterPage() {
   return (
     <Shell>
       <div className="card" style={cardStyle}>
+        <ServerNotice />
         <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Start your free trial</h1>
         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '22px' }}>
           14 days free · No credit card · Set up in a minute

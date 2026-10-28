@@ -18,7 +18,10 @@ import { authApi } from '@/lib/api/auth'
 import { useTheme } from '@/lib/context/ThemeContext'
 import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
 import { handOverGoogleSignIn, takeGoogleSignIn } from '@/lib/googleHandoff'
-import { checkNewSession, explainSignInProblem, sessionEndedNote, type SignInProblem } from '@/lib/auth/sessionCheck'
+import { checkNewSession, explainSignInProblem, sessionEndedNote, verifyStoredSession, changePasswordAs, type SignInProblem } from '@/lib/auth/sessionCheck'
+import { signInError } from '@/lib/auth/signInError'
+import { ServerNotice } from '@/components/auth/ServerNotice'
+import { askServer } from '@/lib/auth/server'
 import toast from 'react-hot-toast'
 import { Zap, Eye, EyeOff, ArrowRight, Sun, Moon } from 'lucide-react'
 import { apiError } from '@/lib/utils'
@@ -40,7 +43,7 @@ export default function LoginPage() {
 
   const [form, setForm]       = useState({ email: '', password: '', companyCode: '' })
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<'login'|'mfa'>('login')
+  const [step, setStep] = useState<'login'|'mfa'|'newPassword'>('login')
   const [mfaSession, setMfaSession] = useState('')
   const [mfaCode, setMfaCode] = useState('')
   const [showPwd, setShowPwd] = useState(false)
@@ -51,10 +54,18 @@ export default function LoginPage() {
   // Signed in, but the server refused the new session straight away: a server set-up problem, explained
   const [problem, setProblem] = useState<SignInProblem | null>(null)
   const [useBackup, setUseBackup] = useState(false)   // second step: a backup code instead of the app
+  // Why the last sign-in didn't work — on the page, where it can't be missed (a toast vanished in seconds)
+  const [error, setError] = useState('')
+  // Signed in with a password printed in the guides (the demo administrator's): the session waits
+  // here, not kept, until a new password is chosen
+  const [pending, setPending] = useState<any>(null)
+  const [newPw, setNewPw] = useState({ next: '', again: '' })
 
   // ── Multi-channel login state ──────────────────────────────────────────
   const [tab, setTab] = useState<'password'|'otp'>('password')
-  const [otpChannel, setOtpChannel] = useState<'SMS'|'EMAIL'>('SMS')
+  // Codes by email by default; by SMS only where the server can send them (not yet outside sandbox mode)
+  const [otpChannel, setOtpChannel] = useState<'SMS'|'EMAIL'>('EMAIL')
+  const [smsOn, setSmsOn] = useState(false)
   const [otpId, setOtpId] = useState('')            // phone or email
   const [otpCode, setOtpCode] = useState('')
   const [otpSent, setOtpSent] = useState(false)
@@ -63,6 +74,12 @@ export default function LoginPage() {
   // A Google account no login uses: offer to start a company with it
   const [newGoogle, setNewGoogle] = useState<{ email: string } | null>(null)
   const [devHint, setDevHint] = useState('')
+
+  useEffect(() => {
+    let live = true
+    askServer().then(a => { if (live) setSmsOn('info' in a && a.info.smsCodes) })
+    return () => { live = false }
+  }, [])
 
   useEffect(() => {
     setMounted(true)
@@ -77,11 +94,28 @@ export default function LoginPage() {
     }
   }, [])
 
-  // Already signed in (e.g. came back via a link): go straight to the page asked for.
+  // Already signed in (e.g. came back via a link): go straight to the page asked for — once the server
+  // has taken the saved session (renewed if need be). One it refuses is forgotten here, quietly: it
+  // used to open the app, fail every request, and come back to this page.
   useEffect(() => {
-    const go = () => { if (useAuthStore.getState().isAuthenticated) router.replace(nextPath()) }
+    let live = true
+    const go = async () => {
+      const saved = useAuthStore.getState()
+      if (!saved.isAuthenticated) return
+      const v = await verifyStoredSession(saved.accessToken, saved.refreshToken)
+      // Signed in meanwhile (or out, in another way): that session stands — the answer is about the old one
+      const now = useAuthStore.getState()
+      if (!live || now.accessToken !== saved.accessToken || now.refreshToken !== saved.refreshToken) return
+      if (v.state === 'ok') {
+        if (v.renewed) setAuth(v.renewed)
+        router.replace(nextPath())
+      } else if (v.state === 'ended') {
+        useAuthStore.getState().logout()
+      }
+    }
     if (useAuthStore.persist.hasHydrated()) go()
-    return useAuthStore.persist.onFinishHydration(go)
+    const unsub = useAuthStore.persist.onFinishHydration(() => { go() })
+    return () => { live = false; unsub() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
@@ -93,6 +127,11 @@ export default function LoginPage() {
     const refused = await checkNewSession(auth?.accessToken)
     if (refused) { setProblem(refused); setStep('login'); return false }
     setProblem(null)
+    if (auth?.passwordChangeRequired) {
+      // signed in with a password anyone can read in the guides: a new one first, then the app
+      setPending(auth); setNewPw({ next: '', again: '' }); setError(''); setStep('newPassword')
+      return false
+    }
     setAuth(auth)
     toast.success(`${greeting}${auth.fullName ? ', ' + auth.fullName.split(' ')[0] : ''}!`)
     router.push(nextPath())
@@ -197,20 +236,40 @@ export default function LoginPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.email || !form.password || !form.companyCode) {
-      toast.error('Please fill in all fields')
+      setError('Fill in the company code, your email and your password.')
       return
     }
     setLoading(true)
     setProblem(null)
+    setError('')
     try {
       chooserVia.current = 'password'
       const auth = await authApi.login(form.email, form.password, form.companyCode)
       await finishLogin(auth)
     } catch (err: any) {
-      toast.error(apiError(err, 'Invalid credentials. Please try again.'))
+      setError(signInError(err, form.companyCode))
     } finally {
       setLoading(false)
     }
+  }
+
+  // The new password, after signing in with one printed in the guides. The server changes it with the
+  // waiting session's own token and answers with a fresh session (other devices signed out).
+  const saveNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const p = newPw.next
+    if (p.length < 8 || !/[A-Za-z]/.test(p) || !/\d/.test(p)) { setError('Use at least 8 characters, with a letter and a number.'); return }
+    if (new TextEncoder().encode(p).length > 72) { setError('Use 72 characters or fewer.'); return }
+    if (p !== newPw.again) { setError('The two passwords don’t match.'); return }
+    if (p === form.password) { setError('Choose a password different from the one printed in the guides.'); return }
+    setLoading(true); setError('')
+    try {
+      const fresh = await changePasswordAs(pending.accessToken, form.password, p)
+      setPending(null); setForm(f => ({ ...f, password: '' }))
+      await openApp({ ...fresh, passwordChangeRequired: false }, 'Password changed. Welcome')
+    } catch (err: any) {
+      setError(apiError(err, 'The new password couldn’t be saved. Please try again.'))
+    } finally { setLoading(false) }
   }
 
   return (
@@ -274,8 +333,9 @@ export default function LoginPage() {
               {sessionEndedNote(endedWhy)}
             </div>
           )}
+          <ServerNotice />
           <h1 className="font-serif text-xl mb-5" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em', fontWeight: 400 }}>
-            {welcomeNew ? 'Get started' : 'Sign in to Finvosmart'}
+            {step === 'newPassword' ? 'Choose your own password' : welcomeNew ? 'Get started' : 'Sign in to Finvosmart'}
           </h1>
 
           {problem && (() => {
@@ -291,8 +351,40 @@ export default function LoginPage() {
             )
           })()}
 
+          {error && (step === 'login' || step === 'newPassword') && (
+            <div role="alert" data-testid="sign-in-error"
+              style={{ marginBottom: '18px', padding: '12px 14px', borderRadius: '12px', background: 'rgba(220,38,38,0.07)',
+                       border: '1px solid rgba(220,38,38,0.3)', fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+              {error}
+            </div>
+          )}
+
           {/* A Google account no login uses: start a free trial with it */}
-          {newGoogle ? (
+          {step === 'newPassword' ? (
+            <form className="space-y-4" onSubmit={saveNewPassword} data-testid="new-password">
+              <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                You signed in with a password that’s printed in Finvosmart’s guides, so anyone could use it.
+                Choose one of your own to continue — at least 8 characters, with a letter and a number.
+              </p>
+              <div>
+                <label className="label" htmlFor="np-next">New password</label>
+                <input id="np-next" className="input" type="password" autoComplete="new-password" autoFocus value={newPw.next}
+                  onChange={e => setNewPw(v => ({ ...v, next: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label" htmlFor="np-again">The same again</label>
+                <input id="np-again" className="input" type="password" autoComplete="new-password" value={newPw.again}
+                  onChange={e => setNewPw(v => ({ ...v, again: e.target.value }))} />
+              </div>
+              <button type="submit" className="btn-primary w-full" style={{ height: '44px' }} disabled={loading}>
+                {loading ? 'Saving…' : 'Save and continue'}
+              </button>
+              <button type="button" onClick={() => { setPending(null); setStep('login'); setError(''); setForm(f => ({ ...f, password: '' })) }}
+                className="text-xs w-full" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit' }}>
+                ← Back to sign-in
+              </button>
+            </form>
+          ) : newGoogle ? (
             <div data-testid="google-new" className="space-y-3">
               <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                 No Finvosmart login uses <strong style={{ color: 'var(--text-primary)', wordBreak: 'break-all' }}>{newGoogle.email}</strong> yet.
@@ -371,7 +463,7 @@ export default function LoginPage() {
           <>
           {/* Tab switcher */}
           <div style={{ display: 'flex', gap: '4px', padding: '4px', background: 'var(--bg-surface)', borderRadius: '12px', marginBottom: '20px' }}>
-            {([['password','Password'],['otp','Mobile / Email']] as const).map(([id,label]) => (
+            {([['password','Password'],['otp', smsOn ? 'Mobile / Email' : 'Email code']] as const).map(([id,label]) => (
               <button key={id} type="button" onClick={() => { setTab(id); setOtpSent(false); setDevHint('') }}
                 style={{ flex: 1, padding: '8px 6px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer',
                   borderRadius: '8px', border: 'none', fontFamily: 'inherit',
@@ -394,7 +486,7 @@ export default function LoginPage() {
                 It’s in your welcome email. Don’t have it?{' '}
                 <button type="button" onClick={() => { setTab('otp'); setOtpSent(false); setDevHint('') }}
                   style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--gold)', fontFamily: 'inherit', fontSize: '12px' }}>
-                  Sign in with a code sent to your mobile or email
+                  {smsOn ? 'Sign in with a code sent to your mobile or email' : 'Sign in with a code sent to your email'}
                 </button>{' '}— no company code needed.
               </p>
             </div>
@@ -437,8 +529,8 @@ export default function LoginPage() {
           {/* OTP TAB */}
           {tab === 'otp' && (
             <div className="space-y-4">
-              <div style={{ display: 'flex', gap: '4px', padding: '3px', background: 'var(--bg-surface)', borderRadius: '10px' }}>
-                {([['SMS','Mobile OTP'],['EMAIL','Email OTP']] as const).map(([id,label]) => (
+              {smsOn && <div style={{ display: 'flex', gap: '4px', padding: '3px', background: 'var(--bg-surface)', borderRadius: '10px' }}>
+                {([['EMAIL','Email code'],['SMS','Mobile code']] as const).map(([id,label]) => (
                   <button key={id} type="button" onClick={() => { setOtpChannel(id); setOtpSent(false); setOtpId('') }}
                     style={{ flex: 1, padding: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', borderRadius: '7px',
                       border: 'none', fontFamily: 'inherit',
@@ -447,7 +539,7 @@ export default function LoginPage() {
                     {label}
                   </button>
                 ))}
-              </div>
+              </div>}
 
               {!otpSent ? (
                 <>
