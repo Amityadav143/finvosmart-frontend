@@ -16,16 +16,26 @@ import { goTo } from '@/lib/hooks/useUrlParams'
 import { Plus } from 'lucide-react'
 import { CREATE_ACTIONS, type CreateAction } from '@/lib/quickCreate'
 import { usePermissions } from '@/lib/hooks/usePermissions'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 
-/** Whether this person may create this kind of record (the same rule the server applies). */
+/** Whether this person may create this kind of record (the same rule the server applies), and its menu entry is on. */
 export function useCreateAllowed() {
   const { can, hasRole, isSuperAdmin } = usePermissions()
-  return (a: CreateAction) => isSuperAdmin || a.perms.some(p => can(p)) || (a.roles ?? []).some(r => hasRole(r))
+  const industry = useIndustry()
+  return (a: CreateAction) => (!a.module || industry.visible(a.module))
+    && (isSuperAdmin || a.perms.some(p => can(p)) || (a.roles ?? []).some(r => hasRole(r)))
+}
+
+/** What a create action is called in the company's words ("Patient" for a clinic's customer). */
+export function useCreateLabel() {
+  const industry = useIndustry()
+  return (a: CreateAction) => (a.module ? industry.one(a.module, a.label) : a.label)
 }
 
 /** "+ New" in the top bar: everything this person can create, one click (or two keys) away. */
 export function QuickCreate() {
   const allowed = useCreateAllowed()
+  const label = useCreateLabel()
   const actions = CREATE_ACTIONS.filter(allowed)
   const [open, setOpen] = useState(false)
   const button = useRef<HTMLButtonElement>(null)
@@ -64,7 +74,7 @@ export function QuickCreate() {
                       onMouseEnter={(e: any) => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
                       onMouseLeave={(e: any) => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                       <Icon size={15} style={{ color: 'var(--gold)' }} />
-                      <span className="flex-1">{a.label}</span>
+                      <span className="flex-1">{label(a)}</span>
                       <kbd className="font-mono" style={{ fontSize: '10px', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: '5px', padding: '0 5px' }}>N {a.key.toUpperCase()}</kbd>
                     </button>
                   )

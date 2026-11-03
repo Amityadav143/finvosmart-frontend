@@ -138,7 +138,7 @@ function StockLedger() {
                 <tr key={m.id} className="table-row">
                   <td className="table-cell">
                     <Link href={`/inventory/stock?item=${m.itemId}`} className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{m.itemName}</Link>
-                    {m.itemCode && <p className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{m.itemCode}</p>}
+                    {m.itemCode && <p className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{m.itemCode}{m.batchNo ? <span className="font-sans"> · batch </span> : null}{m.batchNo ?? ''}</p>}
                   </td>
                   <td className="table-cell text-xs">{formatDate(m.date)}</td>
                   <td className="table-cell">

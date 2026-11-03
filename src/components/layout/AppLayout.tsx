@@ -18,6 +18,7 @@ import { Topbar } from './Topbar'
 import { CommandPalette } from '../ui/CommandPalette'
 import { ShortcutsHelp } from './ShortcutsHelp'
 import { useCreateAllowed } from './QuickCreate'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 import { CREATE_ACTIONS, GO_TO } from '@/lib/quickCreate'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { goTo } from '@/lib/hooks/useUrlParams'
@@ -51,9 +52,10 @@ function Shell({ children }: { children: React.ReactNode }) {
   const [helpOpen, setHelpOpen] = useState(false)
   const createAllowed = useCreateAllowed()
   const { canAny, isSuperAdmin } = usePermissions()
+  const { visible } = useIndustry()
   // the latest permission checks, read by the one keyboard listener below
-  const perms = useRef({ createAllowed, canAny, isSuperAdmin })
-  perms.current = { createAllowed, canAny, isSuperAdmin }
+  const perms = useRef({ createAllowed, canAny, isSuperAdmin, visible })
+  perms.current = { createAllowed, canAny, isSuperAdmin, visible }
   // The saved session is read from the browser after the first render. Deciding before that
   // sent signed-in people to the login page on every refresh or opened link.
   const [hydrated, setHydrated] = useState(false)
@@ -81,7 +83,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         const was = lead; lead = null; clearTimeout(timer)
         const p = perms.current
         if (was === 'g') {
-          const to = GO_TO.find(g => g.key === k && (!g.perms || p.isSuperAdmin || p.canAny(...g.perms)))
+          const to = GO_TO.find(g => g.key === k && (!g.module || p.visible(g.module)) && (!g.perms || p.isSuperAdmin || p.canAny(...g.perms)))
           if (to) { e.preventDefault(); router.push(to.href) }
         } else {
           const make = CREATE_ACTIONS.find(a => a.key === k && p.createAllowed(a))

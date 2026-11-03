@@ -22,6 +22,25 @@ export interface SignInProblem {
    * one (false); null when it can't be told (no backend sent its id).
    */
   otherServer: boolean | null
+  /**
+   * 'app': the sign-in service took the session, but the rest of the API (outside /api/v1/auth/) refused
+   * it — nginx sends the two to different backends.
+   */
+  part?: 'app'
+}
+
+/**
+ * The problem a refused request shows — a 401, with the server's reason — and whether the backend that
+ * refused it is the one that signed in ({@code signedInBy}: its X-Finvo-Instance). Null for any other answer.
+ */
+export function problemFrom(e: any, signedInBy: string | null = lastServer()): SignInProblem | null {
+  if (e?.response?.status !== 401) return null
+  const answeredBy = String(e.response.headers?.['x-finvo-instance'] ?? '')
+  const reason = e.response.data?.reason
+  return {
+    reason: typeof reason === 'string' && /^[A-Z_]{1,40}$/.test(reason) ? reason : 'UNKNOWN',
+    otherServer: signedInBy === null || (signedInBy === '' && answeredBy === '') ? null : signedInBy !== answeredBy,
+  }
 }
 
 /**
@@ -36,17 +55,20 @@ export interface SignInProblem {
 export async function checkNewSession(accessToken: string | null | undefined): Promise<SignInProblem | null> {
   if (!accessToken) return null
   const signedInBy = lastServer()       // '' when the sign-in came from a backend that sends no id (an older one)
+  const headers = { Authorization: `Bearer ${accessToken}` }
   try {
-    await axios.get(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 15000 })
+    await axios.get(`${API_URL}/auth/me`, { headers, timeout: 15000 })
+  } catch (e: any) {
+    return problemFrom(e, signedInBy)
+  }
+  // …and the rest of the API, which nginx may send to another backend (a separate location for
+  // /api/v1/auth/). A backend from before 29 October has no /session: its 404 says nothing.
+  try {
+    await axios.get(`${API_URL}/session`, { headers, timeout: 15000 })
     return null
   } catch (e: any) {
-    if (e?.response?.status !== 401) return null
-    const answeredBy = String(e.response.headers?.['x-finvo-instance'] ?? '')
-    const reason = e.response.data?.reason
-    return {
-      reason: typeof reason === 'string' && /^[A-Z_]{1,40}$/.test(reason) ? reason : 'UNKNOWN',
-      otherServer: signedInBy === null || (signedInBy === '' && answeredBy === '') ? null : signedInBy !== answeredBy,
-    }
+    const p = problemFrom(e, signedInBy)
+    return p ? { ...p, part: 'app' } : null
   }
 }
 
@@ -100,6 +122,9 @@ export function sessionEndedNote(reason: string): string {
       return 'You were signed out because the server couldn’t find your login — it was removed, or a different server answered.' + again
     case 'NO_TOKEN':
       return 'You were signed out because your sign-in didn’t reach the server — something between your browser and the server removed it.' + again
+    case 'NOT_AN_API_ADDRESS':
+      return 'You were signed out because the server got a request at an address it doesn’t know: something between your browser '
+        + 'and the server changes it (in nginx, location /api/ must have proxy_pass http://127.0.0.1:PORT; with nothing after the port).' + again
     case 'ACCOUNT_OFF':
       return 'Your login has been switched off. Your company’s admin can switch it back on under Settings → Users.'
     case 'SIGNED_OUT':
@@ -113,6 +138,14 @@ export function sessionEndedNote(reason: string): string {
 export function explainSignInProblem(p: SignInProblem): { title: string; detail: string; fix: string } {
   const oneBackend = 'On the server, run a single Finvosmart backend and point every nginx /api/ location — including '
     + '/api/v1/auth/login and /api/v1/auth/register — at its port. See DEPLOYMENT_MANUAL_VPS.md, “Signed in, then back at the sign-in page”.'
+  if (p.part === 'app')
+    return { title: 'Signed in — but the rest of the app refused the session',
+      detail: `The sign-in service accepted it, but the next request outside it (/api/v1/session) was refused (${p.reason})`
+        + (p.otherServer ? ' by a different backend process: nginx sends /api/v1/auth/ to one backend and the rest of /api/ to another.'
+                         : '. Usually that is nginx sending /api/v1/auth/ to one backend and the rest of /api/ to another.'),
+      fix: 'In nginx, send all of /api/ to one backend: a single location /api/ with proxy_pass http://127.0.0.1:PORT; — remove any '
+        + 'separate location for /api/v1/auth/. Stop any second backend left running'
+        + (p.reason === 'NOT_RECOGNISED' ? ', or give every backend the same JWT_SECRET.' : '.') }
   switch (p.reason) {
     case 'NOT_RECOGNISED':
       if (p.otherServer) return { title: 'Signed in — but a different server answered next',

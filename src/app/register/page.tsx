@@ -182,9 +182,17 @@ export default function RegisterPage() {
               ? <>Next time, use <strong>Continue with Google</strong> on the sign-in page — no code needed. Keep the code for your team, and for signing in with a password if you add one.</>
               : <>Save it somewhere safe — you&apos;ll need it, with your email and password, every time you sign in.</>}
           </p>
-          <button type="button" className="btn-primary w-full" style={{ height: '46px' }} onClick={() => router.push('/dashboard')}>
-            Go to your dashboard <ArrowRight size={16} />
+          <button type="button" className="btn-primary w-full" style={{ height: '46px' }} onClick={() => router.push('/settings/industry?welcome=1')}
+                  data-testid="register-choose-industry">
+            Choose your industry <ArrowRight size={16} />
           </button>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '10px 0 0' }}>
+            Menus, words and extra fields then fit your business.{' '}
+            <button type="button" onClick={() => router.push('/dashboard')}
+                    style={{ background: 'none', border: 'none', padding: 0, color: 'var(--gold)', cursor: 'pointer', font: 'inherit', textDecoration: 'underline' }}>
+              Go to your dashboard
+            </button>
+          </p>
         </div>
       </Shell>
     )

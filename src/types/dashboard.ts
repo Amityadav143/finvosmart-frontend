@@ -44,6 +44,8 @@ export interface DashDeadline { date: string; area: 'GST' | 'TDS' | 'PAYROLL' | 
 export interface SetupStatus {
   companyDetails: boolean; paymentDetails: boolean
   customers: number; suppliers: number; items: number; invoicesIssued: number; billsRecorded: number; users: number; employees: number
+  /** Sector template chosen, and the counts its getting-started steps are ticked off by. */
+  industryChosen?: boolean; projects?: number; quotations?: number; leads?: number; purchaseOrders?: number; reorderLevels?: number
 }
 
 export interface DashboardSummary {

@@ -11,8 +11,8 @@
  */
 import { useEffect } from 'react'
 
-/** The parameters other screens use to open a page in a certain state. */
-export const URL_ACTIONS = ['new', 'q', 'open'] as const
+/** The parameters other screens use to open a page in a certain state ("?expiry=soon": the batches about to expire, from the dashboard). */
+export const URL_ACTIONS = ['new', 'q', 'open', 'expiry'] as const
 
 const URL_EVENT = 'finvo:url-params'
 

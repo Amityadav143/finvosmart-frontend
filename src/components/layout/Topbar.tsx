@@ -17,6 +17,7 @@ import { Menu, Sun, Moon, Search, ChevronDown, LogOut, Keyboard, UserCircle, Roc
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { useTheme } from '@/lib/context/ThemeContext'
 import { usePermissions } from '@/lib/hooks/usePermissions'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 import { NotificationBell } from './NotificationBell'
 import { QuickCreate } from './QuickCreate'
 import { showSetupChecklist } from '@/components/ui/OnboardingChecklist'
@@ -59,9 +60,11 @@ const TITLES: Record<string, string> = {
   '/client-portal':            'Client Portal',
   '/subscriptions':            'Recurring Billing',
   '/tds':                      'TDS Register',
+  '/invoicing/h1-register':    'Schedule H1 Register',
   '/demand-forecast':          'Demand Forecasting',
   '/esign':                    'Digital Signing',
   '/automations':              'Smart Automations',
+  '/settings/industry':       'Industry',
   '/settings/company':         'Company Settings',
   '/settings/users':           'Users & Access',
   '/settings/roles':           'Roles & Permissions',
@@ -100,6 +103,7 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
   const { user, logout }  = useAuthStore()
   const { isDark, toggle } = useTheme()
   const { roles }         = usePermissions()
+  const industry          = useIndustry()
   const [time, setTime]   = useState('')
   const [mounted, setMounted] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -117,9 +121,10 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
   }, [])
 
   // The page's own title, else the nearest section's (e.g. /invoicing/123 → Invoices)
-  const title     = TITLES[pathname]
-    ?? Object.keys(TITLES).filter(k => pathname.startsWith(k + '/')).sort((a, b) => b.length - a.length).map(k => TITLES[k])[0]
-    ?? 'FINVOSMART'
+  // …in the words of the company's sector ("Patients" for customers in a clinic)
+  const titleKey  = TITLES[pathname] ? pathname
+    : Object.keys(TITLES).filter(k => pathname.startsWith(k + '/')).sort((a, b) => b.length - a.length)[0]
+  const title     = titleKey ? industry.name(titleKey, TITLES[titleKey]) : 'FINVOSMART'
   const initials  = (user?.fullName ?? 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
   const firstName = user?.fullName?.split(' ')[0] ?? 'User'
   const roleLabel = roles[0]?.replace(/_/g, ' ') ?? 'Employee'

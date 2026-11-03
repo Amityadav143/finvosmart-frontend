@@ -30,6 +30,8 @@ import { Plus, Users, AlertCircle, BellOff, FileUp, ScrollText } from 'lucide-re
 import toast from 'react-hot-toast'
 import { checkGstin } from '@/lib/gstin'
 import { apiError } from '@/lib/utils'
+import { useExtraFields, ExtraFields } from '@/components/industry/ExtraFields'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 
 interface Form {
   name: string; email: string; phone: string; gstin: string; creditLimit: string; customerType: string
@@ -73,6 +75,10 @@ export default function CustomersPage() {
   const { canAny } = usePermissions()
   const canCreate = canAny('CRM_CREATE', 'CRM_ADMIN')
   const q = useDebounce(search, 400)
+  // the sector's words ("Patient" in a clinic) and its extra fields (date of birth, insurer…)
+  const ind = useIndustry()
+  const one = ind.one('/crm/customers', 'Customer'), many = ind.name('/crm/customers', 'Customers')
+  const extra = useExtraFields('CUSTOMER', editing?.id)
   useUrlParams(p => {
     if (p.get('new') === '1') { setForm({ ...BLANK_CUST }); setShowCreate(true) }
     if (p.get('q')) setSearch(p.get('q')!)
@@ -85,28 +91,31 @@ export default function CustomersPage() {
   })
 
   const createCust = useMutation({
-    mutationFn: () => crmApi.customers.create(payload(form)),
-    onSuccess: () => {
+    mutationFn: async () => { const c = await crmApi.customers.create(payload(form)); return { c, warn: await extra.save(c.id) } },
+    onSuccess: ({ warn }) => {
       qc.invalidateQueries({ queryKey: ['customers'] })
       setShowCreate(false); setForm({ ...BLANK_CUST })
-      toast.success('Customer added')
+      toast.success(`${one} added`)
+      if (warn) toast.error(`${one} added, but not the extra details: ${warn}`)
     },
     onError: (e: any) => toast.error(apiError(e, 'Failed to add customer')),
   })
   const updateCust = useMutation({
-    mutationFn: () => crmApi.customers.update(editing!.id, payload(form)),
-    onSuccess: () => {
+    mutationFn: async () => { const c = await crmApi.customers.update(editing!.id, payload(form)); return { c, warn: await extra.save(editing!.id) } },
+    onSuccess: ({ warn }) => {
       qc.invalidateQueries({ queryKey: ['customers'] })
       setEditing(null)
-      toast.success('Customer updated')
+      if (warn) toast.error(`${one} saved, but not the extra details: ${warn}`)
+      else toast.success(`${one} updated`)
     },
     onError: (e: any) => toast.error(apiError(e, 'Could not update the customer')),
   })
 
   const submitCust = () => {
-    if (!form.name) return toast.error('Customer name is required')
+    if (!form.name) return toast.error(`${one} name is required`)
     if (form.gstin.trim()) { const g = checkGstin(form.gstin); if (!g.valid) return toast.error(`GSTIN: ${g.problems[0]}`) }
     const p = problem(form); if (p) return toast.error(p)
+    const xp = extra.problem(); if (xp) return toast.error(xp)
     if (editing) updateCust.mutate(); else createCust.mutate()
   }
 
@@ -156,7 +165,7 @@ export default function CustomersPage() {
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.12)' }}>
             <Users className="w-5 h-5 text-blue-400" />
           </div>
-          <div><p className="text-2xl font-display text-blue-400">{data?.totalElements ?? 0}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Customers</p></div>
+          <div><p className="text-2xl font-display text-blue-400">{data?.totalElements ?? 0}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{many}</p></div>
         </div>
         <div className="card flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)' }}>
@@ -167,29 +176,29 @@ export default function CustomersPage() {
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        <SearchInput value={search} onChange={v => { setSearch(v); setPage(0) }} placeholder="Search customers..." className="w-72" />
+        <SearchInput value={search} onChange={v => { setSearch(v); setPage(0) }} placeholder={`Search ${many.toLowerCase()}...`} className="w-72" />
         <PermissionGate anyOf={['CRM_CREATE', 'CRM_ADMIN']}>
           <div className="flex items-center gap-2">
             <Link href="/import?kind=customers" className="btn-secondary h-9"><FileUp className="w-4 h-4" />Import</Link>
-            <button className="btn-primary h-9" onClick={() => { setForm({ ...BLANK_CUST }); setShowCreate(true) }}><Plus className="w-4 h-4" />Add Customer</button>
+            <button className="btn-primary h-9" onClick={() => { setForm({ ...BLANK_CUST }); setShowCreate(true) }}><Plus className="w-4 h-4" />Add {one}</button>
           </div>
         </PermissionGate>
       </div>
 
       <DataTable columns={columns} data={rows} loading={isLoading} keyExtractor={c => c.id} emptyMessage="No customers match."
         empty={q ? undefined : (
-          <EmptyState compact icon={Users} title="No customers yet"
+          <EmptyState compact icon={Users} title={`No ${many.toLowerCase()} yet`}
             description="Add the people and businesses you bill. With a GSTIN, the state and the right tax split come in by themselves."
-            action={canCreate ? { label: 'Add a customer', onClick: () => { setForm({ ...BLANK_CUST }); setShowCreate(true) } } : undefined}
+            action={canCreate ? { label: `Add a ${one.toLowerCase()}`, onClick: () => { setForm({ ...BLANK_CUST }); setShowCreate(true) } } : undefined}
             secondary={canCreate ? { label: 'Import from Excel', href: '/import?kind=customers' } : undefined} />
         )}
         onRowClick={c => { setEditing(c); setForm(fromCustomer(c)) }} />
       {data && <Pagination currentPage={data.currentPage} totalPages={data.totalPages} onPageChange={setPage} totalElements={data.totalElements} pageSize={20} />}
 
-      <Modal open={modalOpen} onClose={close} title={editing ? `Edit ${editing.name}` : 'Add Customer'} size="lg">
+      <Modal open={modalOpen} onClose={close} title={editing ? `Edit ${editing.name}` : `Add ${one}`} size="lg">
         <div className="grid grid-cols-2 gap-3">
           <div style={{ gridColumn: '1/-1' }}>
-            <label className="label label-required">Customer Name</label>
+            <label className="label label-required">{one} name</label>
             <input className="input h-10" placeholder="Acme Industries Pvt Ltd" value={form.name} onChange={set('name')} />
           </div>
           <div><label className="label">Email (invoices and reminders go here)</label>
@@ -227,6 +236,7 @@ export default function CustomersPage() {
               Send automatic payment reminders
             </label>
           </div>
+          <ExtraFields state={extra} />
           <div style={{ gridColumn: '1/-1' }}><label className="label">Notes</label>
             <input className="input h-10" value={form.notes} onChange={set('notes')} /></div>
         </div>
@@ -238,7 +248,7 @@ export default function CustomersPage() {
           )}
           <button className="btn-secondary h-10" onClick={close}>Cancel</button>
           <button className="btn-primary h-10" onClick={submitCust} disabled={saving}>
-            {saving ? 'Saving…' : editing ? 'Save changes' : 'Add Customer'}
+            {saving ? 'Saving…' : editing ? 'Save changes' : `Add ${one}`}
           </button>
         </div>
       </Modal>

@@ -9,11 +9,18 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { addressRefused, corsRefused, corsRefusedMessage, isPublicAuth } from './auth/publicAuth'
+
 /**
  * The message to show for a failed API call: the server's own explanation when it gave one
- * (ApiResponse.error), else a plain sentence for the usual cases, else the fallback.
+ * (ApiResponse.error), else a plain sentence for the usual cases, else the fallback. Two server set-up
+ * problems are named instead of the server's words: a public sign-in endpoint refused as signed out (its
+ * address changed on the way — the server said "Your session has ended. Please sign in again.") and a
+ * request refused as coming from another website (CORS).
  */
 export function apiError(e: any, fallback = 'Something went wrong. Please try again.'): string {
+  if (e?.response?.status === 401 && isPublicAuth(e?.config?.url) && typeof e.response.data?.error === 'string') return addressRefused()
+  if (corsRefused(e)) return corsRefusedMessage()
   const d = e?.response?.data
   const said = typeof d?.error === 'string' && d.error ? d.error : typeof d?.message === 'string' && d.message ? d.message : null
   if (said) return said

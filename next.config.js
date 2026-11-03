@@ -81,7 +81,9 @@ const nextConfig = {
     // Where the browser finds the API, baked in at build time. A production build defaults to /api/v1
     // on the same site (nginx sends /api/ to the backend), so a plain `npm run build` on the server is
     // right — an unset value used to bake in http://localhost:8080, i.e. each visitor's own computer.
-    // `next dev` talks to a local backend directly. Set NEXT_PUBLIC_API_URL for anything else.
+    // `next dev` talks to a local backend directly. Set NEXT_PUBLIC_API_URL for anything else. A "/" at
+    // the end is dropped: the app adds its own ("…/api/v1/" + "/auth/me" made "//", which the backend's
+    // firewall refuses).
     NEXT_PUBLIC_API_URL:   process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_APP_NAME:  'FINVOSMART',
     NEXT_PUBLIC_VERSION:   '1.0.0',

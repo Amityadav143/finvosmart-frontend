@@ -14,4 +14,4 @@
  * them equal). The sign-in pages compare it with the release the server reports, so an old backend
  * or an old web build left running after an update is said, not guessed.
  */
-export const RELEASE = '2026-10-28'
+export const RELEASE = '2026-11-03.2'

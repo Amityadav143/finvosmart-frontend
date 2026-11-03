@@ -20,6 +20,8 @@ export interface BillLine {
   id?: string; itemId?: string; description: string; hsnSacCode?: string; accountCode?: string
   quantity: Amount; unit?: string; unitPrice: Amount; discountPct?: Amount; gstRate: Amount
   taxableAmount?: Amount; cgstAmount?: Amount; sgstAmount?: Amount; igstAmount?: Amount; totalAmount?: Amount
+  /** For an item kept by batch: the batch the line brings in (or sends back), its expiry (yyyy-mm-dd) and the MRP printed on it */
+  batchNo?: string | null; expiryDate?: string | null; mrp?: Amount | null
 }
 
 export interface Bill {

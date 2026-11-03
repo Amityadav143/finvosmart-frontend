@@ -15,12 +15,14 @@ import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import {
   CheckCircle2, Circle, ArrowRight, X, Rocket, Building2, Users, FileText, Boxes, Receipt, UserPlus, IndianRupee, FileUp, Truck,
-  type LucideIcon,
+  Factory, Sparkles, type LucideIcon,
 } from 'lucide-react'
 import { dashboardApi } from '@/lib/api/dashboard'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import type { SetupStatus } from '@/types/dashboard'
+import type { IndustryStep } from '@/types/industry'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 
 interface Step {
   id: string; label: string; why: string; href: string; icon: LucideIcon
@@ -32,6 +34,8 @@ interface Step {
 
 /** The order an Indian business usually sets up in; each step ticks itself off from real data. */
 const STEPS: Step[] = [
+  { id: 'industry', label: 'Choose your industry', why: 'Menus, words, extra fields and roles line up with how your business works.', href: '/settings/industry',
+    icon: Factory, done: s => !!s.industryChosen, allowed: p => p.can('SETTINGS_COMPANY') || p.isAdmin },
   { id: 'company', label: 'Add your GSTIN and address', why: 'They print on every invoice and decide CGST/SGST or IGST.', href: '/settings/company',
     icon: Building2, done: s => s.companyDetails, allowed: p => p.can('SETTINGS_COMPANY') || p.isAdmin },
   { id: 'pay', label: 'Show customers how to pay', why: 'Your UPI ID or bank account goes on invoices, with a UPI QR code.', href: '/settings/company?tab=payments',
@@ -50,6 +54,28 @@ const STEPS: Step[] = [
     icon: UserPlus, done: s => s.users > 1, allowed: p => p.can('SETTINGS_USERS') || p.isAdmin },
 ]
 
+/** Who may do a sector step, by what ticks it off. */
+const SECTOR_ALLOWED: Record<IndustryStep['doneWhen'], (p: ReturnType<typeof usePermissions>) => boolean> = {
+  projects: p => p.canAny('PROJECT_CREATE', 'PROJECT_MANAGE'),
+  quotations: p => p.can('INVOICE_CREATE'),
+  leads: p => p.canAny('CRM_CREATE', 'CRM_ADMIN'),
+  purchaseOrders: p => p.can('PROCUREMENT_CREATE'),
+  reorderLevels: p => p.canAny('INVENTORY_EDIT', 'INVENTORY_ADMIN'),
+}
+
+/** The base steps in the words of the company's sector, with its own steps after "Add what you sell". */
+function stepsFor(sector: IndustryStep[], customers: string): Step[] {
+  const out: Step[] = []
+  for (const s of STEPS) {
+    out.push(s.id === 'customers' && customers !== 'Customers' ? { ...s, label: `Add your ${customers.toLowerCase()}` } : s)
+    if (s.id === 'items') for (const x of sector) out.push({
+      id: `sector-${x.id}`, label: x.label, why: x.why, href: x.href, icon: Sparkles,
+      done: st => Number((st as any)[x.doneWhen] ?? 0) > 0, allowed: SECTOR_ALLOWED[x.doneWhen] ?? (() => false),
+    })
+  }
+  return out
+}
+
 const KEY = 'finvo-setup-dismissed'
 const SHOW_EVENT = 'finvo:setup-show'
 
@@ -61,6 +87,7 @@ const SHOW_EVENT = 'finvo:setup-show'
 export function OnboardingChecklist({ companyName }: { companyName?: string }) {
   const perms = usePermissions()
   const { user } = useAuthStore()
+  const industry = useIndustry()
   const who = `${user?.companyId ?? ''}:${user?.userId ?? ''}`
   const [dismissed, setDismissed] = useState(true)          // until the saved choice is read, show nothing
   useEffect(() => {
@@ -73,7 +100,7 @@ export function OnboardingChecklist({ companyName }: { companyName?: string }) {
   const { data } = useQuery({ queryKey: ['setup-status'], queryFn: dashboardApi.setup, staleTime: 60_000, enabled: !dismissed })
   if (dismissed || !data) return null
 
-  const steps = STEPS.filter(s => s.allowed(perms))
+  const steps = stepsFor(industry.current?.steps ?? [], industry.name('/crm/customers', 'Customers')).filter(s => s.allowed(perms))
   const done = steps.filter(s => s.done(data)).length
   if (steps.length === 0 || done === steps.length) return null
   const next = steps.find(s => !s.done(data))

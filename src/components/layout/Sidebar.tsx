@@ -16,18 +16,20 @@ import { useAuthStore } from '@/lib/store/slices/authStore'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { cn } from '@/lib/utils'
 import { shown } from '@/lib/previews'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 import {
   LayoutDashboard, Users, Clock, Calendar, DollarSign, FileText,
   ShoppingCart, Boxes, FolderOpen, UserCheck, BarChart3, Settings,
   LogOut, Building2, TrendingUp, Zap, X, MessageCircle, Camera,
   Heart, RefreshCw, CreditCard, Globe, PenLine, Activity, Package2,
   Bell, ClipboardList, ChevronDown, Timer, FileDown, Layers, ShieldCheck
-, Plug , Palette, Mail, Brain, ShieldAlert, Landmark, Receipt, Truck, FileCheck2, Percent, FileUp, Webhook, BookOpen } from 'lucide-react'
+, Plug , Palette, Mail, Brain, ShieldAlert, Landmark, Receipt, Truck, FileCheck2, Percent, FileUp, Webhook, BookOpen, Factory } from 'lucide-react'
 import { useState } from 'react'
 
 /* ── Navigation structure ─────────────────────────────────────────────── */
 /** perm: one permission, or a list where any one is enough. */
-type NavItem = { href: string; label: string; icon: any; perm: string | string[]; dot?: string }
+/** when: shown only to a company whose industry needs it (drugRegister: medicines with a schedule — a pharmacy) */
+type NavItem = { href: string; label: string; icon: any; perm: string | string[]; dot?: string; when?: 'drugRegister' }
 type NavSection = { id: string; label: string | null; items: NavItem[]; accent?: string }
 const NAV_SECTIONS: NavSection[] = [
   {
@@ -96,6 +98,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Commerce',
     items: [
       { href: '/invoicing',     label: 'Invoices',   icon: FileText,  perm: 'INVOICE_VIEW' },
+      { href: '/invoicing/h1-register', label: 'Schedule H1 register', icon: ClipboardList, perm: 'INVOICE_VIEW', when: 'drugRegister' },
       { href: '/quotations',    label: 'Quotations', icon: ClipboardList, perm: 'INVOICE_VIEW' },
       { href: '/crm/customers', label: 'Customers',  icon: UserCheck, perm: 'CRM_VIEW' },
       { href: '/crm/leads',     label: 'Leads',      icon: TrendingUp,perm: 'CRM_VIEW' },
@@ -124,6 +127,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Administration',
     items: [
       { href: '/settings/company',   label: 'Company',      icon: Settings,      perm: 'SETTINGS_VIEW' },
+      { href: '/settings/industry',  label: 'Industry',     icon: Factory,       perm: 'SETTINGS_VIEW' },
       { href: '/settings/users',     label: 'Users',        icon: Users,         perm: 'SETTINGS_USERS' },
       { href: '/settings/templates', label: 'Templates', icon: Palette, perm: 'SETTINGS_VIEW' },
       { href: '/settings/email',     label: 'Email Alerts', icon: Mail, perm: 'SETTINGS_COMPANY' },
@@ -141,9 +145,13 @@ export function Sidebar({ onClose }: SidebarProps) {
   const pathname              = usePathname()
   const { user, logout }      = useAuthStore()
   const { can }               = usePermissions()
+  const industry              = useIndustry()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  // the most specific entry for the page is the one lit ("Schedule H1 register", not "Invoices" too, on /invoicing/h1-register)
+  const matches = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const current = NAV_SECTIONS.flatMap(s => s.items.map(i => i.href)).filter(matches).sort((a, b) => b.length - a.length)[0]
+  const isActive = (href: string) => href === current
 
   const initials = (user?.fullName ?? 'U')
     .split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
@@ -184,7 +192,9 @@ export function Sidebar({ onClose }: SidebarProps) {
         {NAV_SECTIONS.map(section => {
           // Filter items user can access
           // Items the user may open; features still on demo data only when previews are switched on
-          const visibleItems = section.items.filter(item => shown(item.href) && (!item.perm || (Array.isArray(item.perm) ? item.perm.some(p => can(p)) : can(item.perm))))
+          // …and only the menu entries the company's sector uses (Settings → Industry switches them on or off)
+          const visibleItems = section.items.filter(item => shown(item.href) && industry.visible(item.href) && (!item.when || !!industry.current?.[item.when])
+            && (!item.perm || (Array.isArray(item.perm) ? item.perm.some(p => can(p)) : can(item.perm))))
           if (!visibleItems.length) return null
 
           const isOpen = !collapsed[section.id]
@@ -258,7 +268,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                             flex: 1,
                           }}
                         >
-                          {item.label}
+                          {industry.name(item.href, item.label)}
                         </span>
                         {item.dot && !active && (
                           <span

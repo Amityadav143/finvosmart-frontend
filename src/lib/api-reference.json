@@ -38,6 +38,13 @@
     },
     {
      "method": "GET",
+     "path": "/api/v1/dashboard/sector",
+     "summary": "The tiles of the company's sector template (open projects, sales today, stock to reorder…), counted from its records",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
      "path": "/api/v1/dashboard/setup",
      "summary": "What is set up already (company details, payment details, first customers, items, invoices, bills, team) — for the getting-started checklist",
      "permissions": [],
@@ -55,8 +62,35 @@
   {
    "id": "invoicing",
    "title": "Invoices",
-   "intro": "Create, list and update GST invoices; download PDFs.",
+   "intro": "Create, list and update GST invoices; download PDFs; the Schedule H1 register of medicines sold on prescription.",
    "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/drug-register",
+     "summary": "The Schedule H1 register for a period (this month by default): every Schedule H1 or X medicine sold on a bill, with the patient and prescriber",
+     "permissions": [
+      "INVOICE_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/drug-register/csv",
+     "summary": "The Schedule H1 register for a period as a spreadsheet (CSV)",
+     "permissions": [
+      "INVOICE_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/drug-register/pdf",
+     "summary": "The Schedule H1 register for a period as a PDF, for inspection",
+     "permissions": [
+      "INVOICE_VIEW"
+     ],
+     "public": false
+    },
     {
      "method": "GET",
      "path": "/api/v1/invoices",
@@ -104,6 +138,16 @@
      "summary": "Void a payment recorded by mistake (it is kept, marked void, and reversed in the books)",
      "permissions": [
       "FINANCE_EDIT"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/invoices/schedule-check",
+     "summary": "For a bill being written: which of these items are Schedule H, H1 or X medicines, and whether the customer holds a drug licence",
+     "permissions": [
+      "INVOICE_VIEW",
+      "INVOICE_CREATE"
      ],
      "public": false
     },
@@ -387,6 +431,13 @@
     },
     {
      "method": "GET",
+     "path": "/api/v1/inventory/batches/expiring",
+     "summary": "Batches in stock that expire within the days given (90 by default), and those that have expired",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
      "path": "/api/v1/inventory/items",
      "summary": "List items, by name or code and category",
      "permissions": [],
@@ -427,6 +478,13 @@
       "INVENTORY_ADJUST",
       "INVENTORY_ADMIN"
      ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/inventory/items/{itemId}/batches",
+     "summary": "An item's batches, the first to expire first, with their stock",
+     "permissions": [],
      "public": false
     },
     {

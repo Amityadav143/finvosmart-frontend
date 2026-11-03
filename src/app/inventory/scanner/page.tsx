@@ -17,15 +17,45 @@ import { PermissionGate } from '@/components/ui/PermissionGate'
 import { Camera, Search, Plus, Minus, Package, CheckCircle2, AlertTriangle, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiError } from '@/lib/utils'
+import { inventoryApi } from '@/lib/api/inventory'
+import { EXPIRY_HINT, batchNoProblem, batchText, normaliseBatch, parseExpiry } from '@/lib/inventory'
 
 interface InventoryItem {
   id: string; itemCode: string; itemName: string; unit: string
   currentStock: number; reorderLevel: number; category: string; hsnSacCode?: string
+  trackBatchNumbers?: boolean
 }
 
 interface ScannedEntry {
   itemCode: string; itemName: string; itemId?: string; quantity: number
   type: 'IN' | 'OUT'; unit: string; notes: string; found: boolean
+  /** kept by batch: stock in names its batch and expiry (as typed); stock out, the batch it comes from ('' = first in the list) */
+  byBatch?: boolean; batchNo?: string; expiry?: string; batchId?: string
+}
+
+/** What stops an entry being recorded, or null. */
+function entryProblem(e: ScannedEntry): string | null {
+  if (!e.found || !e.byBatch) return null
+  if (e.type === 'IN') {
+    const bad = batchNoProblem(e.batchNo)
+    if (bad) return `${e.itemName}: ${bad === 'Enter the batch number.' ? 'enter the batch number — it is kept by batch.' : bad}`
+    if (parseExpiry(e.expiry) === undefined) return `${e.itemName}: ${EXPIRY_HINT}`
+  }
+  return null
+}
+
+/** Stock out of an item kept by batch: which batch (those with stock, the first to expire first). */
+function ScanBatchOut({ itemId, unit, value, onChange }: { itemId: string; unit: string; value?: string; onChange: (id: string) => void }) {
+  const { data: batches } = useQuery({ queryKey: ['item-batches', itemId], queryFn: () => inventoryApi.items.batches(itemId) })
+  const withStock = (batches ?? []).filter(b => Number(b.quantity) > 0)
+  useEffect(() => { if (!value && withStock[0]) onChange(withStock[0].id) }, [withStock[0]?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <select aria-label="Batch" value={value ?? ''} onChange={e => onChange(e.target.value)}
+      style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontSize: '12px', fontFamily: 'inherit', color: 'var(--text-primary)', maxWidth: '100%' }}>
+      {withStock.map(b => <option key={b.id} value={b.id}>{batchText(b, unit)}{b.state === 'EXPIRED' ? ' · expired' : ''}</option>)}
+      <option value="">Without a batch</option>
+    </select>
+  )
 }
 
 export default function InventoryScannerPage() {
@@ -77,7 +107,7 @@ export default function InventoryScannerPage() {
       }
       return [...prev, {
         itemCode: item.itemCode, itemName: item.itemName, itemId: item.id,
-        quantity: 1, type, unit: item.unit, notes: '', found: true
+        quantity: 1, type, unit: item.unit, notes: '', found: true, byBatch: !!item.trackBatchNumbers, batchNo: '', expiry: ''
       }]
     })
     setManualCode('')
@@ -95,19 +125,30 @@ export default function InventoryScannerPage() {
 
   const removeEntry = (idx: number) => setEntries(prev => prev.filter((_, i) => i !== idx))
   const updateQty   = (idx: number, qty: number) => setEntries(prev => prev.map((e, i) => i === idx ? { ...e, quantity: Math.max(1, qty) } : e))
-  const updateType  = (idx: number, type: 'IN' | 'OUT') => setEntries(prev => prev.map((e, i) => i === idx ? { ...e, type } : e))
+  const updateType  = (idx: number, type: 'IN' | 'OUT') => setEntries(prev => prev.map((e, i) => i === idx ? { ...e, type, batchId: undefined } : e))
+  const updateEntry = (idx: number, patch: Partial<ScannedEntry>) => setEntries(prev => prev.map((e, i) => i === idx ? { ...e, ...patch } : e))
+  const problem = entries.map(entryProblem).find(Boolean) ?? null
 
   const commitMutation = useMutation({
     mutationFn: () => api.post('/inventory/stock/batch', {
       movements: entries.filter(e => e.found).map(e => ({
         itemId: e.itemId, type: e.type, quantity: e.quantity,
-        unit: e.unit, notes: e.notes || `Scanner entry — ${e.type}`
+        unit: e.unit, notes: e.notes || `Scanner entry — ${e.type}`,
+        ...(e.byBatch && e.type === 'IN' ? { batchNo: normaliseBatch(e.batchNo), ...(parseExpiry(e.expiry) ? { expiry: parseExpiry(e.expiry) } : {}) } : {}),
+        ...(e.byBatch && e.type === 'OUT' && e.batchId ? { batchId: e.batchId } : {}),
       }))
-    }),
-    onSuccess: () => {
-      toast.success(`${entries.filter(e => e.found).length} stock movements recorded`)
-      setEntries([])
+    }).then(r => r.data?.data as { processed: number; failed: string[] }),
+    onSuccess: (r) => {
+      // each movement is saved or refused on its own: the refused stay on the list to fix
+      const failed = r?.failed ?? []
+      if ((r?.processed ?? 0) > 0) toast.success(`${r.processed} stock movement${r.processed === 1 ? '' : 's'} recorded`)
+      if (failed.length) {
+        toast.error(`${failed.length} not recorded — ${failed[0].replace(/^[^:]+:\s*/, '')}`)
+        const bad = new Set(failed.map(f => f.split(':')[0]))
+        setEntries(prev => prev.filter(e => !e.found || bad.has(String(e.itemId))))
+      } else setEntries([])
       qc.invalidateQueries({ queryKey: ['inventory'] })
+      qc.invalidateQueries({ queryKey: ['inv-items'] })
     },
     onError: (err: any) => toast.error(apiError(err, 'Failed to record movements')),
   })
@@ -211,7 +252,7 @@ export default function InventoryScannerPage() {
 
             <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '12px' }}>
               {entries.map((entry, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
                   <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: entry.type === 'IN' ? 'rgba(5,150,105,0.1)' : 'rgba(220,38,38,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {entry.type === 'IN' ? <Plus size={15} style={{ color: '#059669' }} /> : <Minus size={15} style={{ color: '#DC2626' }} />}
                   </div>
@@ -229,15 +270,27 @@ export default function InventoryScannerPage() {
                   <input type="number" min={1} value={entry.quantity} onChange={e => updateQty(idx, Number(e.target.value))}
                     style={{ width: '70px', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-card)', textAlign: 'center', fontFamily: 'monospace', fontSize: '14px', color: 'var(--text-primary)' }} />
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', width: '30px' }}>{entry.unit}</span>
-                  <button className="btn-ghost w-8 h-8" onClick={() => removeEntry(idx)} style={{ color: '#DC2626' }}>
+                  <button className="btn-ghost w-8 h-8" aria-label={`Remove ${entry.itemName}`} onClick={() => removeEntry(idx)} style={{ color: '#DC2626' }}>
                     <X size={14} />
                   </button>
+                  {entry.found && entry.byBatch && (
+                    <div style={{ flexBasis: '100%', display: 'flex', gap: '8px', alignItems: 'center', paddingLeft: '42px', flexWrap: 'wrap' }} data-scan-batch={entry.itemId}>
+                      {entry.type === 'IN' ? <>
+                        <input aria-label="Batch number" placeholder="Batch no." maxLength={40} value={entry.batchNo ?? ''} onChange={e => updateEntry(idx, { batchNo: e.target.value })}
+                          style={{ width: '120px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontFamily: 'monospace', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-primary)' }} />
+                        <input aria-label="Expiry" placeholder="Exp. MM/YYYY" maxLength={10} value={entry.expiry ?? ''} onChange={e => updateEntry(idx, { expiry: e.target.value })}
+                          style={{ width: '110px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-primary)' }} />
+                      </> : entry.itemId && <ScanBatchOut itemId={entry.itemId} unit={entry.unit} value={entry.batchId} onChange={id => updateEntry(idx, { batchId: id })} />}
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Kept by batch</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
+            {problem && <p className="text-xs mb-2" style={{ color: '#DC2626' }}>{problem}</p>}
             <button className="btn-primary h-11 w-full text-base" onClick={() => commitMutation.mutate()}
-              disabled={entries.every(e => !e.found) || commitMutation.isPending}>
+              disabled={entries.every(e => !e.found) || !!problem || commitMutation.isPending}>
               {commitMutation.isPending ? 'Recording...' : <><CheckCircle2 size={17} /> Commit {entries.filter(e => e.found).length} Stock Movements</>}
             </button>
           </>

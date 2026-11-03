@@ -32,7 +32,10 @@ export function stockLabel(it: Pick<InventoryItem, 'currentStock' | 'unit' | 'tr
 /**
  * The description of a line, with suggestions from the item master as you type. Picking one
  * fills the line (HSN, unit, rate, GST) and links it to the item, so that issuing the document
- * moves the item's stock. Arrow keys and Enter work too.
+ * moves the item's stock. Arrow keys and Enter work too. Suggestions also come from items' text
+ * extra fields (barcode, salt, brand…), and Enter on what was typed or scanned picks the item at
+ * once when it is the only one found, or the one whose code it is: a barcode scanner adds the
+ * product in one go.
  */
 export function ItemPicker({ value, onChange, onPick, price, placeholder, label, inputClassName = 'input h-10' }: {
   value: string
@@ -53,6 +56,15 @@ export function ItemPicker({ value, onChange, onPick, price, placeholder, label,
   useEffect(() => setActive(-1), [q])
   const show = open && items.length > 0
   const pick = (it: InventoryItem) => { onPick(it); setOpen(false) }
+  /** Enter without a suggestion chosen: look the text up now (a scanner doesn't wait for the suggestions). */
+  const lookup = async (typed: string) => {
+    try {
+      const found = (await inventoryApi.items.list({ q: typed, size: 5 }))?.content ?? []
+      const exact = found.filter(it => (it.itemCode ?? '').toLowerCase() === typed.toLowerCase())
+      const hit = exact.length === 1 ? exact[0] : found.length === 1 ? found[0] : null
+      if (hit) pick(hit); else setOpen(true)
+    } catch { /* the suggestions stay as they are */ }
+  }
 
   return (
     <div className="relative">
@@ -62,6 +74,7 @@ export function ItemPicker({ value, onChange, onPick, price, placeholder, label,
         onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
         onChange={e => { onChange(e.target.value); setOpen(true) }}
         onKeyDown={e => {
+          if (e.key === 'Enter' && !(show && active >= 0) && value.trim().length >= 2) { e.preventDefault(); void lookup(value.trim()); return }
           if (!show) return
           if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(items.length - 1, a + 1)) }
           else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(-1, a - 1)) }

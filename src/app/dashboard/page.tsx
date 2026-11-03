@@ -19,6 +19,7 @@ import {
 import { SalesChart } from '@/components/dashboard/SalesChart'
 import { dashboardApi } from '@/lib/api/dashboard'
 import { OnboardingChecklist } from '@/components/ui/OnboardingChecklist'
+import { SectorTiles } from '@/components/industry/SectorTiles'
 import { useTheme } from '@/lib/context/ThemeContext'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { usePermissions } from '@/lib/hooks/usePermissions'
@@ -53,6 +54,7 @@ export default function DashboardPage() {
       </div>
 
       <OnboardingChecklist companyName={user?.companyName} />
+      <SectorTiles />
 
       {isError && <div className="card text-sm" style={{ color: '#dc2626' }}>The dashboard couldn't be loaded. Check your connection and refresh.</div>}
       {isLoading && <div className="card text-sm" style={{ color: 'var(--text-muted)' }}>Loading your numbers…</div>}

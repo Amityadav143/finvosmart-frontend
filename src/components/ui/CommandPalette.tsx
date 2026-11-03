@@ -20,10 +20,12 @@ import { usePermissions } from '@/lib/hooks/usePermissions'
 import { shown } from '@/lib/previews'
 import { searchApi, type SearchHit } from '@/lib/api/search'
 import { CREATE_ACTIONS } from '@/lib/quickCreate'
-import { useCreateAllowed } from '@/components/layout/QuickCreate'
+import { useCreateAllowed, useCreateLabel } from '@/components/layout/QuickCreate'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 import { goTo } from '@/lib/hooks/useUrlParams'
 
-type Command = { label: string; href: string; icon: LucideIcon; perm?: string | string[] }
+/** when: offered only to a company whose industry needs it (drugRegister: a pharmacy's Schedule H1 register) */
+type Command = { label: string; href: string; icon: LucideIcon; perm?: string | string[]; when?: 'drugRegister' }
 
 const COMMANDS: { group: string; items: Command[] }[] = [
   { group: 'Navigation', items: [
@@ -44,6 +46,7 @@ const COMMANDS: { group: string; items: Command[] }[] = [
   ]},
   { group: 'Finance', items: [
     { label: 'Invoices',            href: '/invoicing',              icon: FileText,  perm: 'INVOICE_VIEW' },
+    { label: 'Schedule H1 register', href: '/invoicing/h1-register', icon: FileText,  perm: 'INVOICE_VIEW', when: 'drugRegister' },
     { label: 'Quotations',          href: '/quotations',             icon: FileText,  perm: 'INVOICE_VIEW' },
     { label: 'Chart of accounts',   href: '/finance/accounts',       icon: Building2, perm: 'FINANCE_VIEW' },
     { label: 'Journal entries',     href: '/finance/vouchers',       icon: FileText,  perm: ['FINANCE_VIEW', 'FINANCE_REPORTS'] },
@@ -81,6 +84,7 @@ const COMMANDS: { group: string; items: Command[] }[] = [
   { group: 'Settings', items: [
     { label: 'Settings',            href: '/settings',               icon: Settings,  perm: 'SETTINGS_VIEW' },
     { label: 'Company settings',    href: '/settings/company',       icon: Building2, perm: 'SETTINGS_VIEW' },
+    { label: 'Industry: sector templates, menus and extra fields', href: '/settings/industry', icon: Building2, perm: 'SETTINGS_VIEW' },
     { label: 'Users',               href: '/settings/users',         icon: Users,     perm: 'SETTINGS_USERS' },
     { label: 'Roles and permissions', href: '/settings/roles',       icon: Settings,  perm: 'SETTINGS_ROLES' },
     { label: 'Document templates',  href: '/settings/templates',     icon: Settings,  perm: 'SETTINGS_VIEW' },
@@ -127,6 +131,8 @@ export function CommandPalette({ open, onClose }: Props) {
   const list = useRef<HTMLDivElement>(null)
   const { can, isSuperAdmin } = usePermissions()
   const createAllowed = useCreateAllowed()
+  const createLabel = useCreateLabel()
+  const industry = useIndustry()
 
   useEffect(() => { if (open) { setTimeout(() => ref.current?.focus(), 40); setQ(''); setSel(0); setHits(null) } }, [open])
   // read while rendering the open palette, so recent records are there on the very first frame
@@ -148,19 +154,23 @@ export function CommandPalette({ open, onClose }: Props) {
   }, [term, open])
 
   const entries: Entry[] = useMemo(() => {
-    const allowed = ALL.filter(c => shown(c.href) && (!c.perm || isSuperAdmin || (Array.isArray(c.perm) ? c.perm.some(p => can(p)) : can(c.perm))))
+    // pages the company's industry has switched off aren't offered; the rest are called by its words ("Patients")
+    const allowed = ALL.filter(c => shown(c.href) && industry.visible(c.href.split('?')[0]) && (!c.when || !!industry.current?.[c.when])
+        && (!c.perm || isSuperAdmin || (Array.isArray(c.perm) ? c.perm.some(p => can(p)) : can(c.perm))))
+      .map(c => ({ ...c, label: industry.name(c.href, c.label) }))
     const lower = term.toLowerCase()
     const pages = (lower ? allowed.filter(c => c.label.toLowerCase().includes(lower) || c.group.toLowerCase().includes(lower)) : allowed)
       .map(c => ({ key: 'p:' + c.href, section: lower ? 'Pages' : c.group, label: c.label, href: c.href, icon: c.icon }))
     const creates = CREATE_ACTIONS.filter(createAllowed)
-      .filter(a => !lower || `new ${a.label}`.toLowerCase().includes(lower) || (lower.length >= 3 && 'create'.startsWith(lower)))
-      .map(a => ({ key: 'c:' + a.href, section: 'Create', label: `New ${a.label.toLowerCase()}`, href: a.href, icon: Plus }))
+      .filter(a => !lower || `new ${createLabel(a)}`.toLowerCase().includes(lower) || (lower.length >= 3 && 'create'.startsWith(lower)))
+      .map(a => ({ key: 'c:' + a.href, section: 'Create', label: `New ${createLabel(a).toLowerCase()}`, href: a.href, icon: Plus }))
     const records = (hits && hits.q === term ? hits.groups : []).flatMap(g => g.hits.map(h => ({
       key: 'h:' + h.kind + h.id, section: g.label, label: h.title, sub: h.subtitle, badge: h.badge, href: h.link, icon: KIND_ICON[h.kind] ?? FileText,
     })))
     if (!lower) return [...recent, ...creates.slice(0, 4), ...pages]
     return [...records, ...creates, ...pages]
-  }, [term, hits, recent, can, isSuperAdmin, createAllowed])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- industry.current is what its functions read
+  }, [term, hits, recent, can, isSuperAdmin, createAllowed, industry.current])
 
   useEffect(() => { setSel(s => Math.min(s, Math.max(0, entries.length - 1))) }, [entries.length])
 

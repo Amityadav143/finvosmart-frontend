@@ -117,7 +117,26 @@ export interface InvoiceLineItem {
   id?: string; itemId?: string; description: string; hsnSacCode?: string
   quantity: number; unit?: string; unitPrice: number; discountPct?: number
   taxableAmount: number; gstRate: number; cgstAmount: number; sgstAmount: number; igstAmount: number; totalAmount: number
+  /** For an item kept by batch: the batch sold (or taken back), with its number and expiry as printed */
+  batchId?: string | null; batchNo?: string | null; expiryDate?: string | null
+  /** The schedule the medicine is sold under: H, H1 or X */
+  drugSchedule?: 'H' | 'H1' | 'X' | null
 }
+/** Who medicines on prescription were for, and the prescriber (needed to issue a bill of Schedule H1 or X medicines). */
+export interface Prescription {
+  patientName?: string | null; prescriberName?: string | null; prescriberAddress?: string | null; prescriberRegNo?: string | null
+  reference?: string | null; date?: string | null
+}
+/** For a bill being written: the schedule of each item that has one, and whether the customer holds a drug licence. */
+export interface ScheduleCheck { schedules: Record<string, 'H' | 'H1' | 'X'>; licensedBuyer: boolean; buyerLicence?: string | null }
+/** One supply in the Schedule H1 register. */
+export interface DrugRegisterEntry {
+  serial: number; invoiceId: string; invoiceNumber: string; date: string; cancelled: boolean; customerName?: string | null
+  patientName?: string | null; prescriberName?: string | null; prescriberAddress?: string | null; prescriberRegNo?: string | null
+  prescriptionRef?: string | null; prescriptionDate?: string | null; medicine: string; schedule: 'H1' | 'X'; batchNo?: string | null
+  expiryDate?: string | null; quantity: number; unit?: string | null
+}
+export interface DrugRegister { from: string; to: string; schedules: string[]; entries: DrugRegisterEntry[]; truncated: boolean }
 export type InvoiceType = 'TAX_INVOICE'|'PROFORMA'|'QUOTATION'|'CREDIT_NOTE'|'DEBIT_NOTE'|'DELIVERY_CHALLAN'|'OPENING_BALANCE'
 export type InvoiceStatus = 'DRAFT'|'SENT'|'VIEWED'|'PARTIAL'|'PAID'|'OVERDUE'|'CANCELLED'
 export interface Invoice {
@@ -131,6 +150,8 @@ export interface Invoice {
   totalAmount: number; paidAmount: number; outstanding: number
   currency?: string; paymentTerms?: string; notes?: string; terms?: string; irn?: string
   lineItems?: InvoiceLineItem[]
+  /** The patient and prescriber of a sale on prescription, when given */
+  prescription?: Prescription | null
   // Reference / linkage fields
   customerPoNumber?: string    // Customer Purchase Order number
   workOrderNumber?: string     // Work Order / SOW number
@@ -213,6 +234,19 @@ export interface InventoryItem {
   active: boolean; description?: string
   /** Whether stock is kept: invoices and bills move it (off for services) */
   trackStock?: boolean
+  /** Stock kept by batch and expiry: bills bring in batches, invoices sell the first to expire */
+  trackBatchNumbers?: boolean
+}
+/** A batch's expiry against today: past it, within 90 days, later, or none given. */
+export type BatchState = 'EXPIRED' | 'EXPIRING' | 'OK' | 'NO_EXPIRY'
+/** One batch of an item kept by batch, with its stock. */
+export interface ItemBatch {
+  id: string; batchNo: string; expiryDate?: string | null; mrp?: number | null; quantity: number; state: BatchState
+}
+/** A batch in stock that has expired or expires soon (value at purchase price). */
+export interface ExpiringBatch {
+  id: string; itemId: string; itemCode?: string; itemName: string; unit?: string; batchNo: string; expiryDate: string
+  quantity: number; value: number; state: BatchState
 }
 export type MovementType = 'IN'|'OUT'|'ADJUSTMENT'|'TRANSFER_IN'|'TRANSFER_OUT'|'OPENING'
 export interface StockMovement {
@@ -227,6 +261,8 @@ export interface StockLedgerRow {
   change: number; unitCost?: number | null; reference?: string | null; stockAfter: number; remarks?: string | null
   /** INVOICE or BILL when a document made the movement (referenceId is its id); MANUAL, OPENING… otherwise */
   referenceType?: string | null; referenceId?: string | null
+  /** the batch it moved, for an item kept by batch */
+  batchNo?: string | null
 }
 export interface StockRecheckResult { documentsChecked: number; movementsPosted: number; failed: number }
 export interface StockDaySummary { date: string; stockIn: number; stockOut: number; adjustments: number; transfers: number }
@@ -235,6 +271,8 @@ export interface InventoryItemInput {
   itemCode?: string; itemName: string; category?: string; hsnSacCode?: string; unit?: string
   purchasePrice?: number | null; sellingPrice?: number | null; gstRate?: number; reorderLevel?: number | null
   description?: string; active?: boolean; openingStock?: number | null; trackStock?: boolean
+  /** Keep stock by batch and expiry; the opening stock then needs its batch number (and expiry) */
+  trackBatches?: boolean; openingBatchNo?: string; openingExpiry?: string | null
 }
 /** An item at or below its reorder level (the server sends the whole item). */
 export interface LowStockAlert extends InventoryItem {}

@@ -19,6 +19,8 @@ import toast from 'react-hot-toast'
 import { useSearchParams } from 'next/navigation'
 import { PaymentSettings } from '@/components/settings/PaymentSettings'
 import { apiError } from '@/lib/utils'
+import { useExtraFields, ExtraFields } from '@/components/industry/ExtraFields'
+import { usePermissions } from '@/lib/hooks/usePermissions'
 
 const TABS = ['General', 'Payments & invoices', 'Financial'] as const
 
@@ -147,6 +149,8 @@ function CompanySettings(){
         </div>
       )}
 
+      {company && tab==='General' && <CompanyDetails companyId={company.id} />}
+
       {company && tab==='Payments & invoices' && <PaymentSettings/>}
 
       {company && tab==='Financial' && (
@@ -181,6 +185,40 @@ function CompanySettings(){
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * The company's own extra fields — the licence numbers its industry needs on every bill (drug licence, FSSAI…),
+ * and any added by hand. Those set to print appear under the company's name on invoices.
+ */
+function CompanyDetails({ companyId }: { companyId: string }) {
+  const { can } = usePermissions()
+  const canEdit = can('SETTINGS_COMPANY')
+  const extra = useExtraFields('COMPANY', companyId)
+  const save = useMutation({
+    mutationFn: async () => {
+      const p = extra.problem(); if (p) throw new Error(p)
+      const warn = await extra.save(companyId); if (warn) throw new Error(warn)
+    },
+    onSuccess: () => toast.success('Company details saved'),
+    onError: (e: any) => toast.error(e?.message ?? 'The details could not be saved'),
+  })
+  if (extra.loading || extra.fields.length === 0) return null
+  return (
+    <div className="card" data-testid="company-details">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="font-semibold">Licences and other details</h3>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            From your industry, or added in Settings → Industry. The ones set to print go under your name on every invoice.
+          </p>
+        </div>
+        {canEdit && <button className="btn-primary h-9 text-sm" disabled={save.isPending} onClick={() => save.mutate()}>
+          <Save className="w-4 h-4" />{save.isPending ? 'Saving…' : 'Save details'}</button>}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><ExtraFields state={extra} title=" " readOnly={!canEdit} /></div>
     </div>
   )
 }

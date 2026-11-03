@@ -13,7 +13,8 @@
 import { Modal } from '@/components/ui/Modal'
 import { CREATE_ACTIONS, GO_TO } from '@/lib/quickCreate'
 import { usePermissions } from '@/lib/hooks/usePermissions'
-import { useCreateAllowed } from './QuickCreate'
+import { useCreateAllowed, useCreateLabel } from './QuickCreate'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 
 const Key = ({ k }: { k: string }) => (
   <kbd className="font-mono" style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '6px', border: '1px solid var(--border-strong)', background: 'var(--bg-hover)', color: 'var(--text-primary)' }}>{k}</kbd>
@@ -32,8 +33,10 @@ function Row({ keys, label }: { keys: string[]; label: string }) {
 export function ShortcutsHelp({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { canAny, isSuperAdmin } = usePermissions()
   const allowed = useCreateAllowed()
+  const name = useCreateLabel()
+  const industry = useIndustry()
   const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
-  const goto = GO_TO.filter(g => !g.perms || isSuperAdmin || canAny(...g.perms))
+  const goto = GO_TO.filter(g => (!g.module || industry.visible(g.module)) && (!g.perms || isSuperAdmin || canAny(...g.perms)))
   const create = CREATE_ACTIONS.filter(allowed)
   const h = { fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--text-muted)', margin: '0 0 6px' }
   return (
@@ -49,13 +52,13 @@ export function ShortcutsHelp({ open, onClose }: { open: boolean; onClose: () =>
         {goto.length > 0 && (
           <div>
             <p style={h}>Go to</p>
-            {goto.map(g => <Row key={g.key} keys={['G', g.key.toUpperCase()]} label={g.label} />)}
+            {goto.map(g => <Row key={g.key} keys={['G', g.key.toUpperCase()]} label={g.module ? industry.name(g.module, g.label) : g.label} />)}
           </div>
         )}
         {create.length > 0 && (
           <div>
             <p style={h}>Create</p>
-            {create.map(a => <Row key={a.key} keys={['N', a.key.toUpperCase()]} label={`New ${a.label.toLowerCase()}`} />)}
+            {create.map(a => <Row key={a.key} keys={['N', a.key.toUpperCase()]} label={`New ${name(a).toLowerCase()}`} />)}
           </div>
         )}
       </div>

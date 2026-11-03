@@ -11,6 +11,9 @@
 
 import axios, { AxiosInstance } from 'axios'
 import { getAccessToken, getRefreshToken, useAuthStore } from '@/lib/store/slices/authStore'
+import { isPublicAuth } from '@/lib/auth/publicAuth'
+
+export { isPublicAuth }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -29,6 +32,7 @@ export const lastServer = () => server
  * copy is cleared before leaving — clearing the live store would make the app shell start its own
  * redirect (without the note) in a race with this one.
  */
+let leaving = false
 function signInAgain(reason?: unknown) {
   if (typeof window === 'undefined') return
   const { pathname, search } = window.location
@@ -36,20 +40,19 @@ function signInAgain(reason?: unknown) {
     try { useAuthStore.getState().logout() } catch { /* nothing to forget */ }
     return
   }
+  // Once: the first reason is the server's verdict (the renewal's answer). A request refused a moment
+  // later finds the saved session already gone, and used to send the page off again with its own
+  // "EXPIRED" in place of the real reason.
+  if (leaving) return
+  leaving = true
   try { localStorage.removeItem('finvo-auth') } catch { /* storage unavailable */ }
   // Why the server ended it (EXPIRED, NOT_RECOGNISED…): the sign-in page explains a server set-up problem.
   const why = typeof reason === 'string' && /^[A-Z_]{1,40}$/.test(reason) ? `&reason=${reason}` : ''
   window.location.href = `/login?expired=1${why}&next=${encodeURIComponent(pathname + search)}`
 }
 
-/**
- * The public sign-in endpoints: signing in and up, renewing, the password-reset link, sign-in codes,
- * Google, the second sign-in step, the server's sign-in options. They never get the saved session
- * (an old one sent along only made the server log a refused sign-in for every attempt), and their
- * 401 is the page's to show — never a reason to renew the session or leave the page.
- */
-const PUBLIC_AUTH = /^\/?auth\/(login|register|refresh|forgot-password|reset-password|otp\/|social\/|providers|mfa\/verify)/
-export const isPublicAuth = (url?: string) => !!url && PUBLIC_AUTH.test(url.replace(API_URL, ''))
+// The public sign-in endpoints (PUBLIC_AUTH in lib/auth/publicAuth.ts) never get the saved session, and
+// their 401 is the page's to show — never a reason to renew the session or leave the page.
 
 export function createApiClient(): AxiosInstance {
   const client = axios.create({ baseURL: API_URL, timeout: 30000 })
@@ -92,8 +95,12 @@ export function createApiClient(): AxiosInstance {
               return auth.accessToken as string
             })
             // Refused by the server: the session is over. No answer at all (offline, a restart):
-            // stay signed in, so the next request can try again.
-            .catch((e: any) => { if (e?.response) signInAgain(e.response.data?.reason); return null })
+            // stay signed in, so the next request can try again. Renewing is public, so a 401 for it is an
+            // address the server didn't know (changed on the way): the sign-in page says so.
+            .catch((e: any) => {
+              if (e?.response) signInAgain(e.response.status === 401 ? 'NOT_AN_API_ADDRESS' : e.response.data?.reason)
+              return null
+            })
             .finally(() => { refreshPromise = null })
         }
 

@@ -10,11 +10,13 @@
  */
 
 import { api } from './client'
-import type { ApiResponse, PageResponse, Invoice, InvoiceStats, InvoicePaymentRecord, InvoiceType } from '@/types'
+import type { ApiResponse, PageResponse, Invoice, InvoiceStats, InvoicePaymentRecord, InvoiceType, Prescription, ScheduleCheck, DrugRegister } from '@/types'
 
 export interface InvoiceLineInput {
   itemId?: string; description: string; hsnSacCode?: string; quantity: string | number; unit?: string
   unitPrice: string | number; discountPct?: string | number; gstRate: string | number
+  /** Tax invoices and credit notes, for an item kept by batch: the batch billed (or taken back); none on a sale: the first to expire */
+  batchId?: string | null
 }
 
 export interface InvoiceInput {
@@ -26,6 +28,8 @@ export interface InvoiceInput {
   ewayBillNumber?: string; lrNumber?: string; dcReferenceNumber?: string; rfqNumber?: string; additionalReference?: string
   /** Tax invoices and credit notes: move the stock of the items on it when issued (default yes) */
   updateStock?: boolean
+  /** Tax invoices with Schedule H, H1 or X medicines: the patient and prescriber (needed to issue for H1 and X) */
+  prescription?: Prescription | null
 }
 
 export interface SendInput { email: boolean; to?: string; cc?: string; message?: string; whatsapp: boolean; phone?: string }
@@ -60,6 +64,19 @@ export const invoicingApi = {
   paymentLink: async (id: string) => (await api.post<ApiResponse<{ url: string }>>(`/invoices/${id}/payment-link`)).data.data!.url,
   sendWhatsApp: async (invoiceId: string, phone: string) =>
     (await api.post('/whatsapp/invoices/send', { invoiceId, recipientPhone: phone, includePaymentLink: true })).data,
+  /** Which of these items are Schedule H, H1 or X medicines, and whether the customer holds a drug licence. */
+  scheduleCheck: async (customerId: string | undefined, itemIds: string[]): Promise<ScheduleCheck> =>
+    (await api.get<ApiResponse<ScheduleCheck>>('/invoices/schedule-check', {
+      params: { ...(customerId ? { customerId } : {}), itemIds: itemIds.join(',') },
+    })).data.data!,
+}
+
+/** The Schedule H1 register, from the bills issued. schedule: 'H1', 'X' or both (left out). */
+export const drugRegisterApi = {
+  get: async (p: { from?: string; to?: string; schedule?: string }): Promise<DrugRegister> =>
+    (await api.get<ApiResponse<DrugRegister>>('/drug-register', { params: p })).data.data!,
+  file: async (kind: 'csv' | 'pdf', p: { from?: string; to?: string; schedule?: string }) =>
+    (await api.get(`/drug-register/${kind}`, { params: p, responseType: 'blob' })).data as Blob,
 }
 
 export interface CompanyPaymentSettings {

@@ -24,6 +24,7 @@ import { Notice } from '@/components/invoicing/InvoiceForm'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { formatDate } from '@/lib/utils'
 import { PAYMENT_MODES, inr, todayIST } from '@/lib/money'
+import { expiryText } from '@/lib/inventory'
 import { BILL_TYPE_LABEL, ITC_STATUS, billBadge, billStatusLabel, errText } from '@/lib/purchases'
 import type { Bill, BillPaymentRecord } from '@/types/purchases'
 import { DocumentReview } from '@/components/ca/DocumentReview'
@@ -130,6 +131,7 @@ export default function BillDetailPage() {
                     <td className="px-4 py-3">
                       <p>{l.description}</p>
                       {l.hsnSacCode && <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>HSN/SAC {l.hsnSacCode}</p>}
+                      {l.batchNo && <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>Batch {l.batchNo}{l.expiryDate ? ` · Exp. ${expiryText(l.expiryDate)}` : ''}{l.mrp != null && l.mrp !== '' ? ` · MRP ${inr(l.mrp)}` : ''}</p>}
                     </td>
                     <td className="px-3 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{accounts.find(a => a.code === l.accountCode)?.name ?? l.accountCode}</td>
                     <td className="px-3 py-3 text-right font-mono">{Number(l.quantity)}{l.unit ? ` ${l.unit}` : ''}</td>

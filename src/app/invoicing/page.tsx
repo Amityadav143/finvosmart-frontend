@@ -30,6 +30,7 @@ import { useDebounce } from '@/lib/hooks'
 import { formatDate } from '@/lib/utils'
 import { DOC_LABEL, STATUS_LABEL, inr, todayIST } from '@/lib/money'
 import type { Invoice } from '@/types'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 
 const FILTERS: { status: string; label: string; icon: any; color: string; count: (s: any) => number }[] = [
   { status: 'OVERDUE', label: 'Overdue',   icon: AlertTriangle, color: '#dc2626', count: s => s?.overdue ?? 0 },
@@ -49,6 +50,7 @@ const monthLabel = (ym: string) => new Date(ym + '-01T00:00:00').toLocaleDateStr
 
 export default function InvoicingPage() {
   const { can } = usePermissions()
+  const ind = useIndustry()                     // "Patient bills" in a clinic
   const router = useRouter()
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState('')
@@ -116,7 +118,7 @@ export default function InvoicingPage() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="page-title">Invoices</h1>
+          <h1 className="page-title">{ind.name('/invoicing', 'Invoices')}</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>GST invoices, quotations and notes — send them, track who has paid, and remind who hasn't</p>
         </div>
         <div className="flex items-center gap-2">

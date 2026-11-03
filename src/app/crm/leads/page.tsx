@@ -18,6 +18,8 @@ import { Modal } from '@/components/ui/Modal'
 import { formatCurrency, formatDate, apiError } from '@/lib/utils'
 import type { Lead, LeadUpdate } from '@/types'
 import { usePermissions } from '@/lib/hooks/usePermissions'
+import { useIndustry } from '@/lib/hooks/useIndustry'
+import { useUrlParams } from '@/lib/hooks/useUrlParams'
 import { todayIST } from '@/lib/money'
 import { Plus, TrendingUp, DollarSign, Target, Award, CalendarClock, UserCheck, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -42,6 +44,10 @@ export default function LeadsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [openId, setOpenId] = useState<string | null>(null)
+  // the sector's word ("Enquiry" for a solar installer)
+  const ind = useIndustry()
+  const one = ind.one('/crm/leads', 'Lead'), many = ind.name('/crm/leads', 'Leads')
+  useUrlParams(p => { if (p.get('new') === '1' && canCreate) setShowCreate(true) })
   const canMakeCustomer = canAny('CRM_CREATE', 'CRM_ADMIN')
   const today = todayIST()
 
@@ -88,7 +94,7 @@ export default function LeadsPage() {
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.12)' }}>
             <Target className="w-5 h-5 text-blue-400" />
           </div>
-          <div><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Leads</p><p className="text-2xl font-display">{totalLeads}</p></div>
+          <div><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total {many}</p><p className="text-2xl font-display">{totalLeads}</p></div>
         </div>
         <div className="card flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(34,197,94,0.12)' }}>
@@ -115,7 +121,7 @@ export default function LeadsPage() {
         <h2 className="font-display text-xl" style={{ letterSpacing: '-0.02em' }}>Sales Pipeline</h2>
         {canCreate && (
           <button onClick={() => setShowCreate(true)} className="btn-primary h-9">
-            <Plus className="w-4 h-4" /> New Lead
+            <Plus className="w-4 h-4" /> New {one}
           </button>
         )}
       </div>
@@ -204,7 +210,7 @@ export default function LeadsPage() {
           converting={convertMutation.isPending} onConvert={() => convertMutation.mutate(lead.id)} /> : null
       })()}
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Lead" subtitle="Add a new prospect to your pipeline">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={`New ${one}`} subtitle="Add a new prospect to your pipeline">
         <form onSubmit={e => {
           e.preventDefault()
           createMutation.mutate({

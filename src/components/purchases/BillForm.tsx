@@ -20,6 +20,8 @@ import { api } from '@/lib/api/client'
 import { billsApi, vendorsApi } from '@/lib/api/purchases'
 import { Notice } from '@/components/invoicing/InvoiceForm'
 import { ItemPicker, LinkedItem, StockChoice } from '@/components/inventory/ItemPicker'
+import { BatchEntry } from '@/components/inventory/BatchPicker'
+import { EXPIRY_HINT, batchNoProblem, expiryText, normaliseBatch, parseExpiry } from '@/lib/inventory'
 import { addMoney, computeInvoice, roundRupee, subMoney } from '@/lib/invoiceMath'
 import { checkGstin } from '@/lib/gstin'
 import { GST_RATE_OPTIONS, PAYMENT_MODES, PLACES_OF_SUPPLY, inr, stateName, todayIST } from '@/lib/money'
@@ -29,7 +31,11 @@ import { formatDate } from '@/lib/utils'
 import type { PurchaseOrder, Vendor } from '@/types'
 import type { Bill, BillInput, BillType, ItcDocument } from '@/types/purchases'
 
-interface Line { key: string; itemId?: string; description: string; hsnSacCode: string; accountCode: string; quantity: string; unit: string; unitPrice: string; discountPct: string; gstRate: string }
+interface Line {
+  key: string; itemId?: string; description: string; hsnSacCode: string; accountCode: string; quantity: string; unit: string; unitPrice: string; discountPct: string; gstRate: string
+  /** an item kept by batch: the batch number, expiry (as typed) and MRP on the pack; byBatch once the item is known to be */
+  batchNo: string; expiry: string; mrp: string; byBatch?: boolean
+}
 
 const TERMS = [
   { value: 'Due on receipt', label: 'Due on receipt' }, { value: 'Net 7', label: '7 days' }, { value: 'Net 15', label: '15 days' },
@@ -37,7 +43,8 @@ const TERMS = [
 ]
 
 let seq = 0
-const newLine = (account = ''): Line => ({ key: `b${++seq}`, description: '', hsnSacCode: '', accountCode: account, quantity: '1', unit: '', unitPrice: '', discountPct: '', gstRate: '18' })
+const newLine = (account = ''): Line => ({ key: `b${++seq}`, description: '', hsnSacCode: '', accountCode: account, quantity: '1', unit: '', unitPrice: '', discountPct: '', gstRate: '18',
+  batchNo: '', expiry: '', mrp: '' })
 
 const ourStateCode = (c?: { gstin?: string; state?: string }) => {
   if (c?.gstin && /^\d{2}/.test(c.gstin)) return c.gstin.slice(0, 2)
@@ -69,7 +76,8 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
   const [blocked, setBlocked] = useState(bill ? !bill.itcEligible : false)
   const [lines, setLines] = useState<Line[]>(() => bill?.lines?.length
     ? bill.lines.map(l => ({ key: `b${++seq}`, itemId: l.itemId, description: l.description, hsnSacCode: l.hsnSacCode ?? '', accountCode: l.accountCode ?? '',
-        quantity: String(l.quantity), unit: l.unit ?? '', unitPrice: String(l.unitPrice), discountPct: Number(l.discountPct) ? String(l.discountPct) : '', gstRate: String(Number(l.gstRate)) }))
+        quantity: String(l.quantity), unit: l.unit ?? '', unitPrice: String(l.unitPrice), discountPct: Number(l.discountPct) ? String(l.discountPct) : '', gstRate: String(Number(l.gstRate)),
+        batchNo: l.batchNo ?? '', expiry: l.expiryDate ? expiryText(l.expiryDate) : '', mrp: l.mrp != null ? String(l.mrp) : '' }))
     : [newLine()])
   // When editing, tell rounding apart from a manual adjustment by recomputing the saved lines.
   const [initialRounding] = useState(() => editedRounding(bill))
@@ -189,6 +197,7 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
   const setLine = (key: string, patch: Partial<Line>) => setLines(ls => ls.map(l => (l.key === key ? { ...l, ...patch } : l)))
 
   const linkedLines = lines.filter(l => l.itemId && l.description.trim()).length
+  const stockKind = type === 'CREDIT_NOTE' ? 'out' : type === 'BILL' || type === 'EXPENSE' ? 'in' : null
   const problems: string[] = []
   if (type !== 'EXPENSE' && !vendor?.id) problems.push('Choose the supplier')
   if (type === 'EXPENSE' && !vendor?.id && !paidTo.trim()) problems.push('Enter who was paid')
@@ -201,6 +210,15 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
   if (due && due < date) problems.push("The due date can't be before the bill date")
   if (adjustment && Math.abs(Number(adjustment)) > 10) problems.push('The adjustment can be at most ₹10 either way')
   if (overrideTds && totals.value && Number(tdsOverride || 0) > Number(totals.value.taxable)) problems.push("TDS can't be more than the value of the bill")
+  // items kept by batch: the batch coming in (or going back), its expiry as on the pack
+  lines.forEach((l, i) => {
+    if (!l.description.trim() || !l.itemId || !l.byBatch || !stockKind) return
+    if (!normaliseBatch(l.batchNo)) { if (updateStock) problems.push(`Line ${i + 1}: enter the batch number${stockKind === 'in' ? ' and expiry' : ''} — this item is kept by batch`); return }
+    const bad = batchNoProblem(l.batchNo)
+    if (bad) problems.push(`Line ${i + 1}: ${bad}`)
+    else if (stockKind === 'in' && parseExpiry(l.expiry) === undefined) problems.push(`Line ${i + 1}: ${EXPIRY_HINT}`)
+    else if (stockKind === 'in' && l.mrp.trim() && !(Number(l.mrp) >= 0)) problems.push(`Line ${i + 1}: the MRP must be a number, not below zero`)
+  })
 
   const save = useMutation({
     mutationFn: async (draft: boolean) => {
@@ -216,6 +234,10 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
         lines: lines.filter(l => l.description.trim()).map(l => ({
           itemId: l.itemId, description: l.description.trim(), hsnSacCode: l.hsnSacCode || undefined, accountCode: l.accountCode || undefined,
           quantity: l.quantity, unit: l.unit || undefined, unitPrice: l.unitPrice === '' ? 0 : l.unitPrice, discountPct: l.discountPct || 0, gstRate: l.gstRate,
+          ...(l.itemId && l.byBatch && stockKind && normaliseBatch(l.batchNo) ? {
+            batchNo: normaliseBatch(l.batchNo),
+            ...(stockKind === 'in' ? { expiryDate: parseExpiry(l.expiry) ?? null, mrp: l.mrp.trim() ? l.mrp.trim() : null } : {}),
+          } : {}),
         })),
       }
       return editing ? billsApi.update(bill!.id, body) : billsApi.create(body)
@@ -335,8 +357,10 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
                   <ItemPicker value={l.description} price="purchase" placeholder="Item, service or expense" label={`Line ${i + 1} description`}
                     onChange={v => setLine(l.key, { description: v })}
                     onPick={it => setLine(l.key, { itemId: it.id, description: it.itemName, hsnSacCode: it.hsnSacCode ?? '', unit: it.unit ?? '',
-                      unitPrice: it.purchasePrice != null ? String(it.purchasePrice) : '', gstRate: String(it.gstRate ?? 18) })} />
-                  {l.itemId && <LinkedItem itemId={l.itemId} quantity={l.quantity} onUnlink={() => setLine(l.key, { itemId: undefined })} />}
+                      unitPrice: it.purchasePrice != null ? String(it.purchasePrice) : '', gstRate: String(it.gstRate ?? 18),
+                      batchNo: '', expiry: '', mrp: '', byBatch: !!it.trackBatchNumbers })} />
+                  {l.itemId && <LinkedItem itemId={l.itemId} quantity={l.quantity} onUnlink={() => setLine(l.key, { itemId: undefined, byBatch: false, batchNo: '', expiry: '', mrp: '' })} />}
+
                 </div>
                 <div className="col-span-6 md:col-span-2">
                   {i === 0 && <label className="label">Book to</label>}
@@ -377,6 +401,12 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
                   <button type="button" className="btn-icon w-9 h-10" aria-label="Remove line" disabled={lines.length === 1}
                     onClick={() => setLines(ls => ls.filter(x => x.key !== l.key))}><Trash2 size={14} /></button>
                 </div>
+                {l.itemId && stockKind && (
+                  <div className="col-span-12 -mt-1">
+                    <BatchEntry itemId={l.itemId} kept={l.byBatch} batchNo={l.batchNo} expiry={l.expiry} mrp={l.mrp} kind={stockKind}
+                      onChange={patch => setLine(l.key, patch)} onKeptByBatch={yes => setLine(l.key, { byBatch: yes })} />
+                  </div>
+                )}
               </div>
             )
           })}

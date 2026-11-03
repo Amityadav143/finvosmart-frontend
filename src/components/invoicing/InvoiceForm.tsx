@@ -13,18 +13,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { crmApi } from '@/lib/api/crm'
 import { invoicingApi, type InvoiceInput, type InvoiceLineInput } from '@/lib/api/invoicing'
 import { ItemPicker, LinkedItem, StockChoice } from '@/components/inventory/ItemPicker'
+import { BatchPicker } from '@/components/inventory/BatchPicker'
+import { inventoryApi } from '@/lib/api/inventory'
+import { allocateBatches } from '@/lib/inventory'
 import { computeInvoice, roundRupee, subMoney } from '@/lib/invoiceMath'
 import { checkGstin } from '@/lib/gstin'
 import { DOC_LABEL, GST_RATE_OPTIONS, PLACES_OF_SUPPLY, inr, stateName, todayIST } from '@/lib/money'
 import { useDebounce } from '@/lib/hooks'
-import type { Customer, Invoice, InvoiceType } from '@/types'
+import type { Customer, Invoice, InvoiceType, Prescription } from '@/types'
 import { apiError } from '@/lib/utils'
 
 interface CompanyInfo {
@@ -99,7 +102,7 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
   const [lines, setLines] = useState<Line[]>(() => invoice?.lineItems?.length
     ? invoice.lineItems.map(l => ({ key: `l${++seq}`, itemId: l.itemId ?? undefined, description: l.description, hsnSacCode: l.hsnSacCode ?? '',
         quantity: String(l.quantity), unit: l.unit ?? '', unitPrice: String(l.unitPrice), discountPct: l.discountPct ? String(l.discountPct) : '',
-        gstRate: String(l.gstRate ?? 0) }))
+        gstRate: String(l.gstRate ?? 0), batchId: l.batchId ?? undefined }))
     : [newLine()])
   const [discount, setDiscount] = useState(invoice?.discountAmount && Number(invoice.discountAmount) > 0 && !invoice.lineItems?.some(l => Number(l.discountPct) > 0) ? String(invoice.discountAmount) : '')
   const [roundOff, setRoundOff] = useState(true)
@@ -109,6 +112,8 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
   const [showRefs, setShowRefs] = useState(REFS.some(r => (invoice as any)?.[r.key]))
   // Tax invoices and credit notes move the stock of linked items when issued (the user can say no).
   const [updateStock, setUpdateStock] = useState(invoice ? invoice.movesStock !== false : true)
+  // a sale of Schedule H, H1 or X medicines: the patient and the prescriber (the Schedule H1 register)
+  const [rx, setRx] = useState<Prescription>(() => invoice?.prescription ?? {})
   const defaultsApplied = useRef(editing)
 
   // A new document for a given customer (e.g. "New quotation" from a lead that became a customer).
@@ -170,8 +175,36 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
   const gstinCheck = gstin ? checkGstin(gstin) : null
 
   const setLine = (key: string, patch: Partial<Line>) => setLines(ls => ls.map(l => (l.key === key ? { ...l, ...patch } : l)))
+  /** One line spread over batches: a copy of it per batch, each with its quantity. */
+  const splitLine = (key: string, parts: { batchId: string; quantity: number }[]) => setLines(ls => ls.flatMap(l => l.key !== key ? [l]
+    : parts.map((p, n) => ({ ...l, key: n === 0 ? l.key : `l${++seq}`, batchId: p.batchId, quantity: String(p.quantity) }))))
   const movesStockType = type === 'TAX_INVOICE' || type === 'CREDIT_NOTE'
   const linkedLines = lines.filter(l => l.itemId && String(l.description).trim()).length
+
+  // the items on the lines, and the batches of those kept by batch (the same queries the line pickers use)
+  const linkedIds = Array.from(new Set(lines.map(l => l.itemId).filter((x): x is string => !!x)))
+  const itemQs = useQueries({ queries: linkedIds.map(id => ({ queryKey: ['item', id], queryFn: () => inventoryApi.items.get(id), staleTime: 30_000, retry: false })) })
+  const batchIds = linkedIds.filter((_, i) => !!itemQs[i]?.data?.trackBatchNumbers)
+  const batchQs = useQueries({ queries: batchIds.map(id => ({ queryKey: ['item-batches', id], queryFn: () => inventoryApi.items.batches(id), staleTime: 15_000 })) })
+  const batchesByItem: Record<string, { id: string; batchNo: string; expiryDate?: string | null; quantity: number }[]> = {}
+  batchIds.forEach((id, i) => { if (batchQs[i]?.data) batchesByItem[id] = batchQs[i].data! })
+  // which batch each sales line takes, the lines above first (as the server works it out)
+  const alloc = type === 'TAX_INVOICE' ? allocateBatches(lines.filter(l => String(l.description).trim()), batchesByItem, date) : {}
+
+  // medicines on prescription: the schedule of each linked item, and whether the buyer holds a drug licence
+  const saleIds = type === 'TAX_INVOICE' ? linkedIds : []
+  const { data: sched } = useQuery({
+    queryKey: ['schedule-check', customer?.id ?? '', [...saleIds].sort().join(',')],
+    queryFn: () => invoicingApi.scheduleCheck(customer?.id, saleIds), enabled: saleIds.length > 0, staleTime: 30_000, retry: false,
+  })
+  const scheduled = type === 'TAX_INVOICE' ? lines.filter(l => l.itemId && String(l.description).trim() && sched?.schedules?.[l.itemId]) : []
+  const codes = new Set(scheduled.map(l => sched!.schedules[l.itemId!]))
+  const registered = scheduled.filter(l => ['H1', 'X'].includes(sched!.schedules[l.itemId!]))
+  const forRegister = registered.length > 0 && !sched?.licensedBuyer
+  const rxMissing = !forRegister ? [] : [!rx.patientName?.trim() && "the patient's name", !rx.prescriberName?.trim() && "the prescriber's name",
+    !rx.prescriberAddress?.trim() && "the prescriber's address"].filter((x): x is string => !!x)
+  const rxGiven = Object.values(rx).some(v => typeof v === 'string' && v.trim() !== '')
+  const setRxField = (k: keyof Prescription, v: string) => setRx(p => ({ ...p, [k]: v }))
 
   const save = useMutation({
     mutationFn: async (then: 'view' | 'send') => {
@@ -182,10 +215,17 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
         lineItems: lines.filter(l => String(l.description).trim()).map(l => ({
           itemId: l.itemId, description: String(l.description).trim(), hsnSacCode: l.hsnSacCode || undefined, quantity: l.quantity,
           unit: l.unit || undefined, unitPrice: l.unitPrice === '' ? 0 : l.unitPrice, discountPct: l.discountPct || 0, gstRate: l.gstRate,
+          ...(movesStockType && l.itemId && l.batchId ? { batchId: l.batchId } : {}),
         })),
         paymentTerms: terms || undefined, notes, terms: termsText, discountAmount: discount || null, roundOff,
         ...Object.fromEntries(Object.entries(refs).map(([k, v]) => [k, v.trim() || undefined])),
         ...(movesStockType ? { updateStock } : {}),
+        // kept while the bill has scheduled medicines (or while that can't be checked)
+        prescription: type === 'TAX_INVOICE' && rxGiven && (codes.size > 0 || !sched) ? {
+          patientName: rx.patientName?.trim() || null, prescriberName: rx.prescriberName?.trim() || null,
+          prescriberAddress: rx.prescriberAddress?.trim() || null, prescriberRegNo: rx.prescriberRegNo?.trim() || null,
+          reference: rx.reference?.trim() || null, date: rx.date || null,
+        } : null,
       }
       const saved = editing ? await invoicingApi.update(invoice!.id, body) : await invoicingApi.create(body)
       return { saved, then }
@@ -207,6 +247,16 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
   if (totals.error) problems.push(totals.error)
   if (gstinCheck && !gstinCheck.valid) problems.push("The customer's GSTIN isn't valid")
   if (due && date && due < date) problems.push("The due date can't be before the invoice date")
+  // an expired batch can't be billed (the server refuses it too)
+  lines.forEach((l, i) => {
+    if (type !== 'TAX_INVOICE' || !l.itemId || !l.batchId || !String(l.description).trim()) return
+    const b = batchesByItem[l.itemId]?.find(x => x.id === l.batchId)
+    if (b?.expiryDate && b.expiryDate < date) problems.push(`Line ${i + 1}: batch ${b.batchNo} has expired — choose another batch`)
+  })
+  if (rx.date && date && rx.date > date) problems.push("The prescription can't be dated after the bill")
+  // sending issues the bill: Schedule H1 and X medicines go in the register with the patient and prescriber
+  const sendProblem = rxMissing.length ? `To send it, enter ${rxMissing.length === 3 ? "the patient's name and the prescriber's name and address"
+    : rxMissing.join(' and ')} (Schedule H1 register)` : null
 
   return (
     <div className="space-y-5">
@@ -305,9 +355,15 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
                   <ItemPicker value={String(l.description)} price="selling" placeholder="Item or service" label={`Line ${i + 1} description`}
                     onChange={v => setLine(l.key, { description: v })}
                     onPick={it => setLine(l.key, { itemId: it.id, description: it.itemName, hsnSacCode: it.hsnSacCode ?? '', unit: it.unit ?? '',
-                      unitPrice: it.sellingPrice != null ? String(it.sellingPrice) : '', gstRate: String(it.gstRate ?? 18) })} />
+                      unitPrice: it.sellingPrice != null ? String(it.sellingPrice) : '', gstRate: String(it.gstRate ?? 18), batchId: undefined })} />
                   {l.itemId && <LinkedItem itemId={l.itemId} quantity={l.quantity} selling={type === 'TAX_INVOICE' && updateStock}
-                    onUnlink={() => setLine(l.key, { itemId: undefined })} />}
+                    onUnlink={() => setLine(l.key, { itemId: undefined, batchId: undefined })} />}
+                  {l.itemId && movesStockType && (
+                    <BatchPicker itemId={l.itemId} value={l.batchId} kind={type === 'CREDIT_NOTE' ? 'return' : 'sale'} quantity={l.quantity} date={date}
+                      taken={alloc[l.key]?.takenBefore} price={{ rate: l.unitPrice, discountPct: l.discountPct, gstRate: l.gstRate }}
+                      onRate={rate => setLine(l.key, { unitPrice: rate })}
+                      onChange={b => setLine(l.key, { batchId: b })} onSplit={parts => splitLine(l.key, parts)} />
+                  )}
                 </div>
                 <div className="col-span-4 md:col-span-1">
                   {i === 0 && <label className="label">HSN/SAC</label>}
@@ -353,6 +409,11 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
         <button type="button" className="btn-secondary h-9 mt-3" onClick={() => setLines(ls => [...ls, newLine()])}><Plus size={14} />Add line</button>
         {movesStockType && linkedLines > 0 && (
           <StockChoice direction={type === 'CREDIT_NOTE' ? 'salesReturn' : 'sale'} checked={updateStock} onChange={setUpdateStock} linked={linkedLines} />
+        )}
+        {codes.size > 0 && (
+          <PrescriptionBox rx={rx} set={setRxField} customerName={customer?.name} forRegister={forRegister} missing={rxMissing}
+            licence={sched?.licensedBuyer ? sched.buyerLicence ?? '' : null}
+            medicines={(forRegister ? registered : scheduled).map(l => `${String(l.description).trim()} (Sch. ${sched!.schedules[l.itemId!]})`)} />
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
@@ -424,15 +485,15 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
       {/* ── Actions ───────────────────────────────────────────────────── */}
       <div className="sticky bottom-0 z-20 -mx-5 md:-mx-6 -mb-5 md:-mb-6 px-5 md:px-6 py-3 flex items-center justify-between gap-3 flex-wrap"
         style={{ background: 'var(--bg-elevated)', borderTop: '1px solid var(--border)' }}>
-        <p className="text-sm" style={{ color: problems.length ? '#d97706' : 'var(--text-muted)' }}>
-          {problems.length ? problems[0] : totals.value ? `${type === 'TAX_INVOICE' ? 'Invoice' : DOC_LABEL[type]} total ${inr(totals.value.total)}` : ''}
+        <p className="text-sm" style={{ color: problems.length || sendProblem ? '#d97706' : 'var(--text-muted)' }}>
+          {problems.length ? problems[0] : sendProblem ?? (totals.value ? `${type === 'TAX_INVOICE' ? 'Invoice' : DOC_LABEL[type]} total ${inr(totals.value.total)}` : '')}
         </p>
         <div className="flex items-center gap-2">
           <button className="btn-secondary h-10" onClick={() => router.back()}>Cancel</button>
           <button className="btn-secondary h-10" onClick={() => save.mutate('view')} disabled={problems.length !== 0 || save.isPending}>
             {save.isPending ? 'Saving…' : editing ? 'Save draft' : 'Save as draft'}
           </button>
-          <button className="btn-primary h-10" onClick={() => save.mutate('send')} disabled={problems.length !== 0 || save.isPending}>Save and send</button>
+          <button className="btn-primary h-10" onClick={() => save.mutate('send')} disabled={problems.length !== 0 || !!sendProblem || save.isPending}>Save and send</button>
         </div>
       </div>
     </div>
@@ -454,6 +515,63 @@ export function Notice({ tone, children }: { tone: 'amber' | 'red' | 'blue'; chi
     <div className="flex items-start gap-2 text-sm rounded-xl px-3 py-2.5" style={{ background: `${c}14`, border: `1px solid ${c}40`, color: 'var(--text-primary)' }}>
       <AlertTriangle size={15} style={{ color: c, flexShrink: 0, marginTop: 2 }} />
       <div>{children}</div>
+    </div>
+  )
+}
+
+/**
+ * A sale of medicines on prescription: the patient and the prescriber. For Schedule H1 and X medicines they go in
+ * the Schedule H1 register (Rule 65, Drugs and Cosmetics Rules, 1945) and are needed to send the bill; for Schedule H
+ * they are optional. A buyer with a drug licence (a chemist or hospital) needs none.
+ */
+function PrescriptionBox({ rx, set, customerName, forRegister, missing, licence, medicines }: {
+  rx: Prescription; set: (k: keyof Prescription, v: string) => void; customerName?: string; forRegister: boolean
+  missing: string[]; licence: string | null; medicines: string[]
+}) {
+  const req = (k: string) => forRegister && missing.includes(k)
+  const field = (k: keyof Prescription, label: string, opts: { need?: string; placeholder?: string; max: number; wide?: boolean; type?: string }) => (
+    <div className={opts.wide ? 'md:col-span-2' : ''}>
+      <label className={`label${forRegister && opts.need ? ' label-required' : ''}`} htmlFor={`rx-${k}`}>{label}</label>
+      <input id={`rx-${k}`} className="input h-10" type={opts.type ?? 'text'} maxLength={opts.max} value={rx[k] ?? ''} placeholder={opts.placeholder}
+        onChange={e => set(k, e.target.value)} aria-invalid={opts.need ? req(opts.need) : undefined}
+        style={opts.need && req(opts.need) ? { borderColor: '#d97706' } : undefined} />
+    </div>
+  )
+  return (
+    <div className="mt-4 rounded-xl p-4 space-y-3" style={{ border: `1px solid ${forRegister ? 'rgba(217,119,6,.35)' : 'var(--border)'}`, background: 'var(--bg-surface)' }}
+      data-testid="prescription">
+      <div>
+        <p className="font-semibold text-sm">Prescription</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          {licence !== null
+            ? <>Sold to a licensed buyer{licence ? ` (drug licence ${licence})` : ''}: no prescription details are needed.</>
+            : forRegister
+              ? <>{medicines.join(', ')}: Schedule H1 and X sales go in the Schedule H1 register with the patient&apos;s name and the prescriber&apos;s
+                  name and address (Rule 65, Drugs and Cosmetics Rules, 1945). Needed to send the bill; a draft can wait.</>
+              : <>{medicines.join(', ')}: Schedule H medicines are sold only on a prescription. These details are optional.</>}
+        </p>
+      </div>
+      {licence === null && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className={`label${forRegister ? ' label-required' : ''}`} htmlFor="rx-patientName">Patient</label>
+            <input id="rx-patientName" className="input h-10" maxLength={200} value={rx.patientName ?? ''} onChange={e => set('patientName', e.target.value)}
+              style={req("the patient's name") ? { borderColor: '#d97706' } : undefined} />
+            {customerName && !rx.patientName?.trim() && (
+              <button type="button" className="text-xs underline mt-1" style={{ color: 'var(--text-muted)' }} onClick={() => set('patientName', customerName)}>
+                Same as the customer ({customerName})
+              </button>
+            )}
+          </div>
+          {field('prescriberName', "Doctor's name", { need: "the prescriber's name", placeholder: 'Dr …', max: 200 })}
+          {field('prescriberRegNo', 'Registration no.', { placeholder: 'Medical council number', max: 50 })}
+          {field('prescriberAddress', "Doctor's address", { need: "the prescriber's address", placeholder: 'Clinic or hospital, town', max: 500, wide: true })}
+          <div className="grid grid-cols-2 gap-3">
+            {field('reference', 'Prescription no.', { max: 100 })}
+            {field('date', 'Dated', { max: 10, type: 'date' })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -480,7 +598,7 @@ function CustomerPicker({ value, onChange }: { value: Partial<Customer> | null; 
   return (
     <div className="relative">
       <label className="label label-required">Customer</label>
-      <input className="input h-10" value={q} placeholder="Search by name, email or GSTIN…" onFocus={() => setOpen(true)}
+      <input className="input h-10" value={q} placeholder="Search by name, phone, email or GSTIN…" onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)} onChange={e => { setQ(e.target.value); setOpen(true) }} aria-autocomplete="list" />
       {open && (
         <div className="absolute z-30 mt-1 w-full rounded-xl overflow-hidden" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', boxShadow: 'var(--shadow-modal)' }}>

@@ -30,6 +30,8 @@ import { checkGstin } from '@/lib/gstin'
 import { inr, PLACES_OF_SUPPLY } from '@/lib/money'
 import { MSME_ACTIVITIES, MSME_CATEGORIES, TDS_NATURES, errText, msmeCovered } from '@/lib/purchases'
 import type { Vendor } from '@/types'
+import { useExtraFields, ExtraFields } from '@/components/industry/ExtraFields'
+import { useIndustry } from '@/lib/hooks/useIndustry'
 
 const BLANK: VendorInput = {
   name: '', gstin: '', pan: '', contactPerson: '', email: '', phone: '', billingAddress: '', city: '', state: '',
@@ -39,6 +41,9 @@ const BLANK: VendorInput = {
 
 function VendorsInner() {
   const qc = useQueryClient()
+  // the industry's words ("Suppliers and subcontractors" for a contractor)
+  const ind = useIndustry()
+  const many = ind.name('/procurement/vendors', 'Suppliers'), one = ind.one('/procurement/vendors', 'Supplier')
   const params = useSearchParams()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
@@ -75,14 +80,14 @@ function VendorsInner() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="page-title">Suppliers</h1>
+          <h1 className="page-title">{many}</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>GSTIN, PAN for TDS, MSME status for the 45-day payment rule, and bank details</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/purchases" className="btn-secondary h-9 text-sm">Bills and payables</Link>
           <PermissionGate anyOf={['PROCUREMENT_CREATE', 'FINANCE_CREATE']}>
             <Link href="/import?kind=suppliers" className="btn-secondary h-9 text-sm"><FileUp className="w-4 h-4" />Import</Link>
-            <button onClick={() => setEditing('new')} className="btn-primary h-9 text-sm"><Plus className="w-4 h-4" />Add supplier</button>
+            <button onClick={() => setEditing('new')} className="btn-primary h-9 text-sm"><Plus className="w-4 h-4" />Add {one.toLowerCase()}</button>
           </PermissionGate>
         </div>
       </div>
@@ -112,13 +117,19 @@ function VendorModal({ vendor, onClose, onSaved }: { vendor: Vendor | null; onCl
   const { data: accounts = [] } = useQuery({ queryKey: ['bill-accounts'], queryFn: billsApi.accounts })
   const set = (k: keyof VendorInput, v: any) => setF(x => ({ ...x, [k]: v }))
   const g = f.gstin ? checkGstin(String(f.gstin)) : null
+  // the sector's extra fields (supplier type, trade, drug licence number…)
+  const extra = useExtraFields('VENDOR', vendor?.id)
 
   const save = useMutation({
     mutationFn: () => {
       const body: VendorInput = { ...f, tdsRate: f.tdsRate === '' ? null : f.tdsRate, gstin: g?.gstin || '' }
-      return vendor ? vendorsApi.update(vendor.id, body) : vendorsApi.create(body)
+      return (vendor ? vendorsApi.update(vendor.id, body) : vendorsApi.create(body)).then(async v => ({ v, warn: await extra.save(v.id) }))
     },
-    onSuccess: v => { toast.success(vendor ? 'Supplier saved' : `${v.name} added`); onSaved() },
+    onSuccess: ({ v, warn }) => {
+      toast.success(vendor ? 'Supplier saved' : `${v.name} added`)
+      if (warn) toast.error(`Saved, but not the extra details: ${warn}`)
+      onSaved()
+    },
     onError: (e: any) => toast.error(errText(e, 'The supplier could not be saved')),
   })
 
@@ -127,6 +138,7 @@ function VendorModal({ vendor, onClose, onSaved }: { vendor: Vendor | null; onCl
   if (g && !g.valid) problems.push(`GSTIN: ${g.problems[0]}`)
   if (f.udyamNumber && !/^UDYAM-[A-Z]{2}-\d{2}-\d{7}$/i.test(String(f.udyamNumber).trim())) problems.push('A Udyam number looks like UDYAM-MH-19-0012345')
   if (f.udyamNumber && !f.msmeCategory) problems.push('Choose the MSME category on their Udyam certificate')
+  const xp = extra.problem(); if (xp) problems.push(xp)
 
   return (
     <Modal open onClose={onClose} title={vendor ? vendor.name : 'Add a supplier'} subtitle={vendor?.vendorCode} size="lg">
@@ -195,6 +207,7 @@ function VendorModal({ vendor, onClose, onSaved }: { vendor: Vendor | null; onCl
             </select></div>
           <div><label className="label">Bank account no.</label><input className="input h-10 font-mono" value={String(f.bankAccount ?? '')} maxLength={18} inputMode="numeric" onChange={e => set('bankAccount', e.target.value.replace(/\D/g, ''))} /></div>
           <div><label className="label">IFSC</label><input className="input h-10 font-mono uppercase" value={String(f.bankIfsc ?? '')} maxLength={11} onChange={e => set('bankIfsc', e.target.value.toUpperCase())} /></div>
+          <ExtraFields state={extra} />
         </div>
 
         <div className="flex items-center justify-between gap-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>

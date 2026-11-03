@@ -11,11 +11,12 @@
 
 import { shown } from '@/lib/previews'
 import Link from 'next/link'
-import { Building2, Users, ShieldCheck, Lock, LayoutGrid, GitBranch, Mail, FileText, ChevronRight, History, Webhook } from 'lucide-react'
+import { Building2, Users, ShieldCheck, Lock, LayoutGrid, GitBranch, Mail, FileText, ChevronRight, History, Webhook, Factory } from 'lucide-react'
 
 // Settings hub: /settings had no page, so links to it (e.g. the onboarding checklist) were 404s.
 const SECTIONS = [
   { href: '/settings/company',   icon: Building2,   title: 'Company',          text: 'Business name, GSTIN, address and financial year.' },
+  { href: '/settings/industry',  icon: Factory,     title: 'Industry',         text: 'What your business does — the menus, words, extra fields and roles follow it.' },
   { href: '/settings/users',     icon: Users,       title: 'Users',            text: 'Invite people and manage who can sign in.' },
   { href: '/settings/roles',     icon: ShieldCheck, title: 'Roles & permissions', text: 'Decide what each role can see and do.' },
   { href: '/settings/security',  icon: Lock,        title: 'Sign-in & security', text: 'Your password, Google sign-in, two-step sign-in and signed-in devices.' },
