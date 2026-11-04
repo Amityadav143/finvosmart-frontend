@@ -18,7 +18,7 @@ import { DemoRequestForm } from '@/components/marketing/DemoRequestForm'
 const NEXT_STEPS = [
   { icon: MessageSquare, title: 'We reply by email', text: 'Someone from the team writes back to agree a time — in English or Hindi, as you prefer.' },
   { icon: CalendarCheck, title: 'A walkthrough for your business', text: 'We show the parts you care about — GST billing, accounting, payroll, inventory — using examples like yours, and answer every question.' },
-  { icon: Rocket, title: 'Start with help', text: 'Begin the 14-day free trial. We help you bring customers, items, employees and balances in from Excel or Tally.' },
+  { icon: Rocket, title: 'Start with help', text: 'Begin the 7-day free trial. We help you bring customers, items, employees and balances in from Excel or Tally.' },
 ]
 
 const QUICK = [

@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { verifyStoredSession } from '@/lib/auth/sessionCheck'
+import { forgetHere } from '@/lib/auth/session'
 
 /**
  * Someone already signed in who opens the homepage goes straight to their dashboard — once the
@@ -32,15 +33,12 @@ export default function SignedInRedirect() {
   useEffect(() => {
     if (!isAuthenticated) { setChecking(false); return }
     let live = true
-    const saved = useAuthStore.getState()
-    verifyStoredSession(saved.accessToken, saved.refreshToken).then(v => {
-      const now = useAuthStore.getState()
-      if (!live || now.accessToken !== saved.accessToken) return     // the session changed meanwhile
+    verifyStoredSession().then(v => {
+      if (!live) return
       if (v.state === 'ok') {
-        if (v.renewed) saved.setAuth(v.renewed)
-        router.replace('/dashboard')
+        router.replace('/dashboard')                // renewed with the session cookie
       } else {
-        if (v.state === 'ended') saved.logout()
+        if (v.state === 'ended') forgetHere()
         setChecking(false)                      // no clear answer: show the homepage, keep the session
       }
     })

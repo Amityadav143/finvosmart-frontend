@@ -10,14 +10,14 @@
  */
 
 import axios, { AxiosInstance } from 'axios'
-import { getAccessToken, getRefreshToken, useAuthStore } from '@/lib/store/slices/authStore'
+import { getAccessToken, useAuthStore } from '@/lib/store/slices/authStore'
 import { isPublicAuth } from '@/lib/auth/publicAuth'
+import { renewSession, forgetHere, SESSION_HEADERS } from '@/lib/auth/session'
+import { queryClientRef } from '@/lib/queryClientRef'
 
 export { isPublicAuth }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
-
-let refreshPromise: Promise<string | null> | null = null
 
 /**
  * The backend process that answered last (its X-Finvo-Instance header): seeing two tells a server
@@ -37,7 +37,7 @@ function signInAgain(reason?: unknown) {
   if (typeof window === 'undefined') return
   const { pathname, search } = window.location
   if (pathname.startsWith('/login')) {
-    try { useAuthStore.getState().logout() } catch { /* nothing to forget */ }
+    try { forgetHere() } catch { /* nothing to forget */ }
     return
   }
   // Once: the first reason is the server's verdict (the renewal's answer). A request refused a moment
@@ -46,6 +46,7 @@ function signInAgain(reason?: unknown) {
   if (leaving) return
   leaving = true
   try { localStorage.removeItem('finvo-auth') } catch { /* storage unavailable */ }
+  try { useAuthStore.getState().setAccessToken(null) } catch { /* nothing held */ }
   // Why the server ended it (EXPIRED, NOT_RECOGNISED…): the sign-in page explains a server set-up problem.
   const why = typeof reason === 'string' && /^[A-Z_]{1,40}$/.test(reason) ? `&reason=${reason}` : ''
   window.location.href = `/login?expired=1${why}&next=${encodeURIComponent(pathname + search)}`
@@ -55,12 +56,20 @@ function signInAgain(reason?: unknown) {
 // their 401 is the page's to show — never a reason to renew the session or leave the page.
 
 export function createApiClient(): AxiosInstance {
-  const client = axios.create({ baseURL: API_URL, timeout: 30000 })
+  // withCredentials: the refresh cookie travels with the sign-in calls when the API is on another port (development);
+  // X-Finvo-Session: the server keeps the refresh token in that HttpOnly cookie, never in an answer a script could read
+  const client = axios.create({ baseURL: API_URL, timeout: 30000, withCredentials: true, headers: { ...SESSION_HEADERS } })
 
-  // Attach access token from Zustand store (single source of truth)
-  client.interceptors.request.use((config: any) => {
-    const token = getAccessToken()
-    if (token && !isPublicAuth(config.url)) config.headers.Authorization = `Bearer ${token}`
+  // The access token is in this tab's memory. After a reload there is none yet: the session is renewed first (once,
+  // for all the page's requests together), instead of every request being refused and renewing on its own.
+  client.interceptors.request.use(async (config: any) => {
+    if (isPublicAuth(config.url)) return config
+    let token = getAccessToken()
+    if (!token && useAuthStore.getState().isAuthenticated) {
+      const r = await renewSession()
+      if (r.ok) token = r.auth.accessToken
+    }
+    if (token) config.headers.Authorization = `Bearer ${token}`
     return config
   })
 
@@ -73,42 +82,28 @@ export function createApiClient(): AxiosInstance {
     },
     async (err: any) => {
       const original = err.config
+      // read-only (the trial is over) or a paid-only feature: the plan banners ask the server again
+      if (err.response?.status === 402) {
+        try { queryClientRef.current?.invalidateQueries({ queryKey: ['subscription'] }) } catch { /* no cache yet */ }
+      }
       if (err.response?.status === 401 && original && !original._retry && !isPublicAuth(original.url)) {
         // "No sign-in came with the request" for a request sent without one is an ordinary ending
         // (signed out in another tab); only when one was sent does it mean the header got lost.
         const said = err.response?.data?.reason
         const sent = !!(original?.headers?.Authorization ?? original?.headers?.get?.('Authorization'))
         const reason = said === 'NO_TOKEN' && !sent ? undefined : said
-        const refresh = getRefreshToken()
-        if (!refresh) { signInAgain(reason); return Promise.reject(err) }
+        if (!useAuthStore.getState().isAuthenticated) { signInAgain(reason); return Promise.reject(err) }
 
         original._retry = true
-
-        if (!refreshPromise) {
-          refreshPromise = axios
-            .post(`${API_URL}/auth/refresh`, { refreshToken: refresh })
-            .then(r => {
-              const auth = r.data?.data
-              if (!auth?.accessToken) { signInAgain(); return null }
-              // The renewed session comes with the full profile (and a renewed refresh token).
-              useAuthStore.getState().setAuth(auth)
-              return auth.accessToken as string
-            })
-            // Refused by the server: the session is over. No answer at all (offline, a restart):
-            // stay signed in, so the next request can try again. Renewing is public, so a 401 for it is an
-            // address the server didn't know (changed on the way): the sign-in page says so.
-            .catch((e: any) => {
-              if (e?.response) signInAgain(e.response.status === 401 ? 'NOT_AN_API_ADDRESS' : e.response.data?.reason)
-              return null
-            })
-            .finally(() => { refreshPromise = null })
-        }
-
-        const newToken = await refreshPromise
-        if (newToken) {
-          original.headers.Authorization = `Bearer ${newToken}`
+        // One renewal for every refused request (and every tab): the access token had run out, or the session
+        // was renewed elsewhere. Refused by the server: the session is over. No answer at all (offline, a restart):
+        // stay signed in, so the next request can try again.
+        const r = await renewSession()
+        if (r.ok) {
+          original.headers.Authorization = `Bearer ${r.auth.accessToken}`
           return client(original)
         }
+        if (r.ended) signInAgain(r.reason ?? reason)
       }
       return Promise.reject(err)
     }

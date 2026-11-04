@@ -28,6 +28,9 @@ import { checkGstin } from '@/lib/gstin'
 import { DOC_LABEL, GST_RATE_OPTIONS, PLACES_OF_SUPPLY, inr, stateName, todayIST } from '@/lib/money'
 import { useDebounce } from '@/lib/hooks'
 import type { Customer, Invoice, InvoiceType, Prescription } from '@/types'
+import { AddressFields, AddressText } from '@/components/ui/AddressFields'
+import { EMPTY_ADDRESS, EMPTY_SHIP_TO, addressBody, addressEmpty, addressProblem, customerBilling, customerShipping, customerShipsToBilling,
+  fromText, type AddressParts, type ShipToParts } from '@/lib/address'
 import { apiError } from '@/lib/utils'
 
 interface CompanyInfo {
@@ -94,9 +97,16 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
   const [dueTouched, setDueTouched] = useState(!!invoice?.dueDate)
   const [customer, setCustomer] = useState<Partial<Customer> | null>(invoice ? { id: invoice.customerId, name: invoice.customerName, gstin: invoice.customerGstin } : null)
   const [gstin, setGstin] = useState(invoice?.customerGstin ?? '')
-  const [billing, setBilling] = useState(invoice?.billingAddress ?? '')
-  const [shipDifferent, setShipDifferent] = useState(!!invoice?.shippingAddress && invoice.shippingAddress !== invoice.billingAddress)
-  const [shipping, setShipping] = useState(invoice?.shippingAddress ?? '')
+  // Bill to and Ship to, in parts. "Same as billing address" ships to the billing address itself — the form shows it
+  // and the server prints it under Ship to; untick it to enter where the goods go.
+  const [billTo, setBillTo] = useState<AddressParts>(() => invoice?.billing ? { ...EMPTY_ADDRESS, ...invoice.billing } : fromText(invoice?.billingAddress))
+  const [shipSame, setShipSame] = useState(() => invoice ? invoice.shipSameAsBilling ?? !(invoice.shippingAddress && invoice.shippingAddress !== invoice.billingAddress) : true)
+  const [shipTo, setShipTo] = useState<ShipToParts>(() => invoice?.shipping ? { ...EMPTY_SHIP_TO, ...invoice.shipping }
+    : { ...EMPTY_SHIP_TO, ...fromText(invoice?.shipSameAsBilling ? null : invoice?.shippingAddress) })
+  /** the customer's addresses, as the customer is set up */
+  const takeAddresses = (c?: Partial<Customer> | null) => {
+    setBillTo(customerBilling(c)); setShipSame(customerShipsToBilling(c)); setShipTo(customerShipping(c))
+  }
   const [pos, setPos] = useState(invoice?.placeOfSupply ?? '')
   const [reverseCharge, setReverseCharge] = useState(!!invoice?.reverseCharge)
   const [lines, setLines] = useState<Line[]>(() => invoice?.lineItems?.length
@@ -124,8 +134,7 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
     presetApplied.current = true
     setCustomer(presetCustomer)
     setGstin(presetCustomer.gstin ?? '')
-    setBilling(presetCustomer.billingAddress ?? '')
-    setShipping(presetCustomer.shippingAddress ?? '')
+    takeAddresses(presetCustomer)
     if (presetCustomer.paymentTerms) { setTerms(presetCustomer.paymentTerms); setDueTouched(false) }
   }, [presetCustomer]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -146,7 +155,7 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
   }, [terms, date, dueTouched])
 
   const seller = sellerStateCode(company)
-  const placeCode = pos || customerStateCode(customer ?? undefined, gstin) || seller
+  const placeCode = pos || customerStateCode(customer ? { ...customer, state: billTo.state || customer.state } : undefined, gstin) || seller
   const interState = !!seller && !!placeCode && seller !== placeCode
   const utgst = ['04', '26', '31', '35', '38'].includes(seller)
 
@@ -173,6 +182,8 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
   const msmeDays = due && date ? daysBetween(date, due) : 0
   const msmeWarning = company && ['MICRO', 'SMALL'].includes((company.msmeCategory ?? '').toUpperCase()) && msmeDays > 45
   const gstinCheck = gstin ? checkGstin(gstin) : null
+  /** a registered customer's state is the one their GSTIN gives */
+  const gstinState = gstinCheck?.valid ? gstinCheck.stateName ?? null : null
 
   const setLine = (key: string, patch: Partial<Line>) => setLines(ls => ls.map(l => (l.key === key ? { ...l, ...patch } : l)))
   /** One line spread over batches: a copy of it per batch, each with its quantity. */
@@ -210,8 +221,11 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
     mutationFn: async (then: 'view' | 'send') => {
       const body: InvoiceInput = {
         invoiceType: type, invoiceDate: date, dueDate: due || null, customerId: customer!.id!,
-        customerName: customer!.name, customerGstin: gstin || undefined, billingAddress: billing || undefined,
-        shippingAddress: shipDifferent ? shipping || undefined : undefined, placeOfSupply: pos || undefined, reverseCharge,
+        customerName: customer!.name, customerGstin: gstin || undefined,
+        // the addresses in parts; ticked "same as billing": the goods go to the billing address (no address of their own)
+        billing: addressBody({ ...billTo, state: gstinState ?? billTo.state }), shipSameAsBilling: shipSame,
+        shipping: shipSame ? null : addressBody(shipTo),
+        placeOfSupply: pos || undefined, reverseCharge,
         lineItems: lines.filter(l => String(l.description).trim()).map(l => ({
           itemId: l.itemId, description: String(l.description).trim(), hsnSacCode: l.hsnSacCode || undefined, quantity: l.quantity,
           unit: l.unit || undefined, unitPrice: l.unitPrice === '' ? 0 : l.unitPrice, discountPct: l.discountPct || 0, gstRate: l.gstRate,
@@ -246,6 +260,9 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
   if (lines.some(l => String(l.description).trim() && (l.unitPrice === '' || Number(l.quantity) <= 0))) problems.push('Every line needs a quantity and a rate')
   if (totals.error) problems.push(totals.error)
   if (gstinCheck && !gstinCheck.valid) problems.push("The customer's GSTIN isn't valid")
+  { const bad = addressProblem(billTo, 'billing') ?? (shipSame ? null : addressProblem(shipTo, 'shipping')); if (bad) problems.push(bad) }
+  if (customer?.id && !shipSame && addressEmpty(shipTo)) problems.push('Enter the shipping address, or tick “Same as billing address”')
+  if (!shipSame && shipTo.gstin?.trim() && !checkGstin(shipTo.gstin).valid) problems.push("The receiver's GSTIN isn't valid")
   if (due && date && due < date) problems.push("The due date can't be before the invoice date")
   // an expired batch can't be billed (the server refuses it too)
   lines.forEach((l, i) => {
@@ -293,8 +310,7 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
         <CustomerPicker value={customer} onChange={c => {
           setCustomer(c)
           setGstin(c?.gstin ?? '')
-          setBilling(c?.billingAddress ?? '')
-          setShipping(c?.shippingAddress ?? '')
+          takeAddresses(c)
           if (c?.paymentTerms && !editing) { setTerms(c.paymentTerms); setDueTouched(false) }
           setPos('')
         }} />
@@ -324,17 +340,31 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
                 Tax payable on reverse charge
               </label>
             </div>
-            <div className="md:col-span-2">
-              <label className="label">Billing address</label>
-              <textarea className="input" rows={2} value={billing} onChange={e => setBilling(e.target.value)} />
-            </div>
-            <div>
-              <label className="flex items-center gap-2 text-sm cursor-pointer mb-1.5">
-                <input type="checkbox" checked={shipDifferent} onChange={e => setShipDifferent(e.target.checked)} />
-                Ship to a different address
+            <fieldset className="md:col-span-3 space-y-2" data-testid="bill-to">
+              <legend className="text-sm font-semibold mb-1">Billing address</legend>
+              <AddressFields idPrefix="bill" which="billing" value={billTo} onChange={v => setBillTo(v)} stateFromGstin={gstinState} />
+            </fieldset>
+            <fieldset className="md:col-span-3 space-y-2" data-testid="ship-to">
+              <legend className="text-sm font-semibold mb-1">Shipping address</legend>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" id="ship-same" checked={shipSame}
+                  onChange={e => {
+                    const same = e.target.checked
+                    setShipSame(same)
+                    // unticked with nothing entered yet: start from the billing address, to change only what differs
+                    if (!same && addressEmpty(shipTo)) setShipTo(t => ({ ...t, ...billTo, state: gstinState ?? billTo.state }))
+                  }} />
+                Same as billing address
               </label>
-              {shipDifferent && <textarea className="input" rows={2} value={shipping} onChange={e => setShipping(e.target.value)} placeholder="Delivery address" />}
-            </div>
+              {shipSame ? (
+                <div className="rounded-lg px-3 py-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                  <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>The goods go to the billing address:</p>
+                  <AddressText value={{ name: customer.name, ...billTo, state: gstinState ?? billTo.state, gstin }} empty="Enter the billing address above" testId="ship-summary" />
+                </div>
+              ) : (
+                <AddressFields idPrefix="ship" which="shipping" withName withGstin value={shipTo} onChange={v => setShipTo(v)} />
+              )}
+            </fieldset>
           </div>
         )}
       </div>

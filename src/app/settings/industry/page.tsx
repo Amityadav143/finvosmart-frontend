@@ -58,6 +58,14 @@ export default function IndustryPage() {
   const packList = Array.isArray(packs.data) ? packs.data : []
 
   const [picked, setPicked] = useState<string | null>(null)
+  // a template the sectors chosen at sign-up suggest (?suggest=MANUFACTURING): picked to start with
+  const [suggested, setSuggested] = useState<string | null>(null)
+  useEffect(() => { try { setSuggested(new URLSearchParams(window.location.search).get('suggest')) } catch { /* no URL */ } }, [])
+  useEffect(() => {
+    if (!suggested || picked || !packList.length) return
+    const p = packList.find(x => x.code === suggested)
+    if (p && !p.applied) { setPicked(p.code); setVariant(p.appliedVariant ?? (p.variants.length === 1 ? p.variants[0].code : null)) }
+  }, [suggested, packList]) // eslint-disable-line react-hooks/exhaustive-deps
   const [variant, setVariant] = useState<string | null>(null)
   const pack = packList.find(p => p.code === picked) ?? null
   // start on the main sector (or nothing) once the company's templates are known
@@ -118,7 +126,8 @@ export default function IndustryPage() {
                 <span className="flex items-center gap-2">
                   <Icon size={16} style={{ color: on ? 'var(--gold)' : 'var(--text-muted)' }} aria-hidden />
                   <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</span>
-                  {p.primary ? <Badge variant="gold" className="ml-auto">Main</Badge> : p.applied ? <Badge variant="success" className="ml-auto">Applied</Badge> : null}
+                  {p.primary ? <Badge variant="gold" className="ml-auto">Main</Badge> : p.applied ? <Badge variant="success" className="ml-auto">Applied</Badge>
+                    : p.code === suggested ? <Badge variant="gold" className="ml-auto">Suggested</Badge> : null}
                 </span>
                 <span className="block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{p.forWho}</span>
               </button>

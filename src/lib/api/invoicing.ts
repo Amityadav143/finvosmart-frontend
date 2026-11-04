@@ -10,6 +10,7 @@
  */
 
 import { api } from './client'
+import type { AddressParts, ShipToParts } from '@/lib/address'
 import type { ApiResponse, PageResponse, Invoice, InvoiceStats, InvoicePaymentRecord, InvoiceType, Prescription, ScheduleCheck, DrugRegister } from '@/types'
 
 export interface InvoiceLineInput {
@@ -22,6 +23,8 @@ export interface InvoiceLineInput {
 export interface InvoiceInput {
   invoiceType: InvoiceType; invoiceDate: string; dueDate?: string | null; customerId: string
   customerName?: string; customerGstin?: string; billingAddress?: string; shippingAddress?: string
+  /** the billing address in parts; whether the goods go there; where they go when not */
+  billing?: AddressParts; shipSameAsBilling?: boolean; shipping?: ShipToParts | null
   placeOfSupply?: string; reverseCharge?: boolean; lineItems: InvoiceLineInput[]
   paymentTerms?: string; notes?: string; terms?: string; discountAmount?: string | number | null; roundOff?: boolean
   customerPoNumber?: string; workOrderNumber?: string; contractNumber?: string; referenceLetterNumber?: string

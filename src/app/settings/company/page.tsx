@@ -21,6 +21,8 @@ import { PaymentSettings } from '@/components/settings/PaymentSettings'
 import { apiError } from '@/lib/utils'
 import { useExtraFields, ExtraFields } from '@/components/industry/ExtraFields'
 import { usePermissions } from '@/lib/hooks/usePermissions'
+import { sectorsApi, PACK_NAMES } from '@/lib/api/sectors'
+import { SectorPicker } from '@/components/onboarding/SectorPicker'
 
 const TABS = ['General', 'Payments & invoices', 'Financial'] as const
 
@@ -149,6 +151,7 @@ function CompanySettings(){
         </div>
       )}
 
+      {company && tab==='General' && <BusinessSectorsCard />}
       {company && tab==='General' && <CompanyDetails companyId={company.id} />}
 
       {company && tab==='Payments & invoices' && <PaymentSettings/>}
@@ -219,6 +222,42 @@ function CompanyDetails({ companyId }: { companyId: string }) {
           <Save className="w-4 h-4" />{save.isPending ? 'Saving…' : 'Save details'}</button>}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><ExtraFields state={extra} title=" " readOnly={!canEdit} /></div>
+    </div>
+  )
+}
+
+/** The business sectors (chosen at sign-up): searchable, several at once, "Other" in the company's own words. */
+function BusinessSectorsCard() {
+  const qc = useQueryClient()
+  const { can } = usePermissions()
+  const { data } = useQuery({ queryKey: ['company-sectors'], queryFn: sectorsApi.get })
+  const [codes, setCodes] = useState<string[] | null>(null)
+  const [other, setOther] = useState<string | null>(null)
+  const chosen = codes ?? data?.sectors ?? []
+  const words = other ?? data?.other ?? ''
+  const save = useMutation({
+    mutationFn: () => sectorsApi.save(chosen, words),
+    onSuccess: d => { qc.setQueryData(['company-sectors'], d); setCodes(null); setOther(null); toast.success('Sectors saved') },
+    onError: (e: any) => toast.error(apiError(e, 'The sectors could not be saved')),
+  })
+  if (!data) return null
+  const changed = codes !== null || other !== null
+  return (
+    <div className="card space-y-3" data-testid="company-sectors">
+      <div>
+        <h2 className="font-semibold">Business sectors</h2>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          What your business does. {data.suggestedPacks.length > 0
+            ? <>It suggests the <a href={`/settings/industry?suggest=${data.suggestedPacks[0]}`} className="underline">{data.suggestedPacks.map(p => PACK_NAMES[p] ?? p).join(', ')}</a> set-up.</>
+            : 'It suggests the set-up and invoice design that fit.'}
+        </p>
+      </div>
+      {can('SETTINGS_COMPANY') ? <>
+        <SectorPicker catalog={data.catalog} value={chosen} other={words} onChange={setCodes} onOther={setOther} />
+        <button className="btn-primary h-9 px-4 text-sm" disabled={!changed || !chosen.length || save.isPending} onClick={() => save.mutate()}>
+          {save.isPending ? 'Saving…' : 'Save sectors'}
+        </button>
+      </> : <p className="text-sm">{data.description || 'Not chosen yet.'}</p>}
     </div>
   )
 }

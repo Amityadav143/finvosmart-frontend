@@ -20,8 +20,8 @@
  *  • Have a lawyer review before relying on these documents.
  */
 
-export const LEGAL_VERSION = '2026-10-23'
-export const LEGAL_UPDATED = '23 October 2026'
+export const LEGAL_VERSION = '2026-11-04'
+export const LEGAL_UPDATED = '4 November 2026'
 
 export const LEGAL_ENTITY = {
   name: 'Navgrow Engineering Service Pvt. Ltd.',
@@ -51,7 +51,9 @@ export const PRIVACY: LegalDoc = {
       'Company details: your business name and, if you add them, your GSTIN, address and other registration details.',
       'If you sign up or sign in with Google: your name, email address and profile photo, after Google confirms your identity, and Google\'s ID for your Google account, so we recognise it next time. We never see your Google password.',
       'Records you add while using Finvosmart, such as invoices, customer and vendor details, and employee records.',
-      'Security and usage data: IP address, browser type, sign-in times and server logs of requests to our service.',
+      'Security and usage data: IP address, browser type, sign-in times and server logs of requests to our service. For each signed-in device we keep its browser, IP address and when it was last used, so you can see your devices and sign any of them out.',
+      'To give each business and person one free trial: a one-way hash (SHA-256) of the sign-up email address, mobile number and PAN — not the details themselves.',
+      'If you subscribe: the plan, amounts and Razorpay\'s reference for each payment. Card, UPI and bank details are entered with Razorpay, not with us, and we never see them.',
       'Messages you send us, such as support requests.',
     ]},
     { id: 'use', h2: 'Why we use it', bullets: [
@@ -71,12 +73,14 @@ export const PRIVACY: LegalDoc = {
       'Our email delivery provider, which sends account emails such as sign-in codes and password resets.',
       'Google, if you sign up or sign in with Google: the button and the sign-in window come from Google, which handles that step under its own privacy policy and then tells us who you are. We check its answer with the public keys Google publishes; we don\'t send your data to Google.',
       'Meta\'s WhatsApp Business service, only if your business turns on WhatsApp sending: the recipient\'s number and the message or invoice being sent.',
+      'Razorpay, our payment partner, when you subscribe to a paid plan: the amount, your company name, and the name, email address and mobile number entered at checkout. Razorpay processes the payment under its own privacy policy.',
       'The Government of India\'s e-invoice (IRP) and e-way bill systems, only when you generate an e-invoice or e-way bill: the invoice details the law requires, including your customer\'s GSTIN.',
     ], after: [
       'We may also disclose personal data where the law requires it, for example to comply with a valid order from a court or government authority.',
     ]},
     { id: 'cookies', h2: 'Cookies and tracking', paragraphs: [
-      'We do not use advertising or analytics trackers. To keep you signed in, the app stores your session in your browser\'s local storage, together with preferences such as the light or dark theme. Signing out removes your session.',
+      'We do not use advertising or analytics trackers. To keep you signed in, our server sets one cookie (finvo_rt) that holds your sign-in: it is HttpOnly (scripts in the page can\'t read it), sent only to our sign-in service, and never to other websites. The app keeps your name, company and preferences, such as the light or dark theme, in your browser\'s local storage. Signing out ends your session on our server and removes the cookie.',
+      'When you subscribe, the payment window is loaded from Razorpay, which may use its own cookies under Razorpay\'s privacy policy.',
       'Where Google sign-in is offered, the sign-in and sign-up pages load Google\'s button from Google, which may use Google\'s own cookies under Google\'s privacy policy.',
     ]},
     { id: 'security', h2: 'How we protect it', bullets: [
@@ -133,7 +137,9 @@ export const TERMS: LegalDoc = {
       `Tell us immediately at ${E} if you suspect unauthorised access.`,
     ]},
     { id: 'plans', h2: 'Free trial, plans and payment', paragraphs: [
-      'New businesses get a 14-day free trial, with no credit card required. To keep using Finvosmart after the trial, choose a paid plan.',
+      'New businesses get a 7-day free trial, with no credit card required. One free trial is given per business (its PAN) and per person (their email address and phone number).',
+      'When the trial ends without a paid plan, your account stays open read-only: you can sign in, view and export your records, and subscribe, but not add or change anything. Your data is not deleted. Choosing a paid plan restores full access straight away.',
+      'Paid plans are billed monthly or yearly in advance through our payment partner, Razorpay. Some features, such as customising document templates, are only in the paid plans.',
       'Plans and prices are shown on our pricing page and may change. We will give you advance notice before a price change applies to you. Applicable taxes, such as GST, are charged as required by law.',
     ]},
     { id: 'your-data', h2: 'Your data', paragraphs: [

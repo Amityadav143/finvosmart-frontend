@@ -18,7 +18,8 @@ import { authApi } from '@/lib/api/auth'
 import { useTheme } from '@/lib/context/ThemeContext'
 import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
 import { handOverGoogleSignIn, takeGoogleSignIn } from '@/lib/googleHandoff'
-import { checkNewSession, explainSignInProblem, sessionEndedNote, verifyStoredSession, changePasswordAs, type SignInProblem } from '@/lib/auth/sessionCheck'
+import { checkNewSession, explainSignInProblem, sessionEndedNote, verifyStoredSession, changePasswordAs, problemFrom, type SignInProblem } from '@/lib/auth/sessionCheck'
+import { announceSignIn, forgetHere, takeAuth } from '@/lib/auth/session'
 import { signInError } from '@/lib/auth/signInError'
 import { ServerNotice } from '@/components/auth/ServerNotice'
 import { askServer } from '@/lib/auth/server'
@@ -38,7 +39,6 @@ function nextPath(): string {
 
 export default function LoginPage() {
   const router   = useRouter()
-  const { setAuth } = useAuthStore()
   const { toggle, isDark } = useTheme()
 
   const [form, setForm]       = useState({ email: '', password: '', companyCode: '' })
@@ -87,6 +87,7 @@ export default function LoginPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       if (params.get('expired') === '1') { setExpired(true); setEndedWhy(params.get('reason') ?? '') }
+      if (params.get('signedout') === '1') { setExpired(true); setEndedWhy('LOGGED_OUT') }
       if (params.get('register') === '1' || params.get('trial') === '1') {
         // Old "start trial" links pointed here; self-service sign-up now has its own page.
         router.replace('/register')
@@ -102,15 +103,14 @@ export default function LoginPage() {
     const go = async () => {
       const saved = useAuthStore.getState()
       if (!saved.isAuthenticated) return
-      const v = await verifyStoredSession(saved.accessToken, saved.refreshToken)
+      const v = await verifyStoredSession()
       // Signed in meanwhile (or out, in another way): that session stands — the answer is about the old one
       const now = useAuthStore.getState()
-      if (!live || now.accessToken !== saved.accessToken || now.refreshToken !== saved.refreshToken) return
+      if (!live || (now.accessToken && now.accessToken !== v.renewed?.accessToken)) return
       if (v.state === 'ok') {
-        if (v.renewed) setAuth(v.renewed)
         router.replace(nextPath())
       } else if (v.state === 'ended') {
-        useAuthStore.getState().logout()
+        forgetHere()
       }
     }
     if (useAuthStore.persist.hasHydrated()) go()
@@ -132,7 +132,8 @@ export default function LoginPage() {
       setPending(auth); setNewPw({ next: '', again: '' }); setError(''); setStep('newPassword')
       return false
     }
-    setAuth(auth)
+    takeAuth(auth)
+    announceSignIn(auth)                // other tabs showing someone else reload
     toast.success(`${greeting}${auth.fullName ? ', ' + auth.fullName.split(' ')[0] : ''}!`)
     router.push(nextPath())
     return true
@@ -268,6 +269,14 @@ export default function LoginPage() {
       setPending(null); setForm(f => ({ ...f, password: '' }))
       await openApp({ ...fresh, passwordChangeRequired: false }, 'Password changed. Welcome')
     } catch (err: any) {
+      // The waiting session refused (two backends, a proxy dropping the sign-in…): the server's set-up,
+      // explained — the server's own words, "Your session has ended", only sent people round in circles.
+      const refused = problemFrom(err)
+      if (refused) {
+        setPending(null); setForm(f => ({ ...f, password: '' })); setNewPw({ next: '', again: '' })
+        setStep('login'); setProblem(refused)
+        return
+      }
       setError(apiError(err, 'The new password couldn’t be saved. Please try again.'))
     } finally { setLoading(false) }
   }

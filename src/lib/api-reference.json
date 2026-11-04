@@ -9,14 +9,14 @@
     {
      "method": "POST",
      "path": "/api/v1/auth/login",
-     "summary": "Login — returns access + refresh JWT tokens",
+     "summary": "Login — returns access + refresh JWT tokens (the web app gets the refresh token as an HttpOnly cookie)",
      "permissions": [],
      "public": true
     },
     {
      "method": "POST",
      "path": "/api/v1/auth/refresh",
-     "summary": "Refresh access token using a valid refresh token",
+     "summary": "Refresh access token using a valid refresh token (body, or the web app's cookie)",
      "permissions": [],
      "public": true
     }

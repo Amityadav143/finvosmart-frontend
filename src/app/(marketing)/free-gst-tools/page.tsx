@@ -76,7 +76,7 @@ export default function FreeGstToolsPage() {
       </section>
 
       <FaqList items={C.faqs} />
-      <CtaBand title="When you outgrow the free tools" text="Finvosmart puts the right GST on every invoice, keeps your books, and prepares GSTR-1, GSTR-3B and payroll files — free for 14 days." />
+      <CtaBand title="When you outgrow the free tools" text="Finvosmart puts the right GST on every invoice, keeps your books, and prepares GSTR-1, GSTR-3B and payroll files — free for 7 days." />
     </div>
   )
 }

@@ -139,7 +139,7 @@ export default function LandingPageContent() {
                 </Link>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                {['No credit card', '14-day free trial', 'Cancel anytime'].map(t => (
+                {['No credit card', '7-day free trial', 'Cancel anytime'].map(t => (
                   <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>
                     <Check size={14} style={{ color: '#22C55E' }} aria-hidden /> {t}
                   </span>
@@ -539,7 +539,7 @@ export default function LandingPageContent() {
                 Ready to run your business<br />from one platform?
               </h2>
               <p style={{ fontSize: '17px', color: 'var(--text-on-gold)', maxWidth: '520px', margin: '0 auto 34px' }}>
-                Join Indian businesses replacing seven tools with FINVOSMART. Free for 14 days.
+                Join Indian businesses replacing seven tools with FINVOSMART. Free for 7 days.
               </p>
               <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Link href="/register" className="lp-lift" style={{ ...S.btn(), background: 'var(--bg-base)', color: 'var(--text-primary)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>

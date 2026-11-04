@@ -31,7 +31,7 @@ export function GET() {
     'inventory, purchase orders, projects, and HR (employees, attendance register, leave, hiring and performance',
     'reviews), with customer and supplier statements of account, in-app notifications, signed webhooks and one',
     'search box across records. E-invoice (IRN) and e-way bill generation is not built yet. The app is in English;',
-    'support is in English and Hindi. Prices are in Indian rupees, with a 14-day free trial.',
+    'support is in English and Hindi. Prices are in Indian rupees, with a 7-day free trial.',
     '',
     '## Product',
     ...(['features', 'pricing', 'customPlan', 'gstBilling', 'accountingSoftware', 'payrollSoftware', 'hrmsSoftware', 'eInvoicing', 'tallyAlternative'] as PageKey[]).map(link),

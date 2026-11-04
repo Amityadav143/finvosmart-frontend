@@ -147,6 +147,8 @@ const nextConfig = {
   // Suppress webpack warnings for browser-only fallbacks.
   webpack: (config, { isServer }) => {
     config.resolve.fallback = { ...config.resolve.fallback, fs: false }
+    // pdf.js (the in-page PDF preview) only needs node-canvas when run under Node, which the app never does.
+    config.resolve.alias = { ...config.resolve.alias, canvas: false }
     return config
   },
 }

@@ -182,7 +182,7 @@ export default function FeaturesPage() {
             <Link href="/register" className="lp-lift" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '14px 32px', borderRadius: '10px', background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)', textDecoration: 'none', fontWeight: 600, fontSize: '16px', boxShadow: 'var(--btn-primary-shadow)' }}>
               Start your free trial <ArrowRight size={16} aria-hidden />
             </Link>
-            <p style={{ marginTop: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>14-day trial · No credit card · <Link href="/pricing" className="text-link">See pricing</Link></p>
+            <p style={{ marginTop: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>7-day trial · No credit card · <Link href="/pricing" className="text-link">See pricing</Link></p>
           </div>
         </div>
       </section>

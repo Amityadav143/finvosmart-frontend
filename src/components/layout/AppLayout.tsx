@@ -10,11 +10,13 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useState, useEffect, useRef, createContext, useContext } from 'react'
+import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/slices/authStore'
+import { followOtherTabs, forgetHere, renewSession } from '@/lib/auth/session'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { TrialBanner } from '../billing/TrialBanner'
 import { CommandPalette } from '../ui/CommandPalette'
 import { ShortcutsHelp } from './ShortcutsHelp'
 import { useCreateAllowed } from './QuickCreate'
@@ -71,6 +73,29 @@ function Shell({ children }: { children: React.ReactNode }) {
     router.replace(here && here !== '/' ? `/login?next=${encodeURIComponent(here)}` : '/login')
   }, [hydrated, isAuthenticated, router])
 
+  // After a reload the access token (kept in memory only) is gone: the session is renewed with its cookie before
+  // the app shows anything. Refused: the session is over (the sign-in page says why). No answer: say so and retry.
+  const accessToken = useAuthStore(s => s.accessToken)
+  const [renewal, setRenewal] = useState<'idle' | 'renewing' | 'offline'>('idle')
+  const renew = useCallback(() => {
+    setRenewal('renewing')
+    renewSession().then(r => {
+      if (r.ok) { setRenewal('idle'); return }
+      if (!r.ended) { setRenewal('offline'); return }
+      forgetHere()
+      const here = window.location.pathname + window.location.search
+      window.location.href = `/login?expired=1${r.reason && /^[A-Z_]{1,40}$/.test(r.reason) ? `&reason=${r.reason}` : ''}&next=${encodeURIComponent(here)}`
+    })
+  }, [])
+  useEffect(() => {
+    if (hydrated && isAuthenticated && !accessToken && renewal === 'idle') renew()
+  }, [hydrated, isAuthenticated, accessToken, renewal, renew])
+  // Other tabs: signed out there → signed out here; someone else signed in → reload, so nothing of this person stays
+  useEffect(() => followOtherTabs(
+    () => { window.location.href = '/login?signedout=1' },
+    () => { window.location.reload() },
+  ), [])
+
   // Ctrl/⌘ K or "/" search · "?" shortcuts · "g" then a letter goes to a list · "n" then a letter creates
   useEffect(() => {
     let lead: 'g' | 'n' | null = null
@@ -100,6 +125,19 @@ function Shell({ children }: { children: React.ReactNode }) {
   }, [router])
 
   if (!hydrated || !isAuthenticated) return null
+  if (!accessToken) return (
+    <div className="flex h-screen items-center justify-center p-6" style={{ background: 'var(--bg-base)' }} data-testid="session-renewing">
+      {renewal === 'offline' ? (
+        <div className="card max-w-sm text-center space-y-3">
+          <p className="font-semibold">Can’t reach the server</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>You are still signed in. Check your connection — the app opens as soon as the server answers.</p>
+          <button className="btn-primary h-9 px-4" onClick={renew}>Try again</button>
+        </div>
+      ) : (
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }} role="status">Opening Finvosmart…</p>
+      )}
+    </div>
+  )
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-base)' }}>
@@ -122,6 +160,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar onMenuClick={() => setSidebarOpen(true)} onSearchOpen={() => setCmdOpen(true)} onShortcuts={() => setHelpOpen(true)} />
+        <TrialBanner />
         <main className="flex-1 overflow-y-auto p-5 md:p-6 page-enter" style={{ background: 'var(--bg-base)' }}>
           <div className="max-w-screen-2xl mx-auto">{children}</div>
         </main>

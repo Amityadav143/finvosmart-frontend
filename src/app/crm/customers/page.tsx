@@ -24,7 +24,9 @@ import { usePermissions } from '@/lib/hooks/usePermissions'
 import { Customer } from '@/types'
 import { useDebounce } from '@/lib/hooks'
 import { useUrlParams } from '@/lib/hooks/useUrlParams'
-import { inr, PLACES_OF_SUPPLY } from '@/lib/money'
+import { inr } from '@/lib/money'
+import { AddressFields, AddressText } from '@/components/ui/AddressFields'
+import { EMPTY_ADDRESS, EMPTY_SHIP_TO, addressEmpty, addressProblem, customerBilling, customerShipping, customerShipsToBilling, type AddressParts, type ShipToParts } from '@/lib/address'
 import Link from 'next/link'
 import { Plus, Users, AlertCircle, BellOff, FileUp, ScrollText } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -35,16 +37,18 @@ import { useIndustry } from '@/lib/hooks/useIndustry'
 
 interface Form {
   name: string; email: string; phone: string; gstin: string; creditLimit: string; customerType: string
-  billingAddress: string; shippingAddress: string; city: string; state: string; paymentTerms: string; notes: string; remindersEnabled: boolean
+  /** the billing address in parts (its state is the customer's state); whether goods go there; where they go when not */
+  billing: AddressParts; shipSame: boolean; shipping: ShipToParts
+  paymentTerms: string; notes: string; remindersEnabled: boolean
 }
-const BLANK_CUST: Form = { name: '', email: '', phone: '', gstin: '', creditLimit: '', customerType: 'REGULAR', billingAddress: '', shippingAddress: '',
-  city: '', state: '', paymentTerms: '', notes: '', remindersEnabled: true }
+const BLANK_CUST: Form = { name: '', email: '', phone: '', gstin: '', creditLimit: '', customerType: 'REGULAR', billing: { ...EMPTY_ADDRESS },
+  shipSame: true, shipping: { ...EMPTY_SHIP_TO }, paymentTerms: '', notes: '', remindersEnabled: true }
 const TERMS = ['Due on receipt', 'Net 7', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Net 90']
 
 const fromCustomer = (c: Customer): Form => ({
   name: c.name ?? '', email: c.email ?? '', phone: c.phone ?? '', gstin: c.gstin ?? '', creditLimit: c.creditLimit ? String(c.creditLimit) : '',
-  customerType: c.customerType ?? 'REGULAR', billingAddress: c.billingAddress ?? '', shippingAddress: c.shippingAddress ?? '', city: c.city ?? '',
-  state: c.state ?? '', paymentTerms: c.paymentTerms ?? '', notes: c.notes ?? '', remindersEnabled: c.remindersEnabled !== false,
+  customerType: c.customerType ?? 'REGULAR', billing: customerBilling(c), shipSame: customerShipsToBilling(c), shipping: customerShipping(c),
+  paymentTerms: c.paymentTerms ?? '', notes: c.notes ?? '', remindersEnabled: c.remindersEnabled !== false,
 })
 
 /** Validation shared by "add" and "edit". */
@@ -52,6 +56,10 @@ function problem(form: Form): string | null {
   if (!form.name.trim()) return 'Customer name is required'
   if (form.gstin.trim()) { const g = checkGstin(form.gstin); if (!g.valid) return `GSTIN: ${g.problems[0]}` }
   if (form.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) return 'Email address looks wrong'
+  const bad = addressProblem(form.billing, 'billing') ?? (form.shipSame ? null : addressProblem(form.shipping, 'shipping'))
+  if (bad) return bad
+  if (!form.shipSame && addressEmpty(form.shipping)) return 'Enter the shipping address, or tick “Same as billing address”.'
+  if (!form.shipSame && form.shipping.gstin?.trim()) { const g = checkGstin(form.shipping.gstin); if (!g.valid) return `Shipping GSTIN: ${g.problems[0]}` }
   return null
 }
 
@@ -59,9 +67,17 @@ const payload = (form: Form) => ({
   name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim(),
   gstin: form.gstin.trim() ? checkGstin(form.gstin).gstin : '',
   creditLimit: form.creditLimit ? Number(form.creditLimit) : 0, customerType: form.customerType as any,
-  billingAddress: form.billingAddress, shippingAddress: form.shippingAddress, city: form.city.trim(),
-  // the state follows the GSTIN when there is one (its first two digits)
-  state: form.gstin.trim() && checkGstin(form.gstin).valid ? (checkGstin(form.gstin).stateName ?? form.state) : form.state,
+  // the billing address in parts; its city and state are the customer's (the state follows the GSTIN when there is one)
+  billingLine1: form.billing.line1?.trim() ?? '', billingLine2: form.billing.line2?.trim() ?? '', city: form.billing.city?.trim() ?? '',
+  state: form.gstin.trim() && checkGstin(form.gstin).valid ? (checkGstin(form.gstin).stateName ?? form.billing.state ?? '') : form.billing.state ?? '',
+  billingPincode: (form.billing.pincode ?? '').replace(/\s/g, ''), billingCountry: form.billing.country?.trim() || 'India',
+  shipSameAsBilling: form.shipSame,
+  // ticked: no shipping address of its own (the server clears it); not ticked: the address the goods go to
+  ...(form.shipSame ? {} : {
+    shippingName: form.shipping.name?.trim() ?? '', shippingLine1: form.shipping.line1?.trim() ?? '', shippingLine2: form.shipping.line2?.trim() ?? '',
+    shippingCity: form.shipping.city?.trim() ?? '', shippingState: form.shipping.state?.trim() ?? '', shippingPincode: (form.shipping.pincode ?? '').replace(/\s/g, ''),
+    shippingCountry: form.shipping.country?.trim() || 'India', shippingGstin: (form.shipping.gstin ?? '').trim().toUpperCase(),
+  }),
   paymentTerms: form.paymentTerms, notes: form.notes, remindersEnabled: form.remindersEnabled,
 })
 
@@ -207,22 +223,6 @@ export default function CustomersPage() {
             <input className="input h-10" placeholder="98765 43210" value={form.phone} onChange={set('phone')} /></div>
           <div><label className="label">GSTIN</label>
             <input className="input h-10 font-mono" placeholder="Leave empty if unregistered" value={form.gstin} maxLength={15} onChange={set('gstin')} /></div>
-          <div><label className="label">State</label>
-            <select className="input h-10" value={form.state} onChange={set('state')} disabled={!!form.gstin.trim() && checkGstin(form.gstin).valid}>
-              <option value="">{form.gstin.trim() && checkGstin(form.gstin).valid ? (checkGstin(form.gstin).stateName ?? '') + ' (from GSTIN)' : '—'}</option>
-              {PLACES_OF_SUPPLY.map(p => <option key={p.code} value={p.name}>{p.name}</option>)}
-            </select></div>
-          <div style={{ gridColumn: '1/-1' }}><label className="label">Billing address</label>
-            <textarea className="input" rows={2} placeholder="Street, city, PIN" value={form.billingAddress} onChange={set('billingAddress')} /></div>
-          <div style={{ gridColumn: '1/-1' }}><label className="label">Delivery address (if different)</label>
-            <textarea className="input" rows={2} value={form.shippingAddress} onChange={set('shippingAddress')} /></div>
-          <div><label className="label">Payment terms</label>
-            <select className="input h-10" value={form.paymentTerms} onChange={set('paymentTerms')}>
-              <option value="">Company default</option>
-              {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select></div>
-          <div><label className="label">Credit limit (₹)</label>
-            <input type="number" min={0} className="input h-10" placeholder="0 = no limit" value={form.creditLimit} onChange={set('creditLimit')} /></div>
           <div><label className="label">Type</label>
             <select className="input h-10" value={form.customerType} onChange={set('customerType')}>
               <option value="REGULAR">Regular</option>
@@ -230,6 +230,34 @@ export default function CustomersPage() {
               <option value="GOVERNMENT">Government</option>
               <option value="INSTITUTIONAL">Institutional</option>
             </select></div>
+          <fieldset style={{ gridColumn: '1/-1' }} className="space-y-2" data-testid="billing-address">
+            <legend className="text-sm font-semibold mb-1">Billing address</legend>
+            <AddressFields idPrefix="cust-bill" which="billing" value={form.billing} onChange={b => setForm(f => ({ ...f, billing: b }))}
+              stateFromGstin={form.gstin.trim() && checkGstin(form.gstin).valid ? checkGstin(form.gstin).stateName ?? null : null} />
+          </fieldset>
+          <fieldset style={{ gridColumn: '1/-1' }} className="space-y-2" data-testid="shipping-address">
+            <legend className="text-sm font-semibold mb-1">Shipping address</legend>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" id="cust-ship-same" checked={form.shipSame}
+                onChange={e => setForm(f => ({ ...f, shipSame: e.target.checked,
+                  // unticked for the first time: start from the billing address, to change what differs
+                  shipping: !e.target.checked && addressEmpty(f.shipping) ? { ...f.shipping, ...f.billing } : f.shipping }))} />
+              Same as billing address
+            </label>
+            {form.shipSame
+              ? <div className="rounded-lg px-3 py-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                  <AddressText value={{ ...form.billing, state: form.gstin.trim() && checkGstin(form.gstin).valid ? checkGstin(form.gstin).stateName ?? form.billing.state : form.billing.state }}
+                    empty="The billing address above" testId="cust-ship-summary" />
+                </div>
+              : <AddressFields idPrefix="cust-ship" which="shipping" withName withGstin value={form.shipping} onChange={v => setForm(f => ({ ...f, shipping: v }))} />}
+          </fieldset>
+          <div><label className="label">Payment terms</label>
+            <select className="input h-10" value={form.paymentTerms} onChange={set('paymentTerms')}>
+              <option value="">Company default</option>
+              {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select></div>
+          <div><label className="label">Credit limit (₹)</label>
+            <input type="number" min={0} className="input h-10" placeholder="0 = no limit" value={form.creditLimit} onChange={set('creditLimit')} /></div>
           <div className="flex items-end pb-2">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={form.remindersEnabled} onChange={set('remindersEnabled')} />

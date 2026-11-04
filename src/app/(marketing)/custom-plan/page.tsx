@@ -327,7 +327,7 @@ export default function CustomPlanPage() {
                 }}>Talk to Sales</Link>
 
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px' }}>
-                  14-day free trial · No credit card · Cancel anytime
+                  7-day free trial · No credit card · Cancel anytime
                 </p>
               </div>
             </div>

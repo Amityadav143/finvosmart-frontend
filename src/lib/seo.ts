@@ -71,7 +71,7 @@ export const PAGES: Record<PageKey, PageSeo> = {
     description: "Every Finvosmart module: GST invoicing and returns, purchases, accounting, TDS, payroll, HRMS, CRM and inventory — and what is coming next.",
     priority: 0.9, changeFrequency: "monthly" },
   pricing: { path: "/pricing", label: "Pricing", title: "Pricing — GST Billing & ERP from ₹3,999/mo", absoluteTitle: false,
-    description: "Simple rupee pricing for Indian businesses. Plans from ₹3,999/month billed annually — GST billing, accounting, CRM and HRMS in one. Free 14-day trial.",
+    description: "Simple rupee pricing for Indian businesses. Plans from ₹3,999/month billed annually — GST billing, accounting, CRM and HRMS in one. Free 7-day trial.",
     priority: 0.9, changeFrequency: "weekly" },
   customPlan: { path: "/custom-plan", label: "Custom Plan", title: "Custom Plan — Pay Only for the Modules You Use", absoluteTitle: false,
     description: "Pick only the Finvosmart modules your business needs — GST billing, accounting, HRMS, CRM or inventory — and pay for nothing else.",
@@ -94,7 +94,7 @@ export const PAGES: Record<PageKey, PageSeo> = {
   gstCalculator: { path: "/gst-calculator", label: "GST Calculator", parent: "freeTools", title: "GST Calculator — Free, with GST 2.0 Rates", absoluteTitle: false,
     description: "Free GST calculator with the latest GST 2.0 rates (5%, 18%, 40%). Add or remove GST and split it into CGST, SGST or IGST instantly. No sign-up needed.",
     ogImage: "/og/gst-calculator.png", priority: 0.9, changeFrequency: "monthly" },
-  register: { path: "/register", label: "Sign Up", title: "Sign Up — Start Your 14-Day Free Trial", absoluteTitle: false,
+  register: { path: "/register", label: "Sign Up", title: "Sign Up — Start Your 7-Day Free Trial", absoluteTitle: false,
     description: "Create your Finvosmart account in a minute and try GST billing, accounting, inventory, CRM, HR and payroll for 14 days — free, no credit card needed.",
     priority: 0.7, changeFrequency: "yearly" },
   privacy: { path: "/privacy", label: "Privacy Policy", title: "Privacy Policy", absoluteTitle: false,
@@ -145,7 +145,7 @@ export const PAGES: Record<PageKey, PageSeo> = {
 export const CONTENT_UPDATED: Record<PageKey, string> = {
   home: '2026-10-22', features: '2026-10-22', pricing: '2026-10-22', customPlan: '2026-10-15',
   about: '2026-10-21', contact: '2026-10-21', login: '2026-10-21', register: '2026-10-21',
-  privacy: '2026-10-23', terms: '2026-10-23',   // must equal LEGAL_VERSION (validated)
+  privacy: '2026-11-04', terms: '2026-11-04',   // must equal LEGAL_VERSION (validated)
   gstBilling: '2026-10-22', eInvoicing: '2026-10-15', gstCalculator: '2026-10-21',
   tallyAlternative: '2026-10-22', developers: '2026-10-22', gstinChecker: '2026-10-21',
   gstInvoiceFormat: '2026-10-21', accountingSoftware: '2026-10-21', payrollSoftware: '2026-10-21',

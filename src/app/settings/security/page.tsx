@@ -21,7 +21,7 @@ import { api } from '@/lib/api/client'
 import { authApi, type GoogleLink } from '@/lib/api/auth'
 import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
 import { apiError } from '@/lib/utils'
-import { useAuthStore } from '@/lib/store/slices/authStore'
+import { takeAuth } from '@/lib/auth/session'
 import type { AuthResponse } from '@/types'
 
 interface MfaStatus { mfaEnabled: boolean; backupCodesLeft: number }
@@ -72,7 +72,6 @@ export default function SecurityPage() {
 
 function PasswordCard() {
   const qc = useQueryClient()
-  const setAuth = useAuthStore(s => s.setAuth)
   // A login made with Google has no password until one is set here (no "current password" then).
   const { data: pw } = useQuery({ queryKey: ['password-status'], queryFn: authApi.passwordStatus })
   const first = pw?.hasPassword === false
@@ -91,7 +90,7 @@ function PasswordCard() {
     try {
       const res = await api.post('/auth/change-password', first ? { newPassword: pwForm.next } : { currentPassword: pwForm.current, newPassword: pwForm.next })
       const auth = res.data?.data as AuthResponse | undefined
-      if (auth?.accessToken) setAuth(auth)        // this device stays signed in with fresh tokens
+      if (auth?.accessToken) takeAuth(auth)       // this device stays signed in with fresh tokens
       toast.success(first ? 'Password set. You can now also sign in with your email, password and company code.'
                           : 'Password changed. Your other devices have been signed out.')
       qc.setQueryData(['password-status'], { hasPassword: true })
@@ -495,30 +494,69 @@ function BackupCodes({ codes, onCopy, onDone }: { codes: string[]; onCopy: () =>
 
 // ── Signed-in devices ─────────────────────────────────────────────────────────
 
+interface SignedInDevice { id: string; device: string; ipAddress?: string; signedInAt?: string; lastActiveAt?: string; current?: boolean }
+
+const at = (iso?: string) => iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'
+
 function DevicesCard() {
-  const setAuth = useAuthStore(s => s.setAuth)
+  const qc = useQueryClient()
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [ending, setEnding] = useState<string | null>(null)
+  const { data: devices, isLoading } = useQuery<SignedInDevice[]>({
+    queryKey: ['signed-in-devices'], queryFn: () => api.get('/auth/sessions').then(r => r.data.data ?? []), staleTime: 10_000,
+  })
 
   const signOutOthers = async () => {
     setBusy(true)
     try {
       const res = await api.post('/auth/sessions/sign-out-others')
       const auth = res.data?.data as AuthResponse | undefined
-      if (auth?.accessToken) setAuth(auth)
+      if (auth?.accessToken) takeAuth(auth)
       setAsking(false)
       toast.success('Signed out of all other devices.')
+      qc.invalidateQueries({ queryKey: ['signed-in-devices'] })
     } catch (e: any) {
       toast.error(apiError(e, 'That didn’t work. Please try again.'))
     } finally { setBusy(false) }
   }
 
+  const signOutOne = async (d: SignedInDevice) => {
+    setEnding(d.id)
+    try {
+      await api.delete(`/auth/sessions/${d.id}`)
+      toast.success(`${d.device} has been signed out.`)
+      qc.invalidateQueries({ queryKey: ['signed-in-devices'] })
+    } catch (e: any) {
+      toast.error(apiError(e, 'That device could not be signed out.'))
+    } finally { setEnding(null) }
+  }
+
   return (
     <Card icon={<Monitor size={20} style={{ color: 'var(--gold)' }} />} title="Signed-in devices">
       <p style={{ ...muted, marginBottom: '14px' }}>
-        Signed in on a shared computer, or on a phone you no longer have? Sign out everywhere except here. Those devices will
-        need your password (and code, if two-step sign-in is on) to get back in.
+        Every browser and phone signed in to your account. Signed in on a shared computer, or on a phone you no longer have?
+        Sign it out here — it will need your password (and code, if two-step sign-in is on) to get back in.
       </p>
+      <ul className="space-y-2 mb-4" data-testid="device-list">
+        {isLoading && <li style={muted}>Loading…</li>}
+        {(devices ?? []).map(d => (
+          <li key={d.id} data-device={d.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
+            style={{ border: '1px solid var(--border)', background: d.current ? 'var(--gold-muted)' : 'var(--bg-surface)' }}>
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{d.device}{d.current ? ' — this device' : ''}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Signed in {at(d.signedInAt)} · last active {at(d.lastActiveAt)}{d.ipAddress ? ` · ${d.ipAddress}` : ''}
+              </p>
+            </div>
+            {!d.current && (
+              <button className="btn-secondary h-8 text-xs flex-shrink-0" disabled={ending === d.id} onClick={() => signOutOne(d)}>
+                <LogOut size={13} /> {ending === d.id ? 'Signing out…' : 'Sign out'}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
       {asking ? (
         <div style={{ padding: '14px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
           <p style={{ ...muted, marginBottom: '10px' }}>

@@ -29,6 +29,13 @@ export function apiError(e: any, fallback = 'Something went wrong. Please try ag
   if (status === 403) return 'You don’t have permission to do that. Ask an administrator for access.'
   if (status === 404) return 'That record no longer exists — it may have been removed.'
   if (status === 429) return 'Too many requests just now. Wait a moment and try again.'
-  if (status >= 500) return 'The server ran into a problem. Please try again in a minute.'
+  if (status === 402) return 'This needs an active subscription. Upgrade under Settings → Subscription to continue.'
+  if (status === 409) return 'Someone else changed this at the same moment. Refresh and try again.'
+  if (status === 503) return 'The server is busy or restarting — nothing was saved. Please try again in a moment.'
+  if (status >= 500) {
+    // the backend's reference for this request (RequestIdFilter), to quote to support
+    const ref = e?.response?.headers?.['x-request-id']
+    return 'The server ran into a problem and nothing was saved. Please try again in a minute.' + (ref ? ` (Reference ${ref})` : '')
+  }
   return fallback
 }

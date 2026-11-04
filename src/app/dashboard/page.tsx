@@ -19,6 +19,7 @@ import {
 import { SalesChart } from '@/components/dashboard/SalesChart'
 import { dashboardApi } from '@/lib/api/dashboard'
 import { OnboardingChecklist } from '@/components/ui/OnboardingChecklist'
+import { TrialCard } from '@/components/billing/TrialBanner'
 import { SectorTiles } from '@/components/industry/SectorTiles'
 import { useTheme } from '@/lib/context/ThemeContext'
 import { useAuthStore } from '@/lib/store/slices/authStore'
@@ -53,6 +54,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      <TrialCard />
       <OnboardingChecklist companyName={user?.companyName} />
       <SectorTiles />
 

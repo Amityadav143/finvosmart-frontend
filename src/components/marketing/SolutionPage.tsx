@@ -161,7 +161,7 @@ export function SolutionPage({ id }: { id: SolutionKey }) {
             <Link href="/register" className="btn-primary" style={{ height: '46px', padding: '0 26px', fontSize: '15px', textDecoration: 'none' }}>Start free trial</Link>
             <Link href="/pricing" className="btn-secondary" style={{ height: '46px', padding: '0 22px', fontSize: '15px', textDecoration: 'none' }}>See pricing</Link>
           </div>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '14px' }}>14-day free trial · No credit card · <UpdatedOn page={id} /></p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '14px' }}>7-day free trial · No credit card · <UpdatedOn page={id} /></p>
         </div>
       </section>
 

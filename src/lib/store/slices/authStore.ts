@@ -27,30 +27,37 @@ interface UserInfo {
 
 interface AuthState {
   user:            UserInfo | null
+  /** The access token: in this tab's memory only — never written to the browser's storage. */
   accessToken:     string | null
-  refreshToken:    string | null
+  /**
+   * A session is believed to be open in this browser (its refresh token is in an HttpOnly cookie that scripts
+   * can't read). Kept with the profile, so a reload knows to renew the session before showing the app.
+   */
   isAuthenticated: boolean
   setAuth:  (auth: AuthResponse) => void
+  setAccessToken: (token: string | null) => void
   logout:   () => void
 }
 
 /**
- * Zustand auth store with Zustand-persist.
- *
- * FIX (v1.2): Removed manual localStorage.setItem() calls from setAuth/logout.
- * All persistence is now handled solely by Zustand's persist middleware.
- * This eliminates the dual-write bug where two separate localStorage entries
- * were maintained, creating risk of inconsistent state on partial clears.
- *
- * The Axios client reads accessToken / refreshToken directly from localStorage
- * via the keys Zustand persist writes under the 'finvo-auth' key.
+ * A refresh token saved by a version from before the cookie (it kept both tokens in localStorage): taken once
+ * by the API client, which moves the session into the cookie and forgets it (lib/api/client.ts).
+ */
+let legacyRefreshToken: string | null = null
+export const takeLegacyRefreshToken = () => { const t = legacyRefreshToken; legacyRefreshToken = null; return t }
+/** Puts it back when the server couldn't be reached (kept in memory only, never written to storage again). */
+export const restoreLegacyRefreshToken = (t: string) => { if (!legacyRefreshToken) legacyRefreshToken = t }
+
+/**
+ * Who is signed in. Only the profile (name, company, roles — what the screens show) is kept in the browser's
+ * storage; the tokens are not: the access token lives in memory and the refresh token in an HttpOnly cookie set
+ * by the server (SessionCookies), out of reach of any script on the page.
  */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set): AuthState => ({
       user:            null,
       accessToken:     null,
-      refreshToken:    null,
       isAuthenticated: false,
 
       setAuth: (auth: AuthResponse) => {
@@ -66,48 +73,35 @@ export const useAuthStore = create<AuthState>()(
             roles:            auth.roles       ?? [],
             permissions:      auth.permissions ?? [],
           },
-          accessToken:     auth.accessToken,
-          refreshToken:    auth.refreshToken,
+          accessToken:     auth.accessToken ?? null,
           isAuthenticated: true,
         })
       },
 
+      setAccessToken: (token: string | null) => set({ accessToken: token }),
+
       logout: () => {
-        set({
-          user:            null,
-          accessToken:     null,
-          refreshToken:    null,
-          isAuthenticated: false,
-        })
+        set({ user: null, accessToken: null, isAuthenticated: false })
       },
     }),
     {
       name:    'finvo-auth',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
-      // Persist everything — the Axios client reads from this store
-      partialize: (s: any) => ({
-        user:            s.user,
-        accessToken:     s.accessToken,
-        refreshToken:    s.refreshToken,
-        isAuthenticated: s.isAuthenticated,
-      }),
+      // the profile only — never a token
+      partialize: (s: AuthState) => ({ user: s.user, isAuthenticated: s.isAuthenticated }) as any,
+      // version 0 kept both tokens here: the refresh token moves into the cookie (once), the access token is dropped
+      migrate: (persisted: any, version: number) => {
+        if (version < 1 && persisted && typeof persisted.refreshToken === 'string' && persisted.refreshToken) {
+          legacyRefreshToken = persisted.refreshToken
+        }
+        return { user: persisted?.user ?? null, isAuthenticated: !!persisted?.isAuthenticated } as any
+      },
+      // a copy restored from storage never carries a token into memory
+      merge: (persisted: any, current: AuthState) => ({ ...current, user: persisted?.user ?? null, isAuthenticated: !!persisted?.isAuthenticated }),
     }
   )
 )
 
-// Helper: read token synchronously (for Axios interceptor)
-export const getAccessToken  = () => {
-  try {
-    const raw = localStorage.getItem('finvo-auth')
-    if (!raw) return null
-    return JSON.parse(raw)?.state?.accessToken ?? null
-  } catch { return null }
-}
-
-export const getRefreshToken = () => {
-  try {
-    const raw = localStorage.getItem('finvo-auth')
-    if (!raw) return null
-    return JSON.parse(raw)?.state?.refreshToken ?? null
-  } catch { return null }
-}
+/** The access token, for the API client (memory only). */
+export const getAccessToken = () => useAuthStore.getState().accessToken

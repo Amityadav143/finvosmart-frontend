@@ -25,8 +25,11 @@ import { Notice } from '@/components/invoicing/InvoiceForm'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { formatDate, apiError } from '@/lib/utils'
 import { DOC_LABEL, PAYMENT_MODES, STATUS_LABEL, inr, todayIST } from '@/lib/money'
+import { AddressText } from '@/components/ui/AddressFields'
+import { fromText } from '@/lib/address'
 import type { Invoice, InvoicePaymentRecord } from '@/types'
 import { DocumentReview } from '@/components/ca/DocumentReview'
+import { PdfViewer } from '@/components/pdf/PdfViewer'
 
 const errText = (e: any, fallback: string) => apiError(e, fallback)
 
@@ -39,8 +42,12 @@ function duplicateInvoice(src: Invoice): Promise<Invoice> {
   const lineDiscounts = (src.lineItems ?? []).some(l => Number(l.discountPct) > 0)
   const body: InvoiceInput = {
     invoiceType: src.invoiceType, invoiceDate: todayIST(), dueDate: null, customerId: src.customerId,
-    customerName: src.customerName, customerGstin: src.customerGstin, billingAddress: src.billingAddress,
-    shippingAddress: src.shippingAddress, placeOfSupply: src.placeOfSupply, reverseCharge: !!src.reverseCharge,
+    customerName: src.customerName, customerGstin: src.customerGstin,
+    // the same addresses, in parts (older documents: as their text)
+    ...(src.billing ? { billing: src.billing } : { billingAddress: src.billingAddress }),
+    shipSameAsBilling: src.shipSameAsBilling ?? !src.shippingAddress,
+    ...(src.shipping ? { shipping: src.shipping } : src.shippingAddress ? { shippingAddress: src.shippingAddress } : {}),
+    placeOfSupply: src.placeOfSupply, reverseCharge: !!src.reverseCharge,
     lineItems: (src.lineItems ?? []).map(l => ({ itemId: l.itemId ?? undefined, description: l.description, hsnSacCode: l.hsnSacCode, quantity: l.quantity, unit: l.unit,
       unitPrice: l.unitPrice, discountPct: l.discountPct ?? 0, gstRate: l.gstRate })),
     paymentTerms: src.paymentTerms, notes: src.notes, terms: src.terms,
@@ -62,18 +69,20 @@ function InvoiceDetail() {
   const { can, canAny } = usePermissions()
   const [modal, setModal] = useState<'send' | 'pay' | 'cancel' | null>(null)
   const [voiding, setVoiding] = useState<InvoicePaymentRecord | null>(null)
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [pdf, setPdf] = useState<Blob | null>(null)
+  const [pdfFailed, setPdfFailed] = useState(false)
 
   const { data: inv, isLoading, isError } = useQuery({ queryKey: ['invoice', id], queryFn: () => invoicingApi.get(id) })
   const { data: payments = [] } = useQuery({ queryKey: ['invoice-payments', id], queryFn: () => invoicingApi.payments(id), enabled: !!inv && inv.status !== 'DRAFT' })
 
-  // the PDF exactly as the customer gets it (refreshes when the invoice changes)
+  // the PDF exactly as the customer gets it (refreshes when the invoice changes), drawn on the page by pdf.js
   useEffect(() => {
     if (!inv) return
-    let url: string | null = null, cancelled = false
-    invoicingApi.pdf(inv.id).then(blob => { if (!cancelled) { url = URL.createObjectURL(blob); setPdfUrl(url) } }).catch(() => setPdfUrl(null))
-    return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
-  }, [inv?.id, inv?.status, inv?.outstanding]) // eslint-disable-line react-hooks/exhaustive-deps
+    let cancelled = false
+    setPdfFailed(false)
+    invoicingApi.pdf(inv.id).then(blob => { if (!cancelled) setPdf(blob) }).catch(() => { if (!cancelled) { setPdf(null); setPdfFailed(true) } })
+    return () => { cancelled = true }
+  }, [inv?.id, inv?.status, inv?.outstanding, inv?.totalAmount]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (search.get('send') === '1' && inv) setModal('send') }, [search, inv])
 
@@ -181,10 +190,12 @@ function InvoiceDetail() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="xl:col-span-2 card p-0 overflow-hidden" style={{ minHeight: 560 }}>
-          {pdfUrl ? (
-            <iframe title={`${inv.invoiceNumber} PDF`} src={`${pdfUrl}#view=FitH`} className="w-full" style={{ height: 'min(80vh, 1000px)', border: 0, background: '#fff' }} />
+          {pdfFailed ? (
+            <div className="p-6 text-sm" role="alert" style={{ color: 'var(--text-muted)' }}>The PDF could not be prepared — try Download, or reload the page.</div>
           ) : (
-            <div className="p-6 text-sm" style={{ color: 'var(--text-muted)' }}>Preparing the PDF…</div>
+            <div className="p-3 overflow-auto" style={{ background: 'var(--bg-subtle, #eef0f4)', maxHeight: 'min(85vh, 1100px)' }}>
+              <PdfViewer data={pdf} title={`${inv.invoiceNumber} PDF`} testId="invoice-pdf" maxWidth={860} />
+            </div>
           )}
         </div>
 
@@ -202,6 +213,20 @@ function InvoiceDetail() {
                 <Line label="CGST" value={inr(inv.cgstAmount)} /><Line label="SGST / UTGST" value={inr(inv.sgstAmount)} /></>}
               <Line label="Place of supply" value={inv.placeOfSupplyName ? `${inv.placeOfSupplyName} (${inv.placeOfSupply})` : '—'} />
             </div>}
+          </div>
+
+          <div className="card grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-4 text-sm" data-testid="invoice-addresses">
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Bill to</h3>
+              <AddressText value={{ name: inv.customerName, ...(inv.billing ?? fromText(inv.billingAddress)), gstin: inv.customerGstin }} testId="bill-to-text" />
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Ship to</h3>
+              {/* the goods go to the billing address: it is shown again here, as the PDF prints it */}
+              <AddressText testId="ship-to-text" value={inv.shipSameAsBilling !== false && !inv.shipping
+                ? { name: inv.customerName, ...(inv.billing ?? fromText(inv.billingAddress)), gstin: inv.customerGstin }
+                : { name: inv.shipping?.name || inv.customerName, ...(inv.shipping ?? fromText(inv.shippingAddress)), gstin: inv.shipping?.gstin }} />
+            </div>
           </div>
 
           {issued && inv.payUrl && (

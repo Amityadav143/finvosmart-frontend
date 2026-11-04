@@ -88,9 +88,9 @@ export const SOLUTIONS: Record<SolutionKey, Solution> = {
       { q: 'Can I generate e-invoices and e-way bills?', a: 'Not from Finvosmart yet — direct IRN and e-way bill generation is being built. Today, generate them on the government portals and record the e-way bill number on the invoice, where it prints. Every Finvosmart invoice already carries the details the IRP needs.' },
       { q: 'Can I send invoices on WhatsApp?', a: 'Yes, once a WhatsApp Business account (Meta Cloud API) is connected with approved message templates. Finvosmart then sends each invoice’s number, amount and due date to your customer, and payment reminders with a pay link. You can always download the PDF and share it yourself.' },
       { q: 'Can I customise my invoice format?', a: 'Yes. Start from one of six preset templates and set its colour, a note under the heading, footer terms, and whether your bank and UPI details and a signature line print. Invoices, quotations, proforma invoices, delivery challans and credit notes can each have their own default template.' },
-      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 14-day free trial and no credit card required.' },
+      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
     ],
-    cta: { title: 'Raise your first GST invoice today', text: 'Start a 14-day free trial — no credit card, no installation.' },
+    cta: { title: 'Raise your first GST invoice today', text: 'Start a 7-day free trial — no credit card, no installation.' },
   },
 
   eInvoicing: {
@@ -146,7 +146,7 @@ export const SOLUTIONS: Record<SolutionKey, Solution> = {
       { q: 'Can Finvosmart generate the IRN for me?', a: 'Not yet. Direct IRN and e-way bill generation is being built. Today, Finvosmart prepares GST invoices with every detail the IRP needs, and you generate the IRN and e-way bill on the government portals and note the numbers on the invoice.' },
       { q: 'Does e-invoicing replace GSTR-1?', a: 'No. Invoices reported on the IRP flow into GSTR-1 automatically, but you still review and file the return. Finvosmart\'s GSTR-1 export helps you check it against your books.' },
     ],
-    cta: { title: 'Keep your GST invoices ready for the IRP', text: 'Start a 14-day free trial — GST invoices, GSTR-1 and GSTR-3B from the same books.' },
+    cta: { title: 'Keep your GST invoices ready for the IRP', text: 'Start a 7-day free trial — GST invoices, GSTR-1 and GSTR-3B from the same books.' },
   },
   tallyAlternative: {
     eyebrow: 'Tally alternative',
@@ -204,9 +204,9 @@ export const SOLUTIONS: Record<SolutionKey, Solution> = {
       { q: 'How do I move my data from Tally?', a: 'Export your customers, suppliers, items and balances from Tally to Excel and import them into Finvosmart — unpaid invoices and bills too. Each import is previewed and saved all or nothing. Many businesses run both systems side by side for a month before switching fully.' },
       { q: 'Can my accountant use it?', a: 'Yes. Invite them with the Accountant role: they can post vouchers and see every financial report, but cannot manage users, roles or company settings.' },
       { q: 'Does it handle GST?', a: 'Yes. Invoices apply CGST and SGST, or IGST, with HSN/SAC codes on every line. GSTR-1 and GSTR-3B are prepared from your records as files to upload on the GST portal, and supplier invoices are checked against GSTR-2B. Direct e-invoice and e-way bill generation is coming soon.' },
-      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 14-day free trial and no credit card required.' },
+      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
     ],
-    cta: { title: 'Try Finvosmart alongside Tally', text: '14 days free, no credit card. Keep Tally running while you compare.' },
+    cta: { title: 'Try Finvosmart alongside Tally', text: '7 days free, no credit card. Keep Tally running while you compare.' },
     disclaimer: 'Tally and TallyPrime are trademarks of Tally Solutions Pvt. Ltd. Finvosmart is an independent product and is not affiliated with Tally Solutions.',
   },
 
@@ -269,9 +269,9 @@ export const SOLUTIONS: Record<SolutionKey, Solution> = {
       { q: 'Does Finvosmart produce a Balance Sheet and Profit & Loss?', a: 'Yes — a Profit & Loss for any period and a Balance Sheet as at any date, laid out the way Indian accountants expect, plus a Trial Balance with debit and credit columns. All three come from the entries posted in your books.' },
       { q: 'Can my accountant use it?', a: 'Yes. Invite them with the Accountant role: they can post vouchers and see every financial report, but cannot manage users, roles or company settings. You can send documents to them for review and lock the periods they have signed off.' },
       { q: 'How do I move my books from Tally or Excel?', a: 'Import your account opening balances and the invoices and bills still unpaid from Excel — including what you export from Tally — together with your customers, suppliers and items. Every import is checked and previewed before anything is saved.' },
-      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 14-day free trial and no credit card required.' },
+      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
     ],
-    cta: { title: 'Books that keep themselves', text: 'Start a 14-day free trial — no credit card, no installation.' },
+    cta: { title: 'Books that keep themselves', text: 'Start a 7-day free trial — no credit card, no installation.' },
   },
 
   payrollSoftware: {
@@ -337,9 +337,9 @@ export const SOLUTIONS: Record<SolutionKey, Solution> = {
       { q: 'Can employees see their own payslips?', a: 'Yes. Once a payroll is approved, each employee is told their payslip is ready and can open and download it in their own portal, where they can also see and apply for leave.' },
       { q: 'Does payroll post to the accounts?', a: 'Yes. Approving a payroll posts salaries, the employer\'s PF and ESI, and the amounts due to employees and the authorities to your books. Recording the salary payment posts it against your bank account.' },
       { q: 'Which states\' professional tax is built in?', a: 'Maharashtra, Karnataka, West Bengal, Tamil Nadu, Telangana, Andhra Pradesh, Gujarat, Madhya Pradesh, Odisha and Assam. Delhi, Haryana, Rajasthan and Uttar Pradesh levy none. For any other state you can set a fixed monthly amount per employee.' },
-      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 14-day free trial and no credit card required.' },
+      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
     ],
-    cta: { title: 'Run your next payroll in Finvosmart', text: 'Start a 14-day free trial — import your employees from Excel and run a test payroll.' },
+    cta: { title: 'Run your next payroll in Finvosmart', text: 'Start a 7-day free trial — import your employees from Excel and run a test payroll.' },
     disclaimer: 'Statutory rates and limits are as notified in October 2026 and change from time to time.',
   },
 
@@ -400,9 +400,9 @@ export const SOLUTIONS: Record<SolutionKey, Solution> = {
       { q: 'Can employees apply for leave themselves?', a: 'Yes. Each employee signs in to their own portal to apply for leave, see what they have taken this year and what is waiting for approval, and open their payslips.' },
       { q: 'Does attendance feed payroll?', a: 'Yes. Absences, half days and approved leave without pay on the attendance register become the unpaid days the month\'s payroll starts from. You can still adjust any line before approving the payroll.' },
       { q: 'Can I track hiring in Finvosmart?', a: 'Yes. Create job postings, add candidates and move them through screening and interview rounds to an offer and hired, with interviews and the offered pay recorded.' },
-      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 14-day free trial and no credit card required.' },
+      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
     ],
-    cta: { title: 'Bring HR and payroll together', text: 'Start a 14-day free trial — add your team, mark a month of attendance and run payroll.' },
+    cta: { title: 'Bring HR and payroll together', text: 'Start a 7-day free trial — add your team, mark a month of attendance and run payroll.' },
   },
 }
 

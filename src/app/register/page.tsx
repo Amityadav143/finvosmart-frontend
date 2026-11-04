@@ -17,10 +17,13 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Zap, Eye, EyeOff, ArrowRight, CheckCircle2, Copy } from 'lucide-react'
 import { authApi } from '@/lib/api/auth'
-import { useAuthStore } from '@/lib/store/slices/authStore'
 import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
 import { handOverGoogleSignIn, takeGoogleSignIn } from '@/lib/googleHandoff'
 import { checkNewSession, explainSignInProblem } from '@/lib/auth/sessionCheck'
+import { announceSignIn, takeAuth } from '@/lib/auth/session'
+import { sectorsApi, PACK_NAMES, type Sector, type SectorChoice } from '@/lib/api/sectors'
+import { SectorPicker } from '@/components/onboarding/SectorPicker'
+import { lastDay } from '@/lib/hooks/useSubscription'
 import { apiError } from '@/lib/utils'
 import { ServerNotice } from '@/components/auth/ServerNotice'
 
@@ -69,14 +72,19 @@ const cardStyle = { borderRadius: '20px', padding: '30px', boxShadow: 'var(--sha
 
 export default function RegisterPage() {
   const router = useRouter()
-  const { setAuth } = useAuthStore()
   const [f, setF] = useState<Form>({ companyName: '', fullName: '', email: '', phone: '', password: '', gstin: '', website: '' })
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
   const [serverError, setServerError] = useState('')
   const [showPwd, setShowPwd] = useState(false)
   const [accepted, setAccepted] = useState(false)   // consent must be an active choice: never pre-ticked
   const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState<{ code: string; name: string; withGoogle: boolean } | null>(null)
+  const [done, setDone] = useState<{ code: string; name: string; withGoogle: boolean; trialEndsAt?: string; trialDaysLeft?: number; access?: string } | null>(null)
+  // after the account: what the business does (its sectors), then the template they suggest
+  const [sectorCatalog, setSectorCatalog] = useState<Sector[]>([])
+  const [sectors, setSectors] = useState<string[]>([])
+  const [sectorOther, setSectorOther] = useState('')
+  const [sectorSaved, setSectorSaved] = useState<SectorChoice | null>(null)
+  const [savingSectors, setSavingSectors] = useState(false)
 
   // ── Sign up with Google ─────────────────────────────────────────────────
   // Google's window says who the person is (checked by the server); the form then asks only for the
@@ -146,13 +154,25 @@ export default function RegisterPage() {
           + `${why.title}. ${why.detail} ${why.fix}`)
         return
       }
-      setAuth(auth)                          // signed in straight away, as the company's admin
-      setDone({ code: auth.companyCode ?? '', name: auth.companyName ?? f.companyName.trim(), withGoogle: !!g })
+      takeAuth(auth)                         // signed in straight away, as the company's admin
+      announceSignIn(auth)
+      setDone({ code: auth.companyCode ?? '', name: auth.companyName ?? f.companyName.trim(), withGoogle: !!g,
+        trialEndsAt: (auth as any).trialEndsAt, trialDaysLeft: (auth as any).trialDaysLeft, access: (auth as any).access })
+      sectorsApi.get().then(c => setSectorCatalog(c.catalog)).catch(() => setSectorCatalog([]))
     } catch (err: any) {
       setServerError(apiError(err, 'We could not create your account. Please try again.'))
     } finally {
       setLoading(false)
     }
+  }
+
+  async function saveSectors() {
+    if (!sectors.length) { toast.error('Choose at least one sector — or skip for now.'); return }
+    if (sectors.includes('OTHER') && !sectorOther.trim()) { toast.error('Say what your business does for “Other”.'); return }
+    setSavingSectors(true)
+    try { setSectorSaved(await sectorsApi.save(sectors, sectorOther)) }
+    catch (err: any) { toast.error(apiError(err, 'The sectors could not be saved.')) }
+    finally { setSavingSectors(false) }
   }
 
   async function copyCode() {
@@ -182,9 +202,35 @@ export default function RegisterPage() {
               ? <>Next time, use <strong>Continue with Google</strong> on the sign-in page — no code needed. Keep the code for your team, and for signing in with a password if you add one.</>
               : <>Save it somewhere safe — you&apos;ll need it, with your email and password, every time you sign in.</>}
           </p>
-          <button type="button" className="btn-primary w-full" style={{ height: '46px' }} onClick={() => router.push('/settings/industry?welcome=1')}
+          {done.trialEndsAt && (
+            <p data-testid="register-trial" style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 18px', padding: '10px 12px', borderRadius: '10px',
+                        background: done.access === 'READ_ONLY' ? 'rgba(220,38,38,0.08)' : 'var(--bg-surface)', border: '1px solid var(--border)', textAlign: 'left' }}>
+              {done.access === 'READ_ONLY'
+                ? <>A free trial was already used with these details, so this company opens read-only. Choose a plan under <strong>Settings → Subscription</strong> to start working.</>
+                : <>Your <strong>7-day free trial</strong> has started — its last day is <strong>{lastDay(done.trialEndsAt)}</strong>. Everything is included except customising invoice designs.</>}
+            </p>
+          )}
+          {!sectorSaved && sectorCatalog.length > 0 && (
+            <div style={{ textAlign: 'left', marginBottom: '16px' }} data-testid="register-sectors">
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px' }}>What does your business do?</h2>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', margin: '0 0 12px' }}>Choose your sectors: Finvosmart suggests the set-up and invoice design that fit.</p>
+              <SectorPicker catalog={sectorCatalog} value={sectors} other={sectorOther} onChange={setSectors} onOther={setSectorOther} />
+              <button type="button" className="btn-primary w-full" style={{ height: '44px', marginTop: '14px' }} onClick={saveSectors} disabled={savingSectors}
+                      data-testid="register-save-sectors">
+                {savingSectors ? 'Saving…' : 'Continue'} <ArrowRight size={16} />
+              </button>
+            </div>
+          )}
+          {sectorSaved && (
+            <p data-testid="register-sectors-saved" style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px', textAlign: 'left' }}>
+              Sectors: <strong>{sectorSaved.description}</strong>.
+              {sectorSaved.suggestedPacks.length > 0 && <> Suggested set-up: <strong>{sectorSaved.suggestedPacks.map(p => PACK_NAMES[p] ?? p).join(', ')}</strong>.</>}
+            </p>
+          )}
+          <button type="button" className={sectorSaved || !sectorCatalog.length ? 'btn-primary w-full' : 'btn-secondary w-full'} style={{ height: '46px' }}
+                  onClick={() => router.push(`/settings/industry?welcome=1${sectorSaved?.suggestedPacks[0] ? `&suggest=${sectorSaved.suggestedPacks[0]}` : ''}`)}
                   data-testid="register-choose-industry">
-            Choose your industry <ArrowRight size={16} />
+            {sectorSaved?.suggestedPacks[0] ? `Set up for ${PACK_NAMES[sectorSaved.suggestedPacks[0]] ?? 'your industry'}` : 'Choose your industry'} <ArrowRight size={16} />
           </button>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '10px 0 0' }}>
             Menus, words and extra fields then fit your business.{' '}
@@ -217,8 +263,11 @@ export default function RegisterPage() {
       <div className="card" style={cardStyle}>
         <ServerNotice />
         <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Start your free trial</h1>
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '22px' }}>
-          14 days free · No credit card · Set up in a minute
+        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+          7 days free · No credit card · Set up in a minute
+        </p>
+        <p data-testid="register-trial-terms" style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginBottom: '22px', lineHeight: 1.5 }}>
+          After the 7 days your data stays: Finvosmart turns read-only until you choose a plan. One free trial per business.
         </p>
 
         {/* Sign up with Google — only where the server has Google sign-in switched on */}

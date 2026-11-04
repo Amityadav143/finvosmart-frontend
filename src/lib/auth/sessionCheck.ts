@@ -11,6 +11,7 @@
 
 import axios from 'axios'
 import { lastServer } from '@/lib/api/client'
+import { renewSession, SESSION_HEADERS } from '@/lib/auth/session'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -73,29 +74,15 @@ export async function checkNewSession(accessToken: string | null | undefined): P
 }
 
 /**
- * A session saved in this browser, checked before the sign-in page sends anyone on to the app (it
- * used to send them straight on, and an old session then came back here after a burst of refused
- * requests). 'ok' — the server takes it, renewed when the access part had run out (`renewed` is the
- * new session); 'ended' — the server refused it: forget it; 'unknown' — no clear answer (offline, a
- * restart): keep it and stay.
+ * The session of this browser (its refresh cookie), checked before the sign-in page sends anyone on to the app
+ * (it used to send them straight on, and an old session then came back here after a burst of refused requests).
+ * 'ok' — the server renewed it (`renewed` is the new session); 'ended' — the server refused it: forget it;
+ * 'unknown' — no clear answer (offline, a restart): keep it and stay.
  */
-export async function verifyStoredSession(access: string | null | undefined, refresh: string | null | undefined):
-    Promise<{ state: 'ok' | 'ended' | 'unknown'; renewed?: any }> {
-  if (access) {
-    try {
-      await axios.get(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${access}` }, timeout: 15000 })
-      return { state: 'ok' }
-    } catch (e: any) {
-      if (e?.response?.status !== 401) return { state: 'unknown' }
-    }
-  }
-  if (!refresh) return { state: 'ended' }
-  try {
-    const r = await axios.post(`${API_URL}/auth/refresh`, { refreshToken: refresh }, { timeout: 15000 })
-    return r.data?.data?.accessToken ? { state: 'ok', renewed: r.data.data } : { state: 'ended' }
-  } catch (e: any) {
-    return { state: e?.response ? 'ended' : 'unknown' }
-  }
+export async function verifyStoredSession(): Promise<{ state: 'ok' | 'ended' | 'unknown'; renewed?: any }> {
+  const r = await renewSession()
+  if (r.ok) return { state: 'ok', renewed: r.auth }
+  return { state: r.ended ? 'ended' : 'unknown' }
 }
 
 /**
@@ -105,7 +92,7 @@ export async function verifyStoredSession(access: string | null | undefined, ref
  */
 export async function changePasswordAs(accessToken: string, currentPassword: string, newPassword: string) {
   const r = await axios.post(`${API_URL}/auth/change-password`, { currentPassword, newPassword },
-    { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 30000 })
+    { headers: { Authorization: `Bearer ${accessToken}`, ...SESSION_HEADERS }, withCredentials: true, timeout: 30000 })
   return r.data?.data
 }
 
@@ -128,7 +115,15 @@ export function sessionEndedNote(reason: string): string {
     case 'ACCOUNT_OFF':
       return 'Your login has been switched off. Your company’s admin can switch it back on under Settings → Users.'
     case 'SIGNED_OUT':
-      return 'Your session ended — the password was changed or reset, or “Sign out of all other devices” was used. Sign in again to pick up where you left off.'
+      return 'Your session ended — you signed out (in another tab too), the password was changed or reset, or “Sign out of all other devices” '
+        + 'was used — or this device was signed out under Sign-in & security on another one. Sign in again to pick up where you left off.'
+    case 'LOGGED_OUT':
+      return 'You have signed out. This device’s sign-in no longer works anywhere — sign in again whenever you need to.'
+    case 'REUSED':
+      return 'For your safety you were signed out: this sign-in was used from two places at once, which happens when it is copied. '
+        + 'Sign in again; if you didn’t expect this, change your password.'
+    case 'PASSWORD_CHANGE_REQUIRED':
+      return 'Sign in again and choose a new password to continue.'
     default:
       return 'Your session ended. Sign in again to pick up where you left off.'
   }

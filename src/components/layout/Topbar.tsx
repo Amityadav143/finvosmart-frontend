@@ -15,6 +15,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, Sun, Moon, Search, ChevronDown, LogOut, Keyboard, UserCircle, Rocket } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/slices/authStore'
+import { signOut } from '@/lib/auth/session'
 import { useTheme } from '@/lib/context/ThemeContext'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { useIndustry } from '@/lib/hooks/useIndustry'
@@ -100,7 +101,7 @@ interface TopbarProps {
 export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) {
   const pathname          = usePathname()
   const router            = useRouter()
-  const { user, logout }  = useAuthStore()
+  const { user }  = useAuthStore()
   const { isDark, toggle } = useTheme()
   const { roles }         = usePermissions()
   const industry          = useIndustry()
@@ -262,7 +263,7 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
                     <Rocket size={14} />Setup guide
                   </button>
                   <button
-                    onClick={() => { setUserMenuOpen(false); logout() }}
+                    onClick={() => { setUserMenuOpen(false); signOut().finally(() => { window.location.href = '/login?signedout=1' }) }}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all"
                     style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
                     onMouseEnter={(e: any) => (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.08)'}

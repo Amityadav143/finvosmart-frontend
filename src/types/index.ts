@@ -8,6 +8,7 @@
  * Unauthorized copying, distribution, modification, or use of this file,
  * via any medium, is strictly prohibited without prior written permission.
  */
+import type { AddressParts, ShipToParts } from '@/lib/address'
 
 // ── API Wrappers ───────────────────────────────────────────────────────────────
 export interface ApiResponse<T> {
@@ -143,7 +144,10 @@ export interface Invoice {
   id: string; invoiceNumber: string; invoiceType: InvoiceType; status: InvoiceStatus
   invoiceDate: string; dueDate?: string; financialYear?: string
   customerId: string; customerName: string; customerGstin?: string
+  /** as printed, one text each (shippingAddress empty when the goods go to the billing address) */
   billingAddress?: string; shippingAddress?: string
+  /** …and in parts */
+  billing?: AddressParts; shipSameAsBilling?: boolean; shipping?: ShipToParts
   placeOfSupply?: string; placeOfSupplyName?: string; interState?: boolean; reverseCharge?: boolean
   subtotal: number; discountAmount: number; taxableAmount: number
   cgstAmount: number; sgstAmount: number; igstAmount: number
@@ -284,6 +288,12 @@ export interface Customer {
   id: string; customerCode?: string; name: string; email?: string; phone?: string
   gstin?: string; pan?: string; city?: string; state?: string
   billingAddress?: string; shippingAddress?: string; paymentTerms?: string; notes?: string
+  /** the billing address in parts (with city and state above) */
+  billingLine1?: string; billingLine2?: string; billingPincode?: string; billingCountry?: string
+  /** the goods go to the billing address (true), else to the shipping address in parts below */
+  shipSameAsBilling?: boolean
+  shippingName?: string; shippingLine1?: string; shippingLine2?: string; shippingCity?: string; shippingState?: string
+  shippingPincode?: string; shippingCountry?: string; shippingGstin?: string
   customerType?: 'REGULAR'|'PREMIUM'|'GOVERNMENT'|'INSTITUTIONAL'; creditLimit: number; outstanding: number
   /** automatic payment reminders for this customer's invoices */
   remindersEnabled?: boolean; active?: boolean
