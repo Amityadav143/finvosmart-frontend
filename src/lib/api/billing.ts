@@ -30,8 +30,9 @@ export interface PlanStatus {
   access: PlanAccess
   plan?: string; planName?: string; billingCycle?: 'MONTHLY' | 'ANNUAL'
   trialStartedAt?: string; trialEndsAt?: string
-  /** 1 to 7 on the trial; days left after today (0: ends today) */
-  trialDay?: number; trialDaysLeft?: number; countdown?: string
+  /** the day of the trial (1 on the first); how long it is in all (7, or more once Finvosmart's support gave it more days);
+   *  days left after today (0: ends today) */
+  trialDay?: number; trialDays?: number; trialDaysLeft?: number; countdown?: string
   paidUntil?: string
   /** template customisation and other paid-only features */
   paidFeatures: boolean

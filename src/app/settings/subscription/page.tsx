@@ -19,6 +19,7 @@ import { billingApi, rupeesFromPaise, type CheckoutOrder, type PlanOffer } from 
 import { useSubscription, lastDay, dayOf } from '@/lib/hooks/useSubscription'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { apiError } from '@/lib/apiError'
+import { SupportEmail } from '@/components/marketing/PlatformContact'
 
 const CHECKOUT_JS = process.env.NEXT_PUBLIC_RAZORPAY_CHECKOUT_URL || 'https://checkout.razorpay.com/v1/checkout.js'
 
@@ -109,7 +110,7 @@ export default function SubscriptionPage() {
         <div className="flex items-center gap-2">
           {readOnly ? <Lock size={18} color="#dc2626" /> : <CheckCircle2 size={18} color={onTrial ? '#d97706' : '#16a34a'} />}
           <h2 className="font-semibold">
-            {readOnly ? 'Read-only' : onTrial ? `Free trial — day ${s.trialDay} of 7` : s.status === 'PAID' ? `${s.planName ?? 'Paid'} plan` : 'Full access'}
+            {readOnly ? 'Read-only' : onTrial ? `Free trial — day ${s.trialDay} of ${s.trialDays ?? 7}` : s.status === 'PAID' ? `${s.planName ?? 'Paid'} plan` : 'Full access'}
           </h2>
         </div>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }} data-testid="plan-message">{s.message}</p>
@@ -160,7 +161,7 @@ export default function SubscriptionPage() {
                     ) : !admin ? (
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Your administrator can subscribe.</p>
                     ) : !s.checkoutAvailable ? (
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Online payment isn&apos;t set up on this server yet — please contact Finvosmart to subscribe.</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Online payment isn&apos;t set up on this server yet — please write to <SupportEmail style={{ color: 'var(--gold)' }} /> to subscribe.</p>
                     ) : (
                       <button className="btn-primary h-9 w-full text-sm" disabled={!!paying} onClick={() => pay(p)} data-pay={p.code}>
                         <CreditCard size={14} /> {paying === p.code ? 'Opening Razorpay…' : current ? 'Renew' : `Pay ${rupeesFromPaise(total)}`}

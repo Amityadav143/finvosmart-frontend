@@ -43,7 +43,7 @@ export function TrialBanner() {
         </span>
       ) : (
         <span className="flex-1 min-w-0">
-          <strong>Free trial · day {s.trialDay} of 7</strong> — {s.trialDaysLeft === 0 ? 'it ends today' : `${s.trialDaysLeft} day${s.trialDaysLeft === 1 ? '' : 's'} left`}
+          <strong>Free trial · day {s.trialDay} of {s.trialDays ?? 7}</strong> — {s.trialDaysLeft === 0 ? 'it ends today' : `${s.trialDaysLeft} day${s.trialDaysLeft === 1 ? '' : 's'} left`}
           {s.trialEndsAt ? ` (started ${dayOf(s.trialStartedAt)}, last day ${lastDay(s.trialEndsAt)})` : ''}.
         </span>
       )}
@@ -65,7 +65,7 @@ export function TrialCard() {
   if (!s || s.access === 'FULL') return null
   const readOnly = s.access === 'READ_ONLY'
   const left = s.trialDaysLeft ?? 0
-  const pct = readOnly ? 100 : Math.min(100, Math.max(0, ((s.trialDay ?? 1) / 7) * 100))
+  const pct = readOnly ? 100 : Math.min(100, Math.max(0, ((s.trialDay ?? 1) / (s.trialDays ?? 7)) * 100))
   const cheapest = s.plans.filter(p => p.selfServe).map(p => p.annualPerMonthPaise).sort((a, b) => a - b)[0]
   return (
     <div className="card space-y-3" data-testid="trial-card">
@@ -88,7 +88,7 @@ export function TrialCard() {
       <dl className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
         <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Started</dt><dd data-testid="trial-started">{dayOf(s.trialStartedAt)}</dd></div>
         <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Last day</dt><dd data-testid="trial-ends">{lastDay(s.trialEndsAt)}</dd></div>
-        <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Day</dt><dd>{readOnly ? '—' : `${s.trialDay} of 7`}</dd></div>
+        <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Day</dt><dd>{readOnly ? '—' : `${s.trialDay} of ${s.trialDays ?? 7}`}</dd></div>
       </dl>
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
         {readOnly ? 'Nothing has been deleted: subscribe and carry on where you left off.'

@@ -13,9 +13,9 @@
 import { useState } from 'react'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { PLANS } from '@/lib/seo'
+import { usePlatformInfo } from '@/lib/platformInfo'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
-const SALES_EMAIL = 'contact@finvosmart.com'
 const SIZES = ['1–10 employees', '11–50 employees', '51–200 employees', '200+ employees']
 
 const inp: React.CSSProperties = { width: '100%', padding: '11px 14px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', fontSize: '14px', fontFamily: 'inherit', outline: 'none' }
@@ -32,13 +32,16 @@ type Status = { kind: 'idle' | 'sending' | 'sent' } | { kind: 'error'; message: 
 export function DemoRequestForm() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', companySize: '', plan: 'Growth', message: '', website: '' })
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  // the sales email of the platform console (where demo requests go), for the ready-written email
+  const platform = usePlatformInfo()
+  const salesEmail = platform.salesEmail || platform.supportEmail
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const mailto = () => {
     const lines = [`Name: ${form.name}`, `Email: ${form.email}`, form.phone ? `Phone: ${form.phone}` : '', `Company: ${form.company}`,
       form.companySize ? `Company size: ${form.companySize}` : '', form.plan ? `Interested in: ${form.plan}` : ''].filter(Boolean)
     const body = [...lines, '', form.message].join('\n')
-    return `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(`Demo request: ${form.company || form.name}`)}&body=${encodeURIComponent(body)}`
+    return `mailto:${salesEmail}?subject=${encodeURIComponent(`Demo request: ${form.company || form.name}`)}&body=${encodeURIComponent(body)}`
   }
 
   const submit = async (e: React.FormEvent) => {

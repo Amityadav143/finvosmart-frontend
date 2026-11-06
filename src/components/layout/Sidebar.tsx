@@ -29,7 +29,8 @@ import { useState } from 'react'
 /* ── Navigation structure ─────────────────────────────────────────────── */
 /** perm: one permission, or a list where any one is enough. */
 /** when: shown only to a company whose industry needs it (drugRegister: medicines with a schedule — a pharmacy) */
-type NavItem = { href: string; label: string; icon: any; perm: string | string[]; dot?: string; when?: 'drugRegister' }
+/** platform: the platform console — for Finvosmart's own administrators only (the server checks every call too) */
+type NavItem = { href: string; label: string; icon: any; perm: string | string[]; dot?: string; when?: 'drugRegister'; platform?: boolean }
 type NavSection = { id: string; label: string | null; items: NavItem[]; accent?: string }
 const NAV_SECTIONS: NavSection[] = [
   {
@@ -38,6 +39,15 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard, perm: 'DASHBOARD_VIEW' },
       { href: '/notifications', label: 'Notifications', icon: Bell, perm: 'DASHBOARD_VIEW' },
+    ],
+  },
+  {
+    id: 'platform',
+    label: 'Platform',
+    items: [
+      { href: '/platform',           label: 'Platform overview', icon: Globe,     perm: 'SETTINGS_VIEW', platform: true, dot: '#0f766e' },
+      { href: '/platform/companies', label: 'All companies',     icon: Building2, perm: 'SETTINGS_VIEW', platform: true, dot: '#0f766e' },
+      { href: '/platform/settings',  label: 'Platform settings', icon: Settings,  perm: 'SETTINGS_VIEW', platform: true, dot: '#0f766e' },
     ],
   },
   {
@@ -144,7 +154,7 @@ interface SidebarProps { onClose?: () => void }
 export function Sidebar({ onClose }: SidebarProps) {
   const pathname              = usePathname()
   const { user, logout }      = useAuthStore()
-  const { can }               = usePermissions()
+  const { can, isPlatformAdmin } = usePermissions()
   const industry              = useIndustry()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
@@ -193,7 +203,8 @@ export function Sidebar({ onClose }: SidebarProps) {
           // Filter items user can access
           // Items the user may open; features still on demo data only when previews are switched on
           // …and only the menu entries the company's sector uses (Settings → Industry switches them on or off)
-          const visibleItems = section.items.filter(item => shown(item.href) && industry.visible(item.href) && (!item.when || !!industry.current?.[item.when])
+          const visibleItems = section.items.filter(item => (!item.platform || isPlatformAdmin)
+            && shown(item.href) && industry.visible(item.href) && (!item.when || !!industry.current?.[item.when])
             && (!item.perm || (Array.isArray(item.perm) ? item.perm.some(p => can(p)) : can(item.perm))))
           if (!visibleItems.length) return null
 

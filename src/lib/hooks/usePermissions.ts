@@ -158,6 +158,8 @@ export function usePermissions() {
     roles,
     permissions,
     isSuperAdmin,
+    /** May use the platform console: the server says so (SUPER_ADMIN of the company that runs Finvosmart) — it checks again on every call. */
+    isPlatformAdmin: isSuperAdmin && user?.platformAdmin === true,
     isAdmin:       isSuperAdmin || hasRole('COMPANY_ADMIN'),
     isManager:     isSuperAdmin || hasRole('MANAGER'),
     isHR:          isSuperAdmin || hasRole('HR_ADMIN'),

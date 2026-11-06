@@ -9,6 +9,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { SupportEmail } from './PlatformContact'
 import Link from 'next/link'
 import { Eyebrow, h2Style, narrow, pStyle } from '@/components/marketing/SolutionPage'
 import { LEGAL_ENTITY, LEGAL_UPDATED, type LegalDoc } from '@/lib/legal'
@@ -58,7 +59,7 @@ export function LegalPage({ doc }: { doc: LegalDoc }) {
             <p style={{ ...pStyle, marginBottom: '4px' }}>{LEGAL_ENTITY.name}</p>
             <p style={{ ...pStyle, marginBottom: '4px' }}>CIN: {LEGAL_ENTITY.cin}</p>
             {LEGAL_ENTITY.address && <p style={{ ...pStyle, marginBottom: '4px' }}>Registered office: {LEGAL_ENTITY.address}</p>}
-            <p style={{ ...pStyle, marginBottom: 0 }}>Email: <a href={`mailto:${LEGAL_ENTITY.email}`} style={{ color: 'var(--gold)' }}>{LEGAL_ENTITY.email}</a></p>
+            <p style={{ ...pStyle, marginBottom: 0 }}>Email: <SupportEmail style={{ color: 'var(--gold)' }} /></p>
           </div>
           <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '24px' }}>
             See also our <Link href={other.href} style={{ color: 'var(--gold)' }}>{other.label}</Link>.

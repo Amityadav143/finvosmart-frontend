@@ -9,6 +9,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { SupportEmail } from '@/components/marketing/PlatformContact'
 import Link from 'next/link'
 import { Shield, Users, Globe, Code, ArrowRight, CheckCircle } from 'lucide-react'
 
@@ -60,7 +61,7 @@ export default function AboutPage() {
                 <strong style={{ color: 'var(--text-primary)' }}>Navgrow Engineering Service Pvt. Ltd.</strong><br />
                 CIN: U29302WB2025PTC281015<br />
                 Registered in West Bengal, India · MSME Registered<br />
-                Website: finvosmart.com · Email: contact@finvosmart.com
+                Website: finvosmart.com · Email: <SupportEmail />
               </div>
             </div>
           </div>
