@@ -160,6 +160,14 @@ export function usePermissions() {
     isSuperAdmin,
     /** May use the platform console: the server says so (SUPER_ADMIN of the company that runs Finvosmart) — it checks again on every call. */
     isPlatformAdmin: isSuperAdmin && user?.platformAdmin === true,
+    /** Belongs to the company that runs Finvosmart (the server says so): its Super Admins use the console. */
+    inPlatformCompany: user?.platformCompany === true,
+    /**
+     * Should be told how the console opens, instead of not finding it: a Super Admin of another company, or an
+     * administrator of the platform company without the Super Admin role.
+     */
+    consoleHint: !(isSuperAdmin && user?.platformAdmin === true)
+      && (isSuperAdmin || (user?.platformCompany === true && hasRole('COMPANY_ADMIN'))),
     isAdmin:       isSuperAdmin || hasRole('COMPANY_ADMIN'),
     isManager:     isSuperAdmin || hasRole('MANAGER'),
     isHR:          isSuperAdmin || hasRole('HR_ADMIN'),

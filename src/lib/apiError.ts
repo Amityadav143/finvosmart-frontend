@@ -10,6 +10,7 @@
  */
 
 import { addressRefused, corsRefused, corsRefusedMessage, isPublicAuth } from './auth/publicAuth'
+import { forPeople } from './auth/setupNotes'
 
 /**
  * The message to show for a failed API call: the server's own explanation when it gave one
@@ -19,10 +20,15 @@ import { addressRefused, corsRefused, corsRefusedMessage, isPublicAuth } from '.
  * request refused as coming from another website (CORS).
  */
 export function apiError(e: any, fallback = 'Something went wrong. Please try again.'): string {
-  if (e?.response?.status === 401 && isPublicAuth(e?.config?.url) && typeof e.response.data?.error === 'string') return addressRefused()
-  if (corsRefused(e)) return corsRefusedMessage()
+  // a problem in how the server is set up: plain words for people, the diagnosis for its administrator (lib/auth/setupNotes)
+  const publicAuth = isPublicAuth(e?.config?.url)
+  if (e?.response?.status === 401 && publicAuth && typeof e.response.data?.error === 'string') return forPeople(addressRefused())
+  if (corsRefused(e)) return forPeople(corsRefusedMessage())
   const d = e?.response?.data
   const said = typeof d?.error === 'string' && d.error ? d.error : typeof d?.message === 'string' && d.message ? d.message : null
+  // the sign-in pages' calls: an API not found, or the backend's own error, is the server's to fix
+  if (publicAuth && e?.response && (e.response.status === 404 || e.response.status === 405 || e.response.status >= 500))
+    return forPeople(said ? `${said} (HTTP ${e.response.status})` : `The sign-in service answered HTTP ${e.response.status}: nginx must send /api/ to the Finvosmart backend, and the backend’s log says what went wrong.`)
   if (said) return said
   const status = e?.response?.status
   if (!e?.response && e?.request) return 'Can’t reach the server. Check your connection and try again.'

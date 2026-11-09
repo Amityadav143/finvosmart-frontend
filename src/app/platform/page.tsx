@@ -13,11 +13,12 @@
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, AlertCircle, CircleDashed } from 'lucide-react'
-import { platformApi, accessLabel, day, type PlatformSetup } from '@/lib/api/platform'
+import { platformApi, accessLabel, day, moment, type ConsoleLogin, type PlatformSetup } from '@/lib/api/platform'
 import { rupeesFromPaise } from '@/lib/api/billing'
 import { Badge } from '@/components/ui/Badge'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { apiError } from '@/lib/apiError'
+import { RELEASE } from '@/lib/release'
 
 /** The platform at a glance: companies by plan state, sign-ups, people and plan payments lately, and what is set up. */
 export default function PlatformOverviewPage() {
@@ -33,8 +34,11 @@ export default function PlatformOverviewPage() {
     { id: 'read-only', label: 'Read-only (no plan)', value: c.readOnly.toLocaleString('en-IN'), sub: 'trial over or plan ended', href: '/platform/companies?filter=READ_ONLY' },
     { id: 'paid', label: 'On a paid plan', value: c.paid.toLocaleString('en-IN'), sub: `${c.fullAccess} more with full access`, href: '/platform/companies?filter=PAID' },
     { id: 'suspended', label: 'Suspended', value: c.suspended.toLocaleString('en-IN'), href: '/platform/companies?filter=SUSPENDED' },
-    { id: 'people', label: 'People who can sign in', value: c.activeUsers.toLocaleString('en-IN'), href: '/platform/companies' },
-    { id: 'payments', label: 'Plan payments, 30 days', value: rupeesFromPaise(c.paidLast30DaysPaise), sub: `${c.paymentsLast30Days} payment${c.paymentsLast30Days === 1 ? '' : 's'} (with GST)`, href: '/platform/companies?filter=PAID' },
+    { id: 'people', label: 'People who can sign in', value: c.activeUsers.toLocaleString('en-IN'), sub: data.logins ? `${data.logins.neverSignedIn} never signed in` : undefined, href: '/platform/users' },
+    { id: 'locked', label: 'Logins locked now', value: (data.logins?.locked ?? 0).toLocaleString('en-IN'), sub: `${data.logins?.switchedOff ?? 0} switched off`, href: '/platform/users?filter=LOCKED' },
+    { id: 'enquiries', label: 'Website enquiries waiting', value: (data.enquiries?.waiting ?? 0).toLocaleString('en-IN'), sub: `${data.enquiries?.last7Days ?? 0} in the last 7 days`, href: '/platform/leads?filter=NEW' },
+    { id: 'month', label: 'Plan payments this month', value: rupeesFromPaise(data.payments?.monthPaise ?? 0), sub: `${data.payments?.monthCount ?? 0} paid · ${data.payments?.failedLast30 ?? 0} failed in 30 days`, href: '/platform/payments' },
+    { id: 'payments', label: 'Plan payments, 30 days', value: rupeesFromPaise(c.paidLast30DaysPaise), sub: `${c.paymentsLast30Days} payment${c.paymentsLast30Days === 1 ? '' : 's'} (with GST)`, href: '/platform/payments?filter=PAID' },
   ]
 
   return (
@@ -42,9 +46,17 @@ export default function PlatformOverviewPage() {
       <div>
         <h1 className="page-title">Platform overview</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Every company on Finvosmart, and the settings for all of it. Release {data.version}.
+          Every company on Finvosmart, and the settings for all of it. Server release {data.version}.
         </p>
       </div>
+
+      {data.version !== RELEASE && (
+        <div role="alert" className="rounded-xl px-4 py-3 text-sm" data-testid="release-mismatch"
+          style={{ background: 'rgba(180,83,9,0.08)', border: '1px solid rgba(180,83,9,0.35)', color: 'var(--text-primary)' }}>
+          <strong>The server and this web app are different releases</strong> — the backend is {data.version}, the web app {RELEASE}. One of them
+          wasn&apos;t updated: on the server, <code>sudo bash scripts/verify-release.sh</code> shows which files differ from the release.
+        </div>
+      )}
 
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
         {tiles.map(t => (
@@ -56,8 +68,9 @@ export default function PlatformOverviewPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <SetupCard setup={data.setup} />
+        <AdminsCard admins={data.consoleAdmins ?? []} />
         <section className="card space-y-3" aria-labelledby="recent-heading">
           <div className="flex items-center justify-between">
             <h2 id="recent-heading" className="text-base font-semibold">Signed up last</h2>
@@ -84,6 +97,31 @@ export default function PlatformOverviewPage() {
         </section>
       </div>
     </div>
+  )
+}
+
+/** Who can open the console (the platform company's Super Admins), with where to change it. */
+function AdminsCard({ admins }: { admins: ConsoleLogin[] }) {
+  return (
+    <section className="card space-y-3" aria-labelledby="admins-heading" data-testid="console-admins-card">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h2 id="admins-heading" className="text-base font-semibold">Who can open the console</h2>
+        <Link href="/platform/admins" className="text-link text-sm">Administrators</Link>
+      </div>
+      {admins.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nobody.</p> : (
+        <ul className="space-y-2">
+          {admins.map(a => (
+            <li key={a.id} className="text-sm" data-admin={a.email}>
+              <span className="font-medium">{a.fullName || a.email}</span>{a.you && <span className="text-xs" style={{ color: 'var(--text-muted)' }}> (you)</span>}
+              <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>
+                {a.email} · {a.active ? (a.lastSignIn ? `last signed in ${moment(a.lastSignIn)}` : 'never signed in') : 'switched off'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Only the Super Admins of the company that runs Finvosmart see this console; every other company sees nothing of it.</p>
+    </section>
   )
 }
 

@@ -12,6 +12,7 @@
 import axios from 'axios'
 import { lastServer } from '@/lib/api/client'
 import { renewSession, SESSION_HEADERS } from '@/lib/auth/session'
+import { forPeople, logForAdmin, diagnosing } from '@/lib/auth/setupNotes'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -102,18 +103,26 @@ export async function changePasswordAs(accessToken: string, currentPassword: str
  */
 export function sessionEndedNote(reason: string): string {
   const again = ' Sign in again; if this keeps happening straight after signing in, the server set-up needs checking.'
+  // a session ended by how the server is set up: plain words for people, the diagnosis for its administrator (?check)
+  const setup = (diagnosis: string) => forPeople(diagnosis + again,
+    'You were signed out because of a problem on Finvosmart’s side, not with your account. Please sign in again — if it keeps happening, contact Finvosmart support.')
   switch (reason) {
     case 'NOT_RECOGNISED':
-      return 'You were signed out because the server no longer recognised your sign-in — it restarted with a new secret, or a different server answered.' + again
+      return setup('You were signed out because the server no longer recognised your sign-in — it restarted with a new secret, or a different server answered.')
     case 'UNKNOWN_USER':
-      return 'You were signed out because the server couldn’t find your login — it was removed, or a different server answered.' + again
+      return setup('You were signed out because the server couldn’t find your login — it was removed, or a different server answered.')
     case 'NO_TOKEN':
-      return 'You were signed out because your sign-in didn’t reach the server — something between your browser and the server removed it.' + again
+      return setup('You were signed out because your sign-in didn’t reach the server — something between your browser and the server removed it.')
     case 'NOT_AN_API_ADDRESS':
-      return 'You were signed out because the server got a request at an address it doesn’t know: something between your browser '
-        + 'and the server changes it (in nginx, location /api/ must have proxy_pass http://127.0.0.1:PORT; with nothing after the port).' + again
+      return setup('You were signed out because the server got a request at an address it doesn’t know: something between your browser '
+        + 'and the server changes it (in nginx, location /api/ must have proxy_pass http://127.0.0.1:PORT; with nothing after the port).')
     case 'ACCOUNT_OFF':
       return 'Your login has been switched off. Your company’s admin can switch it back on under Settings → Users.'
+    case 'COMPANY_SUSPENDED':
+      return 'You were signed out because your company’s Finvosmart account has been suspended. Please contact Finvosmart support to have it reopened — your data is kept.'
+    case 'ACCESS_CHANGED':
+      return 'You were signed out because what your login may do has changed — an administrator took away its access to the platform console. '
+        + 'Sign in again to carry on with everything else.'
     case 'SIGNED_OUT':
       return 'Your session ended — you signed out (in another tab too), the password was changed or reset, or “Sign out of all other devices” '
         + 'was used — or this device was signed out under Sign-in & security on another one. Sign in again to pick up where you left off.'
@@ -127,6 +136,21 @@ export function sessionEndedNote(reason: string): string {
     default:
       return 'Your session ended. Sign in again to pick up where you left off.'
   }
+}
+
+/**
+ * What the sign-in pages show for a session the server refused straight after signing in: for people, that it is a
+ * problem on Finvosmart's side (a switched-off login excepted — that one is about them); for whoever runs the server,
+ * the diagnosis (explainSignInProblem), in the developer console and on the page with ?check (lib/auth/setupNotes).
+ */
+export function signInProblemNote(p: SignInProblem): { title: string; detail: string; fix: string; setup: boolean } {
+  const why = explainSignInProblem(p)
+  if (p.reason === 'ACCOUNT_OFF') return { ...why, setup: false }
+  logForAdmin(`${why.title}: ${why.detail} ${why.fix}`.trim())
+  if (diagnosing()) return { ...why, setup: true }
+  return { title: 'Finvosmart couldn’t open your session', setup: false, fix: '',
+    detail: 'Your sign-in was accepted, but the server couldn’t keep you signed in — a problem on Finvosmart’s side, not with your account. '
+      + 'Please try again in a few minutes; if it keeps happening, contact Finvosmart support.' }
 }
 
 /** What went wrong and what to do — for the person who runs the server (in a self-hosted set-up, often the person signing in). */

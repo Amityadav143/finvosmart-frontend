@@ -15,7 +15,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Ban, CalendarPlus, CreditCard, KeyRound, Unlock, Pencil, RotateCcw, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Ban, CalendarPlus, CreditCard, KeyRound, Unlock, Pencil, Power, PowerOff, RotateCcw, ShieldCheck } from 'lucide-react'
 import {
   platformApi, accessLabel, day, lastDayOf, moment, PLAN_NAMES,
   type CompanyDetail, type CompanyDetailsForm, type CompanyUser,
@@ -26,8 +26,10 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { apiError } from '@/lib/apiError'
+import { useAuthStore } from '@/lib/store/slices/authStore'
+import { NoteDialog, Problem, ResetDialog } from '@/components/platform/ConsoleKit'
 
-type Dialog = null | 'details' | 'suspend' | 'reactivate' | 'trial' | 'plan' | 'full' | { reset: CompanyUser }
+type Dialog = null | 'details' | 'suspend' | 'reactivate' | 'trial' | 'plan' | 'full' | { reset: CompanyUser } | { off: CompanyUser } | { on: CompanyUser }
 
 const EVENT_LABELS: Record<string, string> = {
   TRIAL_STARTED: 'Free trial started', TRIAL_REFUSED: 'No free trial (one was had before)', TRIAL_REMINDER: 'Trial reminder sent',
@@ -37,6 +39,7 @@ const EVENT_LABELS: Record<string, string> = {
   SUPPORT_DETAILS_CHANGED: 'Contact details changed by support', SUPPORT_SUSPENDED: 'Suspended by support', SUPPORT_REACTIVATED: 'Reopened by support',
   SUPPORT_TRIAL_EXTENDED: 'Trial extended by support', SUPPORT_PLAN_RECORDED: 'Plan recorded by support', SUPPORT_FULL_ACCESS: 'Full access given by support',
   SUPPORT_RESET_LINK_SENT: 'Password-reset link sent by support', SUPPORT_LOGIN_UNLOCKED: 'Login unlocked by support',
+  SUPPORT_LOGIN_SWITCHED_OFF: 'Login switched off by support', SUPPORT_LOGIN_SWITCHED_ON: 'Login switched on again by support',
 }
 
 /** "{"days":5,"note":"…"}" → "days 5 · note …" (the trail's details, readable). */
@@ -54,12 +57,14 @@ export default function PlatformCompanyPage() {
   const { id } = useParams<{ id: string }>()
   const qc = useQueryClient()
   const [dialog, setDialog] = useState<Dialog>(null)
+  const me = useAuthStore(st => st.user?.userId)
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['platform', 'company', id], queryFn: () => platformApi.company(id) })
 
   const done = (d: CompanyDetail, message: string) => {
     qc.setQueryData(['platform', 'company', id], d)
     qc.invalidateQueries({ queryKey: ['platform', 'companies'] })
     qc.invalidateQueries({ queryKey: ['platform', 'overview'] })
+    qc.invalidateQueries({ queryKey: ['platform', 'logins'] })
     setDialog(null)
     toast.success(message)
   }
@@ -112,6 +117,15 @@ export default function PlatformCompanyPage() {
         </div>
       </div>
 
+      {p.platform && (
+        <div role="note" className="rounded-xl px-4 py-3 text-sm" data-testid="platform-company-note"
+          style={{ background: 'rgba(15,118,110,0.07)', border: '1px solid rgba(15,118,110,0.3)', color: 'var(--text-primary)' }}>
+          <strong>This company runs Finvosmart.</strong> It always has full access, so it can&apos;t be suspended and no plan is
+          recorded for it here. Its Super Admins are the console&apos;s administrators — give or take away that access
+          under <Link href="/platform/admins" className="text-link">Administrators</Link>. Its contact details and logins are managed below as for any company.
+        </div>
+      )}
+
       {!p.active && (
         <div role="status" className="rounded-xl px-4 py-3 text-sm" data-testid="suspended-banner"
           style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.35)', color: 'var(--text-primary)' }}>
@@ -160,7 +174,8 @@ export default function PlatformCompanyPage() {
       <section className="card space-y-3" aria-labelledby="users-h">
         <h2 id="users-h" className="text-base font-semibold">Logins</h2>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Support can email a login a link to choose a new password (it goes to the login&apos;s own address — nobody else sees it), and unlock a login locked after wrong passwords.
+          Support can email a login a link to choose a new password (it goes to the login&apos;s own address — nobody else sees it), unlock a login
+          locked after wrong passwords, and switch a login off (it is signed out everywhere at once) or on again — each with a note kept in the history.
         </p>
         <div className="table-wrap">
           <table className="w-full border-collapse text-sm" data-testid="company-users">
@@ -173,7 +188,8 @@ export default function PlatformCompanyPage() {
               {data.users.map(u => (
                 <tr key={u.id} className="table-row" data-user={u.email}>
                   <td className="table-cell">
-                    <span className="block font-medium">{u.fullName || '—'}</span>
+                    <span className="block font-medium">{u.fullName || '—'}
+                      {u.console && <span className="ml-1.5 align-middle" data-console-admin><Badge variant="info">Console administrator</Badge></span>}</span>
                     <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{u.email}{u.phone ? ` · ${u.phone}` : ''}</span>
                   </td>
                   <td className="table-cell text-xs">{u.roles.map(r => r.replace(/_/g, ' ').toLowerCase()).join(', ') || '—'}</td>
@@ -189,6 +205,10 @@ export default function PlatformCompanyPage() {
                       <KeyRound size={13} /> Reset link</button>}
                     {(u.locked || u.failedAttempts > 0) && <button type="button" className="btn-ghost h-8 px-2 text-xs" disabled={unlock.isPending}
                       onClick={() => unlock.mutate(u)} data-action="unlock"><Unlock size={13} /> Unlock</button>}
+                    {u.active && u.id !== me && <button type="button" className="btn-ghost h-8 px-2 text-xs" style={{ color: '#b91c1c' }}
+                      onClick={() => setDialog({ off: u })} data-action="switch-off"><PowerOff size={13} /> Switch off</button>}
+                    {!u.active && <button type="button" className="btn-ghost h-8 px-2 text-xs"
+                      onClick={() => setDialog({ on: u })} data-action="switch-on"><Power size={13} /> Switch on</button>}
                   </td>
                 </tr>
               ))}
@@ -251,43 +271,20 @@ export default function PlatformCompanyPage() {
       {dialog === 'reactivate' && <NoteDialog title={`Reopen ${p.name}`} testId="reactivate-dialog" action="Reopen the company" label="Note (kept with the company's history)"
         text="Its people can sign in again straight away."
         run={note => platformApi.reactivate(id, note)} onClose={() => setDialog(null)} onDone={d => done(d, 'Company reopened')} />}
-      {dialog && typeof dialog === 'object' && <ResetDialog companyId={id} user={dialog.reset} onClose={() => setDialog(null)} />}
+      {dialog && typeof dialog === 'object' && 'reset' in dialog && <ResetDialog companyId={id} user={dialog.reset} onClose={() => setDialog(null)} />}
+      {dialog && typeof dialog === 'object' && 'off' in dialog && <NoteDialog title={`Switch off ${dialog.off.email ?? 'this login'}`} testId="switch-off-dialog"
+        action="Switch the login off" danger label="Why (kept with the company's history)"
+        text={`${dialog.off.fullName || dialog.off.email} can't sign in any more and is signed out on every device at once. Nothing is deleted: switch it on again any time.${dialog.off.console ? ' This login is also one of the console\'s administrators.' : ''}`}
+        run={note => platformApi.switchOff(id, dialog.off.id, note)} onClose={() => setDialog(null)} onDone={d => done(d, 'Login switched off — signed out everywhere')} />}
+      {dialog && typeof dialog === 'object' && 'on' in dialog && <NoteDialog title={`Switch on ${dialog.on.email ?? 'this login'}`} testId="switch-on-dialog"
+        action="Switch the login on" label="Note (kept with the company's history)"
+        text={`${dialog.on.fullName || dialog.on.email} can sign in again straight away, with the same password and roles.`}
+        run={note => platformApi.switchOn(id, dialog.on.id, note)} onClose={() => setDialog(null)} onDone={d => done(d, 'Login switched on')} />}
     </div>
   )
 }
 
 // ── the dialogs ───────────────────────────────────────────────────────────────
-
-function Problem({ text }: { text: string }) {
-  return text ? <p role="alert" className="text-sm" style={{ color: '#dc2626' }} data-testid="dialog-error">{text}</p> : null
-}
-
-/** A note, then the action (suspend, reopen, full access): the server checks the note is 5 to 300 characters. */
-function NoteDialog({ title, text, label, action, danger, testId, run, onClose, onDone }: {
-  title: string; text: string; label: string; action: string; danger?: boolean; testId: string
-  run: (note: string) => Promise<CompanyDetail>; onClose: () => void; onDone: (d: CompanyDetail) => void
-}) {
-  const [note, setNote] = useState('')
-  const [problem, setProblem] = useState('')
-  const m = useMutation({ mutationFn: () => run(note), onSuccess: onDone, onError: (e: unknown) => setProblem(apiError(e, 'That could not be done.')) })
-  return (
-    <Modal open onClose={onClose} title={title} size="sm" footer={
-      <div className="flex justify-end gap-2">
-        <button type="button" className="btn-secondary h-9 px-4" onClick={onClose}>Cancel</button>
-        <button type="button" className={`${danger ? 'btn-danger' : 'btn-primary'} h-9 px-4`} disabled={m.isPending || note.trim().length < 5}
-          onClick={() => { setProblem(''); m.mutate() }} data-action="confirm">{m.isPending ? 'Saving…' : action}</button>
-      </div>}>
-      <div className="space-y-3" data-testid={testId}>
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{text}</p>
-        <div>
-          <label className="label" htmlFor="pf-note">{label}</label>
-          <textarea id="pf-note" className="input" rows={3} maxLength={300} value={note} onChange={e => setNote(e.target.value)} data-field="note" />
-        </div>
-        <Problem text={problem} />
-      </div>
-    </Modal>
-  )
-}
 
 function DetailsDialog({ detail, onClose, onDone }: { detail: CompanyDetail; onClose: () => void; onDone: (d: CompanyDetail) => void }) {
   const p = detail.profile
@@ -419,30 +416,6 @@ function PlanDialog({ detail, onClose, onDone }: { detail: CompanyDetail; onClos
           <textarea id="pp-note" className="input" rows={2} maxLength={300} value={note} onChange={e => setNote(e.target.value)} data-field="note"
             placeholder="e.g. NEFT on 3 Nov, UTR 123456789012, invoice FS/26-27/014" />
         </div>
-        <Problem text={problem} />
-      </div>
-    </Modal>
-  )
-}
-
-function ResetDialog({ companyId, user, onClose }: { companyId: string; user: CompanyUser; onClose: () => void }) {
-  const [problem, setProblem] = useState('')
-  const [sent, setSent] = useState('')
-  const m = useMutation({ mutationFn: () => platformApi.resetLink(companyId, user.id), onSuccess: r => setSent(r),
-    onError: (e: unknown) => setProblem(apiError(e, 'The link could not be sent.')) })
-  return (
-    <Modal open onClose={onClose} title="Send a password-reset link" size="sm" footer={
-      <div className="flex justify-end gap-2">
-        <button type="button" className="btn-secondary h-9 px-4" onClick={onClose}>{sent ? 'Close' : 'Cancel'}</button>
-        {!sent && <button type="button" className="btn-primary h-9 px-4" disabled={m.isPending} onClick={() => { setProblem(''); m.mutate() }} data-action="confirm">
-          {m.isPending ? 'Sending…' : 'Send the link'}</button>}
-      </div>}>
-      <div className="space-y-3" data-testid="reset-dialog">
-        {sent ? <p role="status" className="text-sm" data-testid="reset-sent">{sent}</p> : (
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            A link to choose a new password goes to <strong>{user.email}</strong> ({user.fullName}). It works once, for 30 minutes; nobody but them sees it.
-          </p>
-        )}
         <Problem text={problem} />
       </div>
     </Modal>

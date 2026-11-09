@@ -17,6 +17,7 @@ import { followOtherTabs, forgetHere, renewSession } from '@/lib/auth/session'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { TrialBanner } from '../billing/TrialBanner'
+import { PlatformNotice } from './PlatformNotice'
 import { CommandPalette } from '../ui/CommandPalette'
 import { ShortcutsHelp } from './ShortcutsHelp'
 import { useCreateAllowed } from './QuickCreate'
@@ -161,6 +162,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar onMenuClick={() => setSidebarOpen(true)} onSearchOpen={() => setCmdOpen(true)} onShortcuts={() => setHelpOpen(true)} />
         <TrialBanner />
+        <PlatformNotice />
         <main className="flex-1 overflow-y-auto p-5 md:p-6 page-enter" style={{ background: 'var(--bg-base)' }}>
           <div className="max-w-screen-2xl mx-auto">{children}</div>
         </main>

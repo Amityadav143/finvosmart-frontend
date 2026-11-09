@@ -10,6 +10,8 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { usePlatformInfo } from '@/lib/platformInfo'
+import { PlatformNotice } from '@/components/layout/PlatformNotice'
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import Link from 'next/link'
@@ -19,7 +21,7 @@ import { Zap, Eye, EyeOff, ArrowRight, CheckCircle2, Copy } from 'lucide-react'
 import { authApi } from '@/lib/api/auth'
 import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
 import { handOverGoogleSignIn, takeGoogleSignIn } from '@/lib/googleHandoff'
-import { checkNewSession, explainSignInProblem } from '@/lib/auth/sessionCheck'
+import { checkNewSession, signInProblemNote } from '@/lib/auth/sessionCheck'
 import { announceSignIn, takeAuth } from '@/lib/auth/session'
 import { sectorsApi, PACK_NAMES, type Sector, type SectorChoice } from '@/lib/api/sectors'
 import { SectorPicker } from '@/components/onboarding/SectorPicker'
@@ -72,6 +74,8 @@ const cardStyle = { borderRadius: '20px', padding: '30px', boxShadow: 'var(--sha
 
 export default function RegisterPage() {
   const router = useRouter()
+  // sign-ups can be paused in the platform console (Sign-ups and notices): the page says so instead of the form
+  const platform = usePlatformInfo()
   const [f, setF] = useState<Form>({ companyName: '', fullName: '', email: '', phone: '', password: '', gstin: '', website: '' })
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
   const [serverError, setServerError] = useState('')
@@ -149,9 +153,9 @@ export default function RegisterPage() {
       // code to sign in with once it is fixed, instead of a trip back to the sign-in page.
       const refused = await checkNewSession(auth.accessToken)
       if (refused) {
-        const why = explainSignInProblem(refused)
+        const why = signInProblemNote(refused)
         setServerError(`Your company was created (company code ${auth.companyCode ?? '—'}), but you couldn’t be signed in. `
-          + `${why.title}. ${why.detail} ${why.fix}`)
+          + `${why.title}. ${why.detail} ${why.fix}`.trim())
         return
       }
       takeAuth(auth)                         // signed in straight away, as the company's admin
@@ -258,10 +262,30 @@ export default function RegisterPage() {
     </div>
   )
 
+  if (!platform.signupsOpen) return (
+    <Shell>
+      <div className="card" style={cardStyle} data-testid="signups-paused">
+        <PlatformNotice compact />
+        <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', margin: '12px 0 8px' }}>Sign-ups are paused</h1>
+        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '14px' }}>
+          {platform.signupsClosedMessage || 'New sign-ups are paused for a short while. Please try again later.'}
+        </p>
+        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '18px' }}>
+          Write to us at <a href={`mailto:${platform.supportEmail}`} className="text-link" data-testid="signups-paused-email">{platform.supportEmail}</a> and
+          we&apos;ll let you know as soon as you can start your trial.
+        </p>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+          Already have an account? <Link href="/login" className="text-link">Sign in</Link>
+        </p>
+      </div>
+    </Shell>
+  )
+
   return (
     <Shell>
       <div className="card" style={cardStyle}>
         <ServerNotice />
+        <div className="empty:hidden" style={{ marginBottom: '12px' }}><PlatformNotice compact /></div>
         <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Start your free trial</h1>
         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
           7 days free · No credit card · Set up in a minute

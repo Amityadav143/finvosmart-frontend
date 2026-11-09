@@ -12,6 +12,7 @@
 import axios from 'axios'
 import { RELEASE } from '@/lib/release'
 import { noteAddressNotice } from '@/lib/auth/publicAuth'
+import { diagnosing } from '@/lib/auth/setupNotes'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -38,7 +39,7 @@ let settled: ServerAnswer | null = null
  * the public /auth/providers refused as signed out): an error below it then just points there.
  */
 export function addressNoticeShown(): boolean {
-  return !!settled && 'problem' in settled && (settled.problem.status === 401 || settled.problem.status === 403) && !!settled.problem.said
+  return diagnosing() && !!settled && 'problem' in settled && (settled.problem.status === 401 || settled.problem.status === 403) && !!settled.problem.said
 }
 
 function settle(a: ServerAnswer): ServerAnswer {
@@ -119,4 +120,16 @@ export function serverNotice(a: ServerAnswer): { title: string; detail: string }
                + 'Rebuild it (mvn clean package -DskipTests), restart it, and check that nginx sends /api/ to that backend — not to an old one.' }
   return { title: 'The web app wasn’t updated',
            detail: `The backend is from the ${theirs} update, but this page is from ${RELEASE}. Rebuild the web app (npm ci && npm run build) and restart it.` }
+}
+
+/**
+ * What people on a sign-in page are told about the server (serverNotice is for whoever runs it — lib/auth/setupNotes):
+ * that it can't be reached, or isn't available just now when it has a problem of its own; nothing when sign-in can
+ * work, a web app and backend from different releases included.
+ */
+export function peopleNotice(a: ServerAnswer): { title: string; detail: string } | null {
+  if (!('problem' in a) || !serverNotice(a)) return null
+  if (a.problem.status === null)
+    return { title: 'Can’t connect to Finvosmart', detail: 'Check your internet connection and try again.' }
+  return { title: 'Finvosmart isn’t available just now', detail: 'Please try again in a few minutes — if it keeps happening, contact Finvosmart support.' }
 }

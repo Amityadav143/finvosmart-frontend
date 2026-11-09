@@ -24,6 +24,10 @@ export interface AuthResponse {
   accessToken: string; refreshToken: string; tokenType: string; expiresIn: number
   userId: string; fullName: string; email: string; companyId: string; branchId: string
   roles: string[]; permissions: string[]
+  /** may use the platform console: a super administrator of the company that runs Finvosmart */
+  platformAdmin?: boolean
+  /** the login belongs to the company that runs Finvosmart (its Super Admins use the console) */
+  platformCompany?: boolean
   companyName?: string; companyCode?: string; subscriptionPlan?: string
   mfaPending?: boolean; mfaSessionToken?: string
   companyChooser?: { companyCode: string; companyName: string }[]

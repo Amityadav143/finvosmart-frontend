@@ -21,6 +21,7 @@ import { dashboardApi } from '@/lib/api/dashboard'
 import { OnboardingChecklist } from '@/components/ui/OnboardingChecklist'
 import { TrialCard } from '@/components/billing/TrialBanner'
 import { SectorTiles } from '@/components/industry/SectorTiles'
+import { ConsoleCard } from '@/components/platform/ConsoleCard'
 import { useTheme } from '@/lib/context/ThemeContext'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { usePermissions } from '@/lib/hooks/usePermissions'
@@ -54,6 +55,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      <ConsoleCard />
       <TrialCard />
       <OnboardingChecklist companyName={user?.companyName} />
       <SectorTiles />

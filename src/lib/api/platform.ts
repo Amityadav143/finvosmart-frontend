@@ -44,7 +44,53 @@ export interface PlatformSetup {
   googleReady: boolean; whatsappReady: boolean; signupsOpen: boolean; noticeShown: boolean; encryptionReady: boolean
 }
 
-export interface PlatformOverview { counts: PlatformCounts; recent: CompanyRow[]; setup: PlatformSetup; version: string }
+/** A login of the platform company. console: it can open the console; you: the person signed in. */
+export interface ConsoleLogin { id: string; fullName?: string; email: string; active: boolean; lastSignIn?: string; console: boolean; you: boolean }
+/** The platform company and its logins: who can open the console, and who could be given access. */
+export interface ConsoleAdmins { companyId?: string; companyName?: string; companyFound: boolean; admins: ConsoleLogin[]; others: ConsoleLogin[] }
+
+export interface LoginCounts { all: number; locked: number; switchedOff: number; neverSignedIn: number }
+export interface LeadCounts { waiting: number; last7Days: number; all: number }
+export interface PaymentTotals {
+  paidCount: number; paidPaise: number; monthCount: number; monthPaise: number; last30Count: number; last30Paise: number; failedLast30: number
+}
+
+export interface PlatformOverview {
+  counts: PlatformCounts; recent: CompanyRow[]; setup: PlatformSetup; version: string
+  /** the logins that can open the console */
+  consoleAdmins: ConsoleLogin[]
+  logins: LoginCounts; enquiries: LeadCounts; payments: PaymentTotals
+}
+
+export type LoginFilter = 'LOCKED' | 'OFF' | 'NEVER' | 'ADMINS'
+/** A login of some company — never its password or codes. console: it can open the platform console. */
+export interface LoginRow {
+  id: string; fullName?: string; email: string; phone?: string; roles: string[]; active: boolean; locked: boolean; lockedUntil?: string
+  failedAttempts: number; twoStep: boolean; google: boolean; lastSignIn?: string; createdAt?: string
+  companyId: string; companyName: string; companyCode?: string; companyActive: boolean; console: boolean
+}
+export interface LoginPage { items: LoginRow[]; total: number; page: number; size: number; filter?: string; search?: string; counts: LoginCounts }
+
+export type PaymentFilter = 'PAID' | 'FAILED' | 'CREATED'
+export interface PaymentRow {
+  id: string; companyId: string; companyName: string; companyCode?: string; plan: string; billingCycle: string
+  basePaise: number; gstPaise: number; amountPaise: number; status: string; orderId?: string; paymentId?: string
+  periodStart?: string; periodEnd?: string; createdAt?: string; paidAt?: string; failureReason?: string
+}
+export interface PaymentPage { items: PaymentRow[]; total: number; page: number; size: number; filter?: string; search?: string; totals: PaymentTotals }
+
+export type LeadFilter = 'NEW' | 'HANDLED'
+/** An enquiry from the website's contact form. */
+export interface LeadRow {
+  id: string; name: string; email: string; phone?: string; company: string; companySize?: string; plan?: string; message?: string
+  sourcePage?: string; receivedAt?: string; handledAt?: string; handledBy?: string; handledNote?: string
+}
+export interface LeadPage { items: LeadRow[]; total: number; page: number; size: number; filter?: string; search?: string; counts: LeadCounts }
+
+export type ActivityKind = 'SUPPORT' | 'SETTINGS' | 'ADMINS' | 'LEADS'
+/** One thing support or the console did. what: in words; details: the audit entry's JSON. */
+export interface ActivityRow { action: string; what: string; details?: string; at?: string; byName?: string; byEmail?: string; companyId?: string; companyName?: string }
+export interface ActivityPage { items: ActivityRow[]; total: number; page: number; size: number; kind?: string }
 
 export interface CompanyProfile {
   id: string; name: string; legalName?: string; companyCode?: string; gstin?: string; pan?: string; cin?: string
@@ -57,6 +103,8 @@ export interface CompanyUser {
   id: string; fullName?: string; email?: string; phone?: string; roles: string[]
   active: boolean; locked: boolean; lockedUntil?: string; failedAttempts: number
   twoStep: boolean; hasPassword: boolean; google: boolean; lastSignIn?: string; createdAt?: string
+  /** it can open the platform console (a Super Admin of the platform company) */
+  console: boolean
 }
 
 export interface PlanPayment {
@@ -131,6 +179,23 @@ export const platformApi = {
   resetLink: async (id: string, userId: string) =>
     need(await api.post<ApiResponse<ActionResult>>(`/platform/companies/${id}/users/${userId}/reset-link`)).result,
   unlock: async (id: string, userId: string) => need(await api.post<ApiResponse<CompanyDetail>>(`/platform/companies/${id}/users/${userId}/unlock`)),
+  switchOff: async (id: string, userId: string, note: string) =>
+    need(await api.post<ApiResponse<CompanyDetail>>(`/platform/companies/${id}/users/${userId}/switch-off`, { note })),
+  switchOn: async (id: string, userId: string, note: string) =>
+    need(await api.post<ApiResponse<CompanyDetail>>(`/platform/companies/${id}/users/${userId}/switch-on`, { note })),
+  logins: async (q: string, filter: string, page: number) =>
+    need(await api.get<ApiResponse<LoginPage>>('/platform/users', { params: { q: q || undefined, filter: filter || undefined, page } })),
+  payments: async (q: string, filter: string, page: number) =>
+    need(await api.get<ApiResponse<PaymentPage>>('/platform/payments', { params: { q: q || undefined, filter: filter || undefined, page } })),
+  leads: async (q: string, filter: string, page: number) =>
+    need(await api.get<ApiResponse<LeadPage>>('/platform/leads', { params: { q: q || undefined, filter: filter || undefined, page } })),
+  leadHandled: async (id: string, note: string) => need(await api.post<ApiResponse<ActionResult>>(`/platform/leads/${id}/handled`, { note })).result,
+  leadReopen: async (id: string) => need(await api.post<ApiResponse<ActionResult>>(`/platform/leads/${id}/reopen`)).result,
+  activity: async (kind: string, page: number) =>
+    need(await api.get<ApiResponse<ActivityPage>>('/platform/activity', { params: { kind: kind || undefined, page } })),
+  admins: async () => need(await api.get<ApiResponse<ConsoleAdmins>>('/platform/admins')),
+  addAdmin: async (userId: string) => need(await api.post<ApiResponse<ConsoleAdmins>>('/platform/admins', { userId })),
+  removeAdmin: async (userId: string) => need(await api.post<ApiResponse<ConsoleAdmins>>(`/platform/admins/${userId}/remove`)),
   settings: async () => need(await api.get<ApiResponse<PlatformSettingsView>>('/platform/settings')),
   saveSettings: async (values: Record<string, string>, clear: string[]) =>
     need(await api.put<ApiResponse<PlatformSettingsView>>('/platform/settings', { values, clear })),
@@ -180,4 +245,20 @@ export function lastDayOf(iso?: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
   return isNaN(d.getTime()) ? '—' : day(new Date(d.getTime() - 1000).toISOString())
+}
+
+/** "{"days":5,"note":"…"}" → "days 5 · note …": an audit entry's details, readable. */
+export function readableDetails(details?: string | null): string {
+  if (!details) return ''
+  try {
+    const o = JSON.parse(details)
+    if (o && typeof o === 'object') return Object.entries(o).filter(([, v]) => v !== null && v !== '').map(([k, v]) => `${k} ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' · ')
+  } catch { /* not JSON: as it is */ }
+  return details
+}
+
+/** A role's code in words ("COMPANY_ADMIN" → "Company admin"). */
+export function roleWords(role: string): string {
+  const s = role.replace(/_/g, ' ').toLowerCase()
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }

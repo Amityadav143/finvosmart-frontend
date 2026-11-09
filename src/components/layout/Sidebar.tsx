@@ -25,14 +25,37 @@ import {
   Bell, ClipboardList, ChevronDown, Timer, FileDown, Layers, ShieldCheck
 , Plug , Palette, Mail, Brain, ShieldAlert, Landmark, Receipt, Truck, FileCheck2, Percent, FileUp, Webhook, BookOpen, Factory } from 'lucide-react'
 import { useState } from 'react'
+import { PLATFORM_COLOR } from '@/components/platform/theme'
 
 /* ── Navigation structure ─────────────────────────────────────────────── */
 /** perm: one permission, or a list where any one is enough. */
 /** when: shown only to a company whose industry needs it (drugRegister: medicines with a schedule — a pharmacy) */
-/** platform: the platform console — for Finvosmart's own administrators only (the server checks every call too) */
-type NavItem = { href: string; label: string; icon: any; perm: string | string[]; dot?: string; when?: 'drugRegister'; platform?: boolean }
-type NavSection = { id: string; label: string | null; items: NavItem[]; accent?: string }
+/**
+ * platform: 'console' — the platform console, for Finvosmart's own administrators only (the server checks every call
+ * too); 'hint' — instead of it, for a login that might expect it (a Super Admin of another company, an administrator
+ * of the platform company): the page then says how the console opens.
+ */
+type NavItem = { href: string; label: string; icon: any; perm: string | string[]; dot?: string; when?: 'drugRegister'; platform?: 'console' | 'hint' }
+/** accent and chip: the section's colour and the small label beside its name ("AI") */
+type NavSection = { id: string; label: string | null; items: NavItem[]; accent?: string; chip?: string }
 const NAV_SECTIONS: NavSection[] = [
+  {
+    id: 'platform',
+    label: 'Finvosmart admin',
+    accent: PLATFORM_COLOR,
+    chip: 'CONSOLE',
+    items: [
+      { href: '/platform',           label: 'Console overview', icon: Globe,         perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
+      { href: '/platform/companies', label: 'All companies',    icon: Building2,     perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
+      { href: '/platform/users',     label: 'All logins',       icon: Users,         perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
+      { href: '/platform/payments',  label: 'Plan payments',    icon: CreditCard,    perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
+      { href: '/platform/leads',     label: 'Website enquiries', icon: Mail,         perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
+      { href: '/platform/activity',  label: 'Console activity', icon: ClipboardList, perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
+      { href: '/platform/admins',    label: 'Administrators',   icon: ShieldCheck,   perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
+      { href: '/platform/settings',  label: 'Platform settings', icon: Settings,     perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
+      { href: '/platform',           label: 'Platform console', icon: ShieldAlert,   perm: 'SETTINGS_VIEW', platform: 'hint' },
+    ],
+  },
   {
     id: 'main',
     label: null,
@@ -42,18 +65,10 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    id: 'platform',
-    label: 'Platform',
-    items: [
-      { href: '/platform',           label: 'Platform overview', icon: Globe,     perm: 'SETTINGS_VIEW', platform: true, dot: '#0f766e' },
-      { href: '/platform/companies', label: 'All companies',     icon: Building2, perm: 'SETTINGS_VIEW', platform: true, dot: '#0f766e' },
-      { href: '/platform/settings',  label: 'Platform settings', icon: Settings,  perm: 'SETTINGS_VIEW', platform: true, dot: '#0f766e' },
-    ],
-  },
-  {
     id: 'ai',
     label: 'AI Features',
     accent: '#8b5cf6',
+    chip: 'AI',
     items: [
       { href: '/ai/cfo',         label: 'AI CFO',            icon: Brain,         dot: '#8b5cf6', perm: 'AI_CFO_VIEW' },
       { href: '/ai/health-score', label: 'Health Score',     icon: Activity,      dot: '#0d9488', perm: 'AI_HEALTH_VIEW' },
@@ -154,7 +169,7 @@ interface SidebarProps { onClose?: () => void }
 export function Sidebar({ onClose }: SidebarProps) {
   const pathname              = usePathname()
   const { user, logout }      = useAuthStore()
-  const { can, isPlatformAdmin } = usePermissions()
+  const { can, isPlatformAdmin, consoleHint } = usePermissions()
   const industry              = useIndustry()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
@@ -203,15 +218,19 @@ export function Sidebar({ onClose }: SidebarProps) {
           // Filter items user can access
           // Items the user may open; features still on demo data only when previews are switched on
           // …and only the menu entries the company's sector uses (Settings → Industry switches them on or off)
-          const visibleItems = section.items.filter(item => (!item.platform || isPlatformAdmin)
+          // …the console's entries only for its administrators, the hint about it only for those who might look for it
+          const visibleItems = section.items.filter(item => (!item.platform || (item.platform === 'console' ? isPlatformAdmin : consoleHint))
             && shown(item.href) && industry.visible(item.href) && (!item.when || !!industry.current?.[item.when])
             && (!item.perm || (Array.isArray(item.perm) ? item.perm.some(p => can(p)) : can(item.perm))))
           if (!visibleItems.length) return null
 
           const isOpen = !collapsed[section.id]
+          // the console stands out from the company's own menu: framed in its colour, at the top
+          const framed = section.id === 'platform'
 
           return (
-            <div key={section.id} className="mb-1">
+            <div key={section.id} className={framed ? 'mb-3 rounded-xl' : 'mb-1'} data-nav-section={section.id}
+              style={framed ? { background: `${section.accent}0d`, border: `1px solid ${section.accent}33`, padding: '4px 2px 2px' } : undefined}>
               {/* Section header */}
               {section.label && (
                 <button
@@ -231,12 +250,12 @@ export function Sidebar({ onClose }: SidebarProps) {
                     >
                       {section.label}
                     </span>
-                    {section.accent && (
+                    {section.accent && section.chip && (
                       <span
                         className="text-xs font-bold px-1.5 rounded"
                         style={{ fontSize: '7.5px', background: `${section.accent}15`, color: section.accent }}
                       >
-                        AI
+                        {section.chip}
                       </span>
                     )}
                   </div>
@@ -258,9 +277,10 @@ export function Sidebar({ onClose }: SidebarProps) {
                     const active = isActive(item.href)
                     return (
                       <Link
-                        key={item.href}
+                        key={`${item.href}:${item.platform ?? ''}`}
                         href={item.href}
                         onClick={onClose}
+                        data-nav={item.href}
                         className="flex items-center gap-2.5 px-3 py-2 rounded-lg mb-0.5 no-underline transition-all"
                         style={{
                           background: active ? `${item.dot ?? 'var(--gold)'}15` : 'transparent',

@@ -14,7 +14,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Search, ArrowRight, Users, FileText, ShoppingCart, Package, TrendingUp, BarChart3, Settings, Building2, Clock, Boxes,
-  Receipt, Truck, UserCheck, Plus, History, Loader2, type LucideIcon,
+  Receipt, Truck, UserCheck, Plus, History, Loader2, Globe, type LucideIcon,
 } from 'lucide-react'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { shown } from '@/lib/previews'
@@ -25,9 +25,20 @@ import { useIndustry } from '@/lib/hooks/useIndustry'
 import { goTo } from '@/lib/hooks/useUrlParams'
 
 /** when: offered only to a company whose industry needs it (drugRegister: a pharmacy's Schedule H1 register) */
-type Command = { label: string; href: string; icon: LucideIcon; perm?: string | string[]; when?: 'drugRegister' }
+/** console: the platform console's pages — offered to Finvosmart's own administrators only */
+type Command = { label: string; href: string; icon: LucideIcon; perm?: string | string[]; when?: 'drugRegister'; console?: boolean }
 
 const COMMANDS: { group: string; items: Command[] }[] = [
+  { group: 'Platform console', items: [
+    { label: 'Platform console: overview',              href: '/platform',           icon: Globe,     console: true },
+    { label: 'All companies (suspend, trial, plan)',    href: '/platform/companies', icon: Building2, console: true },
+    { label: 'All logins across companies',             href: '/platform/users',     icon: Users,     console: true },
+    { label: 'Plan payments of every company',          href: '/platform/payments',  icon: Receipt,   console: true },
+    { label: 'Website enquiries',                       href: '/platform/leads',     icon: FileText,  console: true },
+    { label: 'Console activity log',                    href: '/platform/activity',  icon: History,   console: true },
+    { label: 'Console administrators',                  href: '/platform/admins',    icon: UserCheck, console: true },
+    { label: 'Platform settings: contact details, email server (SMTP), payment gateway, sign-in', href: '/platform/settings', icon: Settings, console: true },
+  ]},
   { group: 'Navigation', items: [
     { label: 'Dashboard',           href: '/dashboard',              icon: BarChart3, perm: 'DASHBOARD_VIEW' },
     { label: 'Analytics & Reports', href: '/reports',                icon: BarChart3, perm: 'REPORTS_VIEW' },
@@ -129,7 +140,7 @@ export function CommandPalette({ open, onClose }: Props) {
   const router = useRouter()
   const ref = useRef<HTMLInputElement>(null)
   const list = useRef<HTMLDivElement>(null)
-  const { can, isSuperAdmin } = usePermissions()
+  const { can, isSuperAdmin, isPlatformAdmin } = usePermissions()
   const createAllowed = useCreateAllowed()
   const createLabel = useCreateLabel()
   const industry = useIndustry()
@@ -155,7 +166,7 @@ export function CommandPalette({ open, onClose }: Props) {
 
   const entries: Entry[] = useMemo(() => {
     // pages the company's industry has switched off aren't offered; the rest are called by its words ("Patients")
-    const allowed = ALL.filter(c => shown(c.href) && industry.visible(c.href.split('?')[0]) && (!c.when || !!industry.current?.[c.when])
+    const allowed = ALL.filter(c => (!c.console || isPlatformAdmin) && shown(c.href) && industry.visible(c.href.split('?')[0]) && (!c.when || !!industry.current?.[c.when])
         && (!c.perm || isSuperAdmin || (Array.isArray(c.perm) ? c.perm.some(p => can(p)) : can(c.perm))))
       .map(c => ({ ...c, label: industry.name(c.href, c.label) }))
     const lower = term.toLowerCase()
@@ -170,7 +181,7 @@ export function CommandPalette({ open, onClose }: Props) {
     if (!lower) return [...recent, ...creates.slice(0, 4), ...pages]
     return [...records, ...creates, ...pages]
   // eslint-disable-next-line react-hooks/exhaustive-deps -- industry.current is what its functions read
-  }, [term, hits, recent, can, isSuperAdmin, createAllowed, industry.current])
+  }, [term, hits, recent, can, isSuperAdmin, isPlatformAdmin, createAllowed, industry.current])
 
   useEffect(() => { setSel(s => Math.min(s, Math.max(0, entries.length - 1))) }, [entries.length])
 

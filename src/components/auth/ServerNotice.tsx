@@ -11,22 +11,31 @@
  */
 
 import { useEffect, useState } from 'react'
-import { askServer, serverNotice } from '@/lib/auth/server'
+import { askServer, peopleNotice, serverNotice } from '@/lib/auth/server'
+import { diagnosing, logForAdmin } from '@/lib/auth/setupNotes'
 
 /**
- * On the sign-in pages: a server that can't be reached, an API that isn't where the web app looks
- * for it, or a web app and backend from different updates — said before anyone types a password.
+ * On the sign-in pages, before anyone types a password: the server can't be reached, or isn't available just now —
+ * in plain words, and only when signing in can't work. How the server is set up (an API that isn't where the web app
+ * looks for it, a web app and backend from different updates…) is for whoever runs it: in the browser's developer
+ * console, and on the page when its address ends in ?check (lib/auth/setupNotes).
  */
 export function ServerNotice() {
-  const [note, setNote] = useState<{ title: string; detail: string } | null>(null)
+  const [note, setNote] = useState<{ title: string; detail: string; setup: boolean } | null>(null)
   useEffect(() => {
     let live = true
-    askServer().then(a => { if (live) setNote(serverNotice(a)) })
+    askServer().then(a => {
+      if (!live) return
+      const setup = serverNotice(a)
+      if (setup) logForAdmin(`${setup.title}: ${setup.detail}`)
+      const shown = diagnosing() ? setup : peopleNotice(a)
+      setNote(shown ? { ...shown, setup: shown === setup } : null)
+    })
     return () => { live = false }
   }, [])
   if (!note) return null
   return (
-    <div role="status" data-testid="server-notice"
+    <div role="status" data-testid="server-notice" data-setup={String(note.setup)}
          style={{ marginBottom: '18px', padding: '12px 14px', borderRadius: '12px', background: 'rgba(217,119,6,0.08)',
                   border: '1px solid rgba(217,119,6,0.35)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
       <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{note.title}</p>

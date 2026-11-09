@@ -18,12 +18,14 @@ import toast from 'react-hot-toast'
 import { Zap, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { ServerNotice } from '@/components/auth/ServerNotice'
 import { apiError } from '@/lib/apiError'
+import { useDiagnosing } from '@/lib/auth/setupNotes'
 
 export default function ForgotPasswordPage() {
   const { isDark } = useTheme()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  const diagnosing = useDiagnosing()            // ?check: what the server's administrator can do, instead of people's words
   const [failed, setFailed] = useState('')
 
   const submit = async (e: any) => {
@@ -74,9 +76,12 @@ export default function ForgotPasswordPage() {
                 Didn't get it? Check spam, or{' '}
                 <button onClick={() => setSent(false)} style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontWeight: 500, padding: 0 }}>try again</button>.
               </p>
-              <p data-testid="no-email-hint" style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.6 }}>
-                Nothing arrives? Email may not be set up on the server yet. Its administrator finds the link in the
-                server’s log, or sets a new password for you with scripts/set-password.sh.
+              <p data-testid="no-email-hint" data-setup={String(diagnosing)} style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.6 }}>
+                {diagnosing
+                  ? <>Nothing arrives? Email may not be set up on the server yet. Its administrator finds the link in the
+                      server’s log, or sets a new password for you with scripts/set-password.sh.</>
+                  : <>Nothing arrives after a few minutes? Your company’s administrator can set a new password for you,
+                      or contact Finvosmart support.</>}
               </p>
             </div>
           ) : (

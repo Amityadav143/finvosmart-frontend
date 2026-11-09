@@ -23,6 +23,7 @@ import { useExtraFields, ExtraFields } from '@/components/industry/ExtraFields'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { sectorsApi, PACK_NAMES } from '@/lib/api/sectors'
 import { SectorPicker } from '@/components/onboarding/SectorPicker'
+import { SupportEmail } from '@/components/marketing/PlatformContact'
 
 const TABS = ['General', 'Payments & invoices', 'Financial'] as const
 
@@ -171,7 +172,7 @@ function CompanySettings(){
               ))}
             </div>
             <p className="text-xs mt-4" style={{color:'var(--text-muted)', lineHeight: 1.6}}>
-              These are set when your company is created. Changing the financial year affects your books, so please contact support if you need to change them.
+              These are set when your company is created. Changing the financial year affects your books, so please write to Finvosmart support (<SupportEmail style={{ color: 'var(--gold)' }} />) if you need to change them.
             </p>
           </div>
           <div className="card">

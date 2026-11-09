@@ -23,6 +23,10 @@ interface UserInfo {
   companyName?:     string
   companyCode?:     string
   subscriptionPlan?: string
+  /** may use the platform console (the server says so: SUPER_ADMIN of the company that runs Finvosmart) */
+  platformAdmin?:   boolean
+  /** belongs to the company that runs Finvosmart (the server says so) — the menu says how to open the console */
+  platformCompany?: boolean
 }
 
 interface AuthState {

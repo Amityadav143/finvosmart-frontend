@@ -13,7 +13,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, Sun, Moon, Search, ChevronDown, LogOut, Keyboard, UserCircle, Rocket } from 'lucide-react'
+import { Menu, Sun, Moon, Search, ChevronDown, LogOut, Keyboard, UserCircle, Rocket, Globe } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { signOut } from '@/lib/auth/session'
 import { useTheme } from '@/lib/context/ThemeContext'
@@ -23,6 +23,8 @@ import { NotificationBell } from './NotificationBell'
 import { QuickCreate } from './QuickCreate'
 import { showSetupChecklist } from '@/components/ui/OnboardingChecklist'
 import { useRouter } from 'next/navigation'
+import { RELEASE } from '@/lib/release'
+import { PLATFORM_COLOR } from '@/components/platform/theme'
 
 /* ── Page titles keyed by route ─────────────────────────────────────── */
 const TITLES: Record<string, string> = {
@@ -90,6 +92,14 @@ const TITLES: Record<string, string> = {
   '/procurement':              'Procurement',
   '/inventory/warehouses':     'Warehouses',
   '/inventory/scanner':        'Stock Scanner',
+  '/platform':                 'Platform console',
+  '/platform/companies':       'All companies',
+  '/platform/users':           'All logins',
+  '/platform/payments':        'Plan payments',
+  '/platform/leads':           'Website enquiries',
+  '/platform/activity':        'Console activity',
+  '/platform/admins':          'Console administrators',
+  '/platform/settings':        'Platform settings',
 }
 
 interface TopbarProps {
@@ -103,7 +113,7 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
   const router            = useRouter()
   const { user }  = useAuthStore()
   const { isDark, toggle } = useTheme()
-  const { roles }         = usePermissions()
+  const { roles, isPlatformAdmin } = usePermissions()
   const industry          = useIndustry()
   const [time, setTime]   = useState('')
   const [mounted, setMounted] = useState(false)
@@ -129,6 +139,7 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
   const initials  = (user?.fullName ?? 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
   const firstName = user?.fullName?.split(' ')[0] ?? 'User'
   const roleLabel = roles[0]?.replace(/_/g, ' ') ?? 'Employee'
+  const inConsole = pathname === '/platform' || pathname.startsWith('/platform/')
 
   return (
     <header
@@ -151,6 +162,24 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
         <span className="hidden xl:block text-xs font-mono whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
           {time}
         </span>
+
+        {/* The platform console — for Finvosmart's own administrators, always one click away */}
+        {isPlatformAdmin && (
+          <Link
+            href="/platform"
+            className="flex items-center gap-1.5 h-9 rounded-xl px-3 text-sm font-semibold no-underline whitespace-nowrap"
+            style={{
+              background: inConsole ? PLATFORM_COLOR : `${PLATFORM_COLOR}14`, color: inConsole ? '#fff' : PLATFORM_COLOR,
+              border: `1px solid ${PLATFORM_COLOR}55`,
+            }}
+            title="Finvosmart platform console: every company, logins, payments, enquiries and the settings for all of Finvosmart"
+            aria-current={inConsole ? 'page' : undefined}
+            data-testid="open-console"
+          >
+            <Globe size={15} aria-hidden />
+            <span className="hidden md:inline">Admin console</span>
+          </Link>
+        )}
 
         {/* Create */}
         <QuickCreate />
@@ -191,6 +220,9 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
             className="flex items-center gap-2 rounded-xl px-2.5 py-1.5 transition-all"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }}
             onClick={() => setUserMenuOpen(v => !v)}
+            aria-label="Your account menu"
+            aria-expanded={userMenuOpen}
+            data-testid="user-menu"
           >
             <div
               className="flex items-center justify-center rounded-full text-xs font-bold flex-shrink-0"
@@ -222,8 +254,30 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
                   >
                     {roleLabel}
                   </span>
+                  {isPlatformAdmin && (
+                    <span
+                      className="inline-block mt-2 ml-1.5 px-2 py-0.5 rounded-full text-xs font-bold"
+                      style={{ background: `${PLATFORM_COLOR}1a`, color: PLATFORM_COLOR, fontSize: '10px' }}
+                      data-testid="console-badge"
+                    >
+                      Finvosmart administrator
+                    </span>
+                  )}
                 </div>
                 <div style={{ padding: '6px' }}>
+                  {isPlatformAdmin && (
+                    <Link
+                      href="/platform"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all no-underline"
+                      style={{ color: PLATFORM_COLOR }}
+                      onMouseEnter={(e: any) => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
+                      onMouseLeave={(e: any) => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                      data-testid="menu-console"
+                    >
+                      <Globe size={14} />Platform console
+                    </Link>
+                  )}
                   <Link
                     href="/self-service"
                     onClick={() => setUserMenuOpen(false)}
@@ -272,6 +326,11 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
                     <LogOut size={14} />Sign out
                   </button>
                 </div>
+                {/* which build of the web app this is — what an update should have changed */}
+                <p className="px-4 py-2 font-mono" style={{ fontSize: '10px', color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}
+                  data-testid="app-release">
+                  Release {RELEASE}
+                </p>
               </div>
             </>
           )}

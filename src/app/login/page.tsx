@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { PlatformNotice } from '@/components/layout/PlatformNotice'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -18,7 +19,7 @@ import { authApi } from '@/lib/api/auth'
 import { useTheme } from '@/lib/context/ThemeContext'
 import { useGoogleSignIn } from '@/lib/hooks/useGoogleSignIn'
 import { handOverGoogleSignIn, takeGoogleSignIn } from '@/lib/googleHandoff'
-import { checkNewSession, explainSignInProblem, sessionEndedNote, verifyStoredSession, changePasswordAs, problemFrom, type SignInProblem } from '@/lib/auth/sessionCheck'
+import { checkNewSession, signInProblemNote, sessionEndedNote, verifyStoredSession, changePasswordAs, problemFrom, type SignInProblem } from '@/lib/auth/sessionCheck'
 import { announceSignIn, forgetHere, takeAuth } from '@/lib/auth/session'
 import { signInError } from '@/lib/auth/signInError'
 import { ServerNotice } from '@/components/auth/ServerNotice'
@@ -343,14 +344,17 @@ export default function LoginPage() {
             </div>
           )}
           <ServerNotice />
+          {/* Finvosmart's notice to everyone (planned maintenance…), from the platform console */}
+          <div className="mb-4 empty:hidden"><PlatformNotice compact /></div>
           <h1 className="font-serif text-xl mb-5" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em', fontWeight: 400 }}>
             {step === 'newPassword' ? 'Choose your own password' : welcomeNew ? 'Get started' : 'Sign in to Finvosmart'}
           </h1>
 
           {problem && (() => {
-            const why = explainSignInProblem(problem)
+            // a server set-up problem: plain words here, the diagnosis for its administrator (?check, developer console)
+            const why = signInProblemNote(problem)
             return (
-              <div role="alert" data-testid="sign-in-problem" data-reason={problem.reason}
+              <div role="alert" data-testid="sign-in-problem" data-reason={problem.reason} data-setup={String(why.setup)}
                 style={{ marginBottom: '18px', padding: '12px 14px', borderRadius: '12px', background: 'rgba(220,38,38,0.07)',
                          border: '1px solid rgba(220,38,38,0.3)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                 <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>{why.title}</p>
