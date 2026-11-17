@@ -14,6 +14,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { hrmsApi } from '@/lib/api/hrms'
+import { allPages } from '@/lib/api/allPages'
 import { EmployeeModal } from '@/components/hrms/EmployeeModal'
 import { SalarySetupModal } from '@/components/payroll/SalarySetupModal'
 import { usePermissions } from '@/lib/hooks/usePermissions'
@@ -23,12 +24,13 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { Pagination } from '@/components/ui/Pagination'
 import { StatCard } from '@/components/ui/StatCard'
-import { formatDate } from '@/lib/utils'
+import { formatDate, csvCell, downloadBlob } from '@/lib/utils'
 import { useDebounce } from '@/lib/hooks'
 import { useUrlParams } from '@/lib/hooks/useUrlParams'
 import type { Employee } from '@/types'
 import { Plus, Download, Users, UserCheck, UserX, Briefcase, LayoutGrid, List, FileUp } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiError } from '@/lib/apiError'
 import { cn } from '@/lib/utils'
 
 export default function EmployeesPage() {
@@ -68,7 +70,7 @@ export default function EmployeesPage() {
   /** Opens an employee with their full record (the list carries only a summary). */
   const open = async (e: Employee) => {
     try { setEditing(await hrmsApi.employees.get(e.id)) }
-    catch { toast.error('This employee could not be opened') }
+    catch (err) { toast.error(apiError(err, 'This employee could not be opened')) }
   }
   const saved = () => {
     qc.invalidateQueries({ queryKey: ['employees'] }); qc.invalidateQueries({ queryKey: ['emp-stats'] })
@@ -112,21 +114,14 @@ export default function EmployeesPage() {
 
   const exportEmployees = async () => {
     try {
-      const all = await hrmsApi.employees.list({ page: 0, size: 1000, query: dq || undefined, status: status || undefined })
-      const cell = (v: unknown) => {
-        let t = v == null ? '' : String(v)
-        if (/^[=+\-@]/.test(t)) t = "'" + t                                     // never a spreadsheet formula
-        return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
-      }
+      // every employee matching the search, not only the first 1,000 (the most one answer holds)
+      const people = await allPages(n => hrmsApi.employees.list({ page: n, size: 1000, query: dq || undefined, status: status || undefined }))
       const rows = [['Code', 'Name', 'Work email', 'Mobile', 'Department', 'Designation', 'Type', 'Status', 'Joined', 'Left'].join(',')]
-      all.content.forEach((e: Employee) => rows.push([e.employeeCode, e.fullName, e.officialEmail, e.phonePrimary, e.departmentName, e.designationName,
-        e.employmentType, e.status, e.dateOfJoining, e.dateOfExit].map(cell).join(',')))
-      const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = 'employees.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
-      toast.success('Employee list exported')
-    } catch { toast.error('Export failed') }
+      people.forEach((e: Employee) => rows.push([e.employeeCode, e.fullName, e.officialEmail, e.phonePrimary, e.departmentName, e.designationName,
+        e.employmentType, e.status, e.dateOfJoining, e.dateOfExit].map(csvCell).join(',')))
+      downloadBlob(new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' }), 'employees.csv')
+      toast.success(`${people.length.toLocaleString('en-IN')} employee${people.length === 1 ? '' : 's'} exported`)
+    } catch (e) { toast.error(apiError(e, 'The employee list could not be exported')) }
   }
 
 

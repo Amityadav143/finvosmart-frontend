@@ -163,7 +163,30 @@ function need<T>(r: { data: ApiResponse<T> }): T {
 
 export interface ActionResult { result: string }
 
+/**
+ * Why the console is open or closed to the Super Admin asking, as the backend sees it (ConsoleAccessController):
+ * configured is PLATFORM_COMPANY_ID as the backend got it (configuredSet: it is set in its environment; otherwise
+ * the default applies), platformCompanyId the company it names (null: not an id).
+ */
+/**
+ * Why the console is open or closed to this Super Admin, as the backend sees it. configured: the value it uses, as
+ * written; from: where that comes from, in words; overridden: set as app.platform.company-id somewhere that wins over
+ * PLATFORM_COMPANY_ID (an application.yml next to the jar, the java command); environment: PLATFORM_COMPANY_ID in the
+ * backend's environment.
+ */
+export interface ConsoleAccess {
+  release: string; configured: string | null; configuredSet: boolean; from: string; overridden: boolean; environment: string | null
+  /** the id the value names (null: not an id); fallback: why the seeded company runs the console in its place */
+  namedCompanyId?: string | null; fallback?: 'NOT_AN_ID' | 'NO_COMPANY' | null
+  /** the company that runs the console (null: none can) */
+  platformCompanyId: string | null; companyFound: boolean
+  companyName: string | null; companyCode: string | null; yourCompanyId: string | null; yourCompanyName: string | null
+  yourCompanyIsPlatform: boolean; allowed: boolean; consoleAdmins: string[]
+}
+
 export const platformApi = {
+  /** for any Super Admin — the console's closed screen asks it (404 from a backend older than 13 November 2026) */
+  consoleAccess: async () => need(await api.get<ApiResponse<ConsoleAccess>>('/console-access')),
   overview: async () => need(await api.get<ApiResponse<PlatformOverview>>('/platform/overview')),
   companies: async (q: string, filter: string, page: number) =>
     need(await api.get<ApiResponse<CompanyPage>>('/platform/companies', { params: { q: q || undefined, filter: filter || undefined, page } })),

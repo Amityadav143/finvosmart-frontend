@@ -12,6 +12,7 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { format, parseISO, isValid } from 'date-fns'
+import { csvCell } from '../csv'
 
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs))
 
@@ -65,28 +66,23 @@ export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a   = document.createElement('a')
   a.href = url; a.download = filename; a.click()
-  URL.revokeObjectURL(url)
+  // let go of a second after the download starts, as the app's other downloads do
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-/** Export an array of objects to a downloadable CSV file (client-side). */
-export function exportToCsv(filename: string, rows: Record<string, any>[]) {
-  if (!rows || rows.length === 0) return
+/**
+ * Export an array of objects to a downloadable CSV file (client-side), with a byte-order mark so Excel reads ₹ and
+ * names in any script correctly. Returns how many rows went into the file (0: nothing to export, no file made).
+ */
+export function exportToCsv(filename: string, rows: Record<string, any>[]): number {
+  if (!rows || rows.length === 0) return 0
   const headers = Object.keys(rows[0])
-  const escape = (v: any) => {
-    const s = v === null || v === undefined ? '' : String(v)
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
   const csv = [
-    headers.join(','),
-    ...rows.map(r => headers.map(h => escape(r[h])).join(',')),
-  ].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename.endsWith('.csv') ? filename : `${filename}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+    headers.map(csvCell).join(','),
+    ...rows.map(r => headers.map(h => csvCell(r[h])).join(',')),
+  ].join('\r\n')
+  downloadBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }), filename.endsWith('.csv') ? filename : `${filename}.csv`)
+  return rows.length
 }
 
 // The message for a failed API call lives on its own (no dependencies), so plain-TS checks can load it too.
@@ -100,3 +96,4 @@ export function webLink(url: string | null | undefined): string | null {
 }
 
 export { apiError } from '../apiError'
+export { csvCell } from '../csv'

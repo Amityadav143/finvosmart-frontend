@@ -91,7 +91,7 @@ function AssetsPage() {
     try {
       const res = await api.get(`/assets/${assetId}/schedule`)
       setSched(res.data.data)
-    } catch { toast.error('Failed to load depreciation schedule') }
+    } catch (e) { toast.error(apiError(e, 'The depreciation schedule could not be loaded')) }
     finally { setSchedLoad(false) }
   }
 

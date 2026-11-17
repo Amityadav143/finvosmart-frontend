@@ -108,7 +108,7 @@ export default function FinanceReportsPage(){
                 title="Post any invoices the books don't reflect yet (safe to run any time)">
           <RefreshCw className={`w-4 h-4 ${sync.isPending ? 'animate-spin' : ''}`}/>{sync.isPending ? 'Updating…' : 'Update books from invoices'}
         </button>
-        <button className="btn-secondary h-9 text-sm" onClick={()=>exportToCsv('financial-summary', (accounts??[]).map((a:any)=>({ Account:a.accountName, Type:a.accountType, Balance:a.currentBalance })))}><Download className="w-4 h-4"/>Export</button>
+        <button className="btn-secondary h-9 text-sm" onClick={()=>{ if (!exportToCsv('financial-summary', (accounts??[]).map((a:any)=>({ Account:a.accountName, Type:a.accountType, Balance:a.currentBalance })))) toast('No accounts to export yet') }}><Download className="w-4 h-4"/>Export</button>
         </div>
       </div>
 
@@ -213,7 +213,7 @@ export default function FinanceReportsPage(){
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="section-title">Trial Balance</h2>
-            <button className="btn-secondary h-8 text-xs" onClick={()=>exportToCsv('trial-balance', (trial?.accounts??[]).map((t:any)=>({ Code:t.code, Account:t.name, Debit:t.debit, Credit:t.credit })))}><Download className="w-3.5 h-3.5"/>Export</button>
+            <button className="btn-secondary h-8 text-xs" onClick={()=>{ if (!exportToCsv('trial-balance', (trial?.accounts??[]).map((t:any)=>({ Code:t.code, Account:t.name, Debit:t.debit, Credit:t.credit })))) toast('Nothing in the trial balance to export') }}><Download className="w-3.5 h-3.5"/>Export</button>
           </div>
           <div className="table-wrap">
             <table className="w-full text-sm">

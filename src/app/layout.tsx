@@ -111,9 +111,10 @@ export const metadata: Metadata = {
   manifest: '/site.webmanifest',
   // Set these env vars at build time to verify ownership (or verify the domain
   // via a DNS TXT record in Search Console, which needs no code at all).
-  // Which update this web build is (<meta name="finvosmart-release">): scripts/check-sign-in.sh reads it
-  // to tell an old web build still running from the files on the server.
-  other: { 'finvosmart-release': RELEASE },
+  // Which update this web build is (<meta name="finvosmart-release">) and where it sends its API requests
+  // (<meta name="finvosmart-api">, baked in at build time): scripts/check-sign-in.sh reads both — to tell an old
+  // web build still running from the files on the server, and a build that asks another backend than this site's.
+  other: { 'finvosmart-release': RELEASE, 'finvosmart-api': process.env.NEXT_PUBLIC_API_URL || '/api/v1' },
   verification: {
     ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
       ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : {}),

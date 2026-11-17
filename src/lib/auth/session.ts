@@ -12,6 +12,7 @@
 import axios from 'axios'
 import { restoreLegacyRefreshToken, takeLegacyRefreshToken, useAuthStore } from '@/lib/store/slices/authStore'
 import { queryClientRef } from '@/lib/queryClientRef'
+import { postSealed } from '@/lib/security/seal'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
@@ -47,7 +48,7 @@ export function renewSession(): Promise<Renewal> {
     renewing = oneTabAtATime(async (): Promise<Renewal> => {
       const legacy = takeLegacyRefreshToken()
       try {
-        const r = await axios.post(`${API_URL}/auth/refresh`, legacy ? { refreshToken: legacy } : {},
+        const r = await postSealed(`${API_URL}/auth/refresh`, legacy ? { refreshToken: legacy } : {},
           { headers: SESSION_HEADERS, withCredentials: true, timeout: 15000 })
         const auth = r.data?.data
         if (!auth?.accessToken) return { ok: false, ended: true }

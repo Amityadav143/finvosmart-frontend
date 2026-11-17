@@ -19,6 +19,7 @@ import { useAuthStore } from '@/lib/store/slices/authStore'
 import { renewSession } from '@/lib/auth/session'
 import { RELEASE } from '@/lib/release'
 import { PLATFORM_COLOR } from './theme'
+import { ConsoleDiagnosis } from './ConsoleDiagnosis'
 
 export const TABS = [
   { href: '/platform', label: 'Overview' },
@@ -124,13 +125,10 @@ function ConsoleClosed() {
       </div>
 
       {why === 'other-company' ? (
+        // a Super Admin: what the server itself says — its release, PLATFORM_COMPANY_ID as it got it — and the one change to make
         <div className="text-sm space-y-2" data-testid="denied-what-to-do">
-          <p>This login is a Super Admin of <b>{company}</b>, but {company} isn&apos;t the company that runs Finvosmart on this server. Either:</p>
-          <ol className="list-decimal pl-5 space-y-1.5">
-            <li>sign in with a Super Admin of the company that runs Finvosmart — on a standard installation <b>admin@nvgrow.in</b>; or</li>
-            <li>if {company} is the company that runs Finvosmart: on the server, set <code>PLATFORM_COMPANY_ID={user?.companyId}</code> in the
-              backend&apos;s env file, restart the backend, then sign in again.</li>
-          </ol>
+          <p>This login is a Super Admin of <b>{company}</b>, but the server answered that it can&apos;t open the console.</p>
+          <ConsoleDiagnosis />
         </div>
       ) : (
         <div className="text-sm space-y-2" data-testid="denied-what-to-do">

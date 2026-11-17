@@ -27,7 +27,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { PermissionGate } from '@/components/ui/PermissionGate'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { useDebounce } from '@/lib/hooks'
-import { formatDate } from '@/lib/utils'
+import { formatDate, downloadBlob, apiError } from '@/lib/utils'
 import { DOC_LABEL, STATUS_LABEL, inr, todayIST } from '@/lib/money'
 import type { Invoice } from '@/types'
 import { useIndustry } from '@/lib/hooks/useIndustry'
@@ -69,10 +69,8 @@ export default function InvoicingPage() {
   const exportCsv = async () => {
     try {
       const res = await api.get('/invoices/export/csv', { params: { from: fyStart(todayIST()), to: todayIST() }, responseType: 'blob' })
-      const url = URL.createObjectURL(res.data)
-      const a = document.createElement('a'); a.href = url; a.download = `invoices_${todayIST()}.csv`; a.click()
-      URL.revokeObjectURL(url)
-    } catch { toast.error('Export failed') }
+      downloadBlob(res.data, `invoices_${todayIST()}.csv`)
+    } catch (e) { toast.error(apiError(e, 'The invoices could not be exported')) }
   }
 
   const today = todayIST()

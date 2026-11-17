@@ -42,7 +42,7 @@ export interface Employee {
   id: string; employeeCode: string; firstName: string; middleName?: string
   lastName: string; fullName: string; officialEmail?: string; personalEmail?: string; phonePrimary?: string
   departmentId?: string; departmentName?: string; designationId?: string; designationName?: string; reportingManagerId?: string
-  branchId?: string; branchName?: string; companyId: string
+  branchId?: string; branchName?: string; companyId?: string
   employmentType: 'PERMANENT'|'CONTRACT'|'INTERN'|'CONSULTANT'|'PART_TIME'
   status: 'ACTIVE'|'INACTIVE'|'ON_NOTICE'|'RESIGNED'|'TERMINATED'|'ON_LEAVE'
   dateOfJoining?: string; dateOfBirth?: string; dateOfExit?: string; ctcAnnual?: number

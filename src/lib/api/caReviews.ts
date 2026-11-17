@@ -9,6 +9,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 import { api } from './client'
+import { allPages } from './allPages'
 
 /** What can be sent to the accountant for review. */
 export type ReviewDocType = 'INVOICE' | 'BILL' | 'JOURNAL'
@@ -34,8 +35,9 @@ export const caReviewsApi = {
     (await api.get('/ca/reviews/for', { params: { type, id } })).data.data ?? null,
   send: async (type: ReviewDocType, id: string, note: string): Promise<DocReview> =>
     (await api.post('/ca/reviews', { entityType: type, entityId: id, makerNote: note })).data.data,
+  /** Every review with this status (or all), not only the latest 100. */
   list: async (status?: ReviewStatus): Promise<DocReview[]> =>
-    (await api.get('/ca/reviews', { params: { status: status || undefined, size: 100 } })).data.data?.content ?? [],
+    allPages<DocReview>(async n => (await api.get('/ca/reviews', { params: { status: status || undefined, page: n, size: 100 } })).data.data),
   counts: async (): Promise<ReviewCounts> => (await api.get('/ca/reviews/counts')).data.data,
   decide: async (id: string, decision: ReviewDecision, note: string): Promise<DocReview> =>
     (await api.post(`/ca/reviews/${id}/${decision}`, { checkerNote: note })).data.data,

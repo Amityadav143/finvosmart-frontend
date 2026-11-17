@@ -128,7 +128,7 @@ function InvoiceDetail() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a'); a.href = url; a.download = `${inv.invoiceNumber.replace(/[^A-Za-z0-9-]/g, '_')}.pdf`; a.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
-    } catch { toast.error('The PDF could not be downloaded') }
+    } catch (e) { toast.error(apiError(e, 'The PDF could not be downloaded')) }
   }
 
   return (

@@ -25,8 +25,13 @@ interface UserInfo {
   subscriptionPlan?: string
   /** may use the platform console (the server says so: SUPER_ADMIN of the company that runs Finvosmart) */
   platformAdmin?:   boolean
-  /** belongs to the company that runs Finvosmart (the server says so) — the menu says how to open the console */
+  /**
+   * belongs to the company that runs Finvosmart (the server says so) — the menu says how to open the console;
+   * left out when the backend doesn't say (one from before the 9 November 2026 update)
+   */
   platformCompany?: boolean
+  /** the backend said whether this login may open the console (one from before the console says nothing) */
+  consoleSaid?:     boolean
 }
 
 interface AuthState {
@@ -74,6 +79,9 @@ export const useAuthStore = create<AuthState>()(
             companyName:      (auth as any).companyName,
             companyCode:      (auth as any).companyCode,
             subscriptionPlan: (auth as any).subscriptionPlan,
+            platformAdmin:    auth.platformAdmin === true,
+            platformCompany:  typeof auth.platformCompany === 'boolean' ? auth.platformCompany : undefined,
+            consoleSaid:      typeof auth.platformAdmin === 'boolean',
             roles:            auth.roles       ?? [],
             permissions:      auth.permissions ?? [],
           },

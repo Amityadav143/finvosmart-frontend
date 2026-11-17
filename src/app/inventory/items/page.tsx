@@ -26,7 +26,8 @@ import { PermissionGate } from '@/components/ui/PermissionGate'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { useDebounce } from '@/lib/hooks'
 import { useUrlParams } from '@/lib/hooks/useUrlParams'
-import { exportToCsv } from '@/lib/utils'
+import { exportToCsv, apiError } from '@/lib/utils'
+import { allPages } from '@/lib/api/allPages'
 import { GST_RATE_OPTIONS, inr } from '@/lib/money'
 import { UNITS, qty, parseExpiry, expiryText, batchNoProblem, normaliseBatch, EXPIRY_HINT, batchText } from '@/lib/inventory'
 import { errText } from '@/lib/purchases'
@@ -128,11 +129,25 @@ export default function InventoryItemsPage() {
     ) },
   ]
 
-  const exportCsv = () => exportToCsv('inventory-items', (data?.content ?? []).map(i => ({
-    Code: i.itemCode, Name: i.itemName, Category: i.category ?? '', 'HSN/SAC': i.hsnSacCode ?? '', Unit: i.unit, 'GST %': i.gstRate,
-    'Purchase price': i.purchasePrice ?? '', 'Selling price': i.sellingPrice ?? '', 'In stock': i.currentStock, 'Reorder level': i.reorderLevel,
-    'By batch': i.trackBatchNumbers ? 'Yes' : 'No',
-  })))
+  /** Every item matching the search and category — not only the page on screen. */
+  const [exporting, setExporting] = useState(false)
+  const exportCsv = async () => {
+    setExporting(true)
+    try {
+      const items = await allPages(n => inventoryApi.items.list({ page: n, size: 200, q: q || undefined, category: category || undefined }))
+      const made = exportToCsv('inventory-items', items.map(i => ({
+        Code: i.itemCode, Name: i.itemName, Category: i.category ?? '', 'HSN/SAC': i.hsnSacCode ?? '', Unit: i.unit, 'GST %': i.gstRate,
+        'Purchase price': i.purchasePrice ?? '', 'Selling price': i.sellingPrice ?? '', 'In stock': i.currentStock, 'Reorder level': i.reorderLevel,
+        'By batch': i.trackBatchNumbers ? 'Yes' : 'No',
+      })))
+      if (made) toast.success(`${made.toLocaleString('en-IN')} ${made === 1 ? thing.toLowerCase() : things.toLowerCase()} exported`)
+      else toast(`No ${things.toLowerCase()} to export`)
+    } catch (e) {
+      toast.error(apiError(e, 'The list could not be exported'))
+    } finally {
+      setExporting(false)
+    }
+  }
   /** The expired and soon-to-expire batches, for the supplier (returns) or a check of the shelves. */
   const exportExpiry = () => exportToCsv('expiring-batches', (expiring ?? []).map(b => ({
     [thing]: b.itemName, Code: b.itemCode ?? '', Batch: b.batchNo, Expiry: b.expiryDate, 'In stock': b.quantity, Unit: b.unit ?? '',
@@ -149,7 +164,7 @@ export default function InventoryItemsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button className="btn-secondary h-9 text-sm" onClick={exportCsv} disabled={!data?.content?.length}><Download className="w-4 h-4" />Export</button>
+          <button className="btn-secondary h-9 text-sm" onClick={exportCsv} disabled={!data?.content?.length || exporting}><Download className="w-4 h-4" />{exporting ? 'Exporting…' : 'Export'}</button>
           <Link href="/inventory/stock" className="btn-secondary h-9 text-sm"><History className="w-4 h-4" />Stock ledger</Link>
           {ind.current?.drugRegister && canAny('INVOICE_VIEW') && (
             <Link href="/invoicing/h1-register" className="btn-secondary h-9 text-sm"><ClipboardList className="w-4 h-4" />Schedule H1 register</Link>

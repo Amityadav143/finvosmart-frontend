@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
 import { hrmsApi } from '@/lib/api/hrms'
+import { allPages } from '@/lib/api/allPages'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Star, TrendingUp, CheckCircle2, Clock, Plus, ChevronDown, ChevronUp, MessageSquare, Users } from 'lucide-react'
@@ -123,7 +124,8 @@ export default function PerformancePage() {
   })
   const team = useQuery({
     queryKey: ['performance-reviews', 'team'],
-    queryFn: () => api.get('/performance/reviews', { params: { size: 100 } }).then(r => (r.data.data?.content ?? []) as Review[]),
+    // every review the reviewer may see, not only the latest 100 (so the count waiting to be scored is right too)
+    queryFn: () => allPages<Review>(n => api.get('/performance/reviews', { params: { page: n, size: 100 } }).then(r => r.data.data)),
     enabled: reviewer,
   })
   const { data: stats } = useQuery({
@@ -131,9 +133,10 @@ export default function PerformancePage() {
     queryFn: () => api.get('/performance/stats', { params: { period: fy } }).then(r => r.data.data),
     enabled: hr,
   })
-  const { data: people } = useQuery({
+  const { data: people, error: peopleError } = useQuery({
     queryKey: ['employees', 'active-for-review'],
-    queryFn: () => hrmsApi.employees.list({ page: 0, size: 500, status: 'ACTIVE' }),
+    // every active employee, not only the first 500
+    queryFn: () => allPages(n => hrmsApi.employees.list({ page: n, size: 1000, status: 'ACTIVE' })),
     enabled: showCreate,
   })
 
@@ -381,8 +384,8 @@ export default function PerformancePage() {
             <div>
               <label className="label label-required" htmlFor="pr-emp">Employee</label>
               <select id="pr-emp" className="input h-10" value={newReview.employeeId} onChange={e => setNewReview(r => ({ ...r, employeeId: e.target.value }))}>
-                <option value="">{people ? 'Choose…' : 'Loading…'}</option>
-                {(people?.content ?? []).map(e => <option key={e.id} value={e.id}>{e.fullName}{e.employeeCode ? ` (${e.employeeCode})` : ''}</option>)}
+                <option value="">{people ? 'Choose…' : peopleError ? apiError(peopleError, 'The employees could not be loaded') : 'Loading…'}</option>
+                {(people ?? []).map(e => <option key={e.id} value={e.id}>{e.fullName}{e.employeeCode ? ` (${e.employeeCode})` : ''}</option>)}
               </select>
             </div>
             <div>

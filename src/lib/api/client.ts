@@ -14,6 +14,8 @@ import { getAccessToken, useAuthStore } from '@/lib/store/slices/authStore'
 import { isPublicAuth } from '@/lib/auth/publicAuth'
 import { renewSession, forgetHere, SESSION_HEADERS } from '@/lib/auth/session'
 import { queryClientRef } from '@/lib/queryClientRef'
+import { sealBody, replyKey, openReply, forgetServerKey, warmUp, SEALED_HEADER, REPLY_KEY_HEADER, SEAL_AGAIN } from '@/lib/security/seal'
+import { readFileError } from './fileErrors'
 
 export { isPublicAuth }
 
@@ -73,15 +75,40 @@ export function createApiClient(): AxiosInstance {
     return config
   })
 
+  // Passwords, codes and secrets are sealed for the server before they leave this tab, and the one-time secrets of
+  // the answer come sealed for this tab (lib/security/seal.ts). A retry seals again, from the body the page gave.
+  client.interceptors.request.use(async (config: any) => {
+    const method = String(config.method || 'get').toLowerCase()
+    if (method === 'get' || method === 'head' || method === 'options') return config
+    if (!('__plain' in config)) config.__plain = config.data
+    const { data, sealed } = await sealBody(config.url, config.__plain)
+    config.data = data
+    setHeader(config, SEALED_HEADER, sealed ? 'v1' : null)
+    const key = await replyKey()
+    if (key) { setHeader(config, REPLY_KEY_HEADER, key); config.__replyKey = true }
+    return config
+  })
+
   // Handle 401 — refresh token then retry
   client.interceptors.response.use(
-    (res: any) => {
+    async (res: any) => {
       const id = res?.headers?.['x-finvo-instance']
       server = id ? String(id) : ''
+      if (res?.config?.__replyKey) res.data = await openReply(res.data)
       return res
     },
     async (err: any) => {
       const original = err.config
+      // a file was asked for (an export, a PDF) and the server answered with its JSON explanation: read it, so the
+      // page shows the server's own words (apiError) rather than a general sentence
+      await readFileError(err)
+      // a sealed body the server couldn't open (its key changed — a restart, another backend —, a challenge run out
+      // or already used): a new key and challenge, sealed again, once
+      if (err.response?.status === 400 && SEAL_AGAIN.includes(err.response?.data?.reason) && original && !original.__sealedAgain) {
+        original.__sealedAgain = true
+        forgetServerKey()
+        return client(original)
+      }
       // read-only (the trial is over) or a paid-only feature: the plan banners ask the server again
       if (err.response?.status === 402) {
         try { queryClientRef.current?.invalidateQueries({ queryKey: ['subscription'] }) } catch { /* no cache yet */ }
@@ -112,4 +139,15 @@ export function createApiClient(): AxiosInstance {
   return client
 }
 
+/** A header set (value) or removed (null), on axios's headers object or a plain one. */
+function setHeader(config: any, name: string, value: string | null) {
+  const h = config.headers
+  if (!h) { if (value !== null) config.headers = { [name]: value }; return }
+  if (typeof h.set === 'function') { value === null ? h.delete?.(name) : h.set(name, value); return }
+  if (value === null) delete h[name]; else h[name] = value
+}
+
 export const api = createApiClient()
+
+// this tab's key for one-time secrets in answers, made while the page settles (lib/security/seal.ts)
+if (typeof window !== 'undefined') warmUp()

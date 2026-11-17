@@ -16,6 +16,7 @@ import toast from 'react-hot-toast'
 import { MessageCircle, Send, CheckCircle, AlertTriangle } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { apiError } from '@/lib/utils'
+import { useDebounce } from '@/lib/hooks'
 
 interface InvoiceRow { id: string; invoiceNumber: string; status: string }
 const SENDABLE = (s: string) => s !== 'DRAFT' && s !== 'CANCELLED'
@@ -27,9 +28,12 @@ export default function WhatsAppPage() {
     queryKey: ['whatsapp-status'],
     queryFn: () => api.get('/whatsapp/status').then(r => r.data.data as { configured: boolean; invoiceTemplate: string }),
   })
-  const { data: invoices = [] } = useQuery<InvoiceRow[]>({
-    queryKey: ['whatsapp-invoices'],
-    queryFn: () => api.get('/invoices', { params: { page: 0, size: 50 } })
+  // the latest invoices, or those matching a search by number or customer — so an older one can be sent too
+  const [find, setFind] = useState('')
+  const q = useDebounce(find.trim(), 300)
+  const { data: invoices = [], isFetching: finding } = useQuery<InvoiceRow[]>({
+    queryKey: ['whatsapp-invoices', q],
+    queryFn: () => api.get('/invoices', { params: { page: 0, size: 50, query: q || undefined } })
       .then(r => ((r.data.data?.content ?? []) as InvoiceRow[]).filter(i => SENDABLE(String(i.status)))),
   })
   const send = useMutation({
@@ -82,9 +86,12 @@ export default function WhatsAppPage() {
         <h3 className="font-semibold mb-4 flex items-center gap-2"><MessageCircle className="w-4 h-4" style={{ color: '#22c55e' }} />Send an invoice</h3>
         <div className="space-y-3">
           <div>
-            <label className="label">Invoice</label>
-            <select className="input h-10" value={form.invoiceId} onChange={e => setForm(f => ({ ...f, invoiceId: e.target.value }))}>
-              <option value="">{invoices.length ? 'Choose an invoice…' : 'No issued invoices yet'}</option>
+            <label className="label" htmlFor="wa-find">Invoice</label>
+            <input id="wa-find" className="input h-10 mb-2" type="search" placeholder="Search by invoice number or customer"
+                   value={find} onChange={e => setFind(e.target.value)} />
+            <select id="wa-invoice" aria-label="Invoice to send" className="input h-10" value={form.invoiceId} onChange={e => setForm(f => ({ ...f, invoiceId: e.target.value }))}>
+              <option value="">{finding ? 'Looking…' : invoices.length ? (q ? 'Choose a matching invoice…' : 'Choose one of the latest invoices…')
+                : q ? 'No issued invoice matches — try its number or the customer’s name' : 'No issued invoice among the latest — search for it above'}</option>
               {invoices.map(i => <option key={i.id} value={i.id}>{i.invoiceNumber} · {String(i.status).toLowerCase()}</option>)}
             </select>
           </div>

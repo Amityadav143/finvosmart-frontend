@@ -17,7 +17,7 @@ import { Download } from 'lucide-react'
 import { dashboardApi } from '@/lib/api/dashboard'
 import { SalesChart, SERIES } from '@/components/dashboard/SalesChart'
 import { useTheme } from '@/lib/context/ThemeContext'
-import { formatDate } from '@/lib/utils'
+import { formatDate, csvCell, downloadBlob } from '@/lib/utils'
 import { inr } from '@/lib/money'
 import type { DashAnalytics, DashBucket, DashNamed } from '@/types/dashboard'
 
@@ -161,7 +161,7 @@ function Bars({ title, note, rows, color, empty, link }: {
 }
 
 function exportCsv(d: DashAnalytics) {
-  const cell = (v: unknown) => { const t = v == null ? '' : String(v); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t }
+  const cell = csvCell
   const lines: string[] = [`Analytics ${d.from} to ${d.to}`, '']
   if (d.sales) {
     lines.push('Month,Invoiced,Collected')
@@ -192,8 +192,5 @@ function exportCsv(d: DashAnalytics) {
     lines.push('Lead stage,Leads,Estimated value')
     d.leadsByStatus.forEach(l => lines.push([LEAD_LABEL[l.name] ?? l.name, l.count, n(l.amount).toFixed(2)].map(cell).join(',')))
   }
-  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a'); a.href = url; a.download = `analytics_${d.from}_to_${d.to}.csv`; a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadBlob(new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }), `analytics_${d.from}_to_${d.to}.csv`)
 }

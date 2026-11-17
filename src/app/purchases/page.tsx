@@ -23,7 +23,7 @@ import { SearchInput } from '@/components/ui/SearchInput'
 import { Pagination } from '@/components/ui/Pagination'
 import { PermissionGate } from '@/components/ui/PermissionGate'
 import { useDebounce } from '@/lib/hooks'
-import { formatDate } from '@/lib/utils'
+import { formatDate, apiError } from '@/lib/utils'
 import { inr, todayIST } from '@/lib/money'
 import { BILL_TYPE_LABEL, ITC_STATUS, billBadge, billStatusLabel, fyStart } from '@/lib/purchases'
 import type { Bill, PayablesSummary } from '@/types/purchases'
@@ -60,10 +60,10 @@ export default function PurchasesPage() {
   })
 
   const exportRegister = async () => {
-    try { await billsApi.exportCsv(fyStart(today), today) } catch { toast.error('Export failed') }
+    try { await billsApi.exportCsv(fyStart(today), today) } catch (e) { toast.error(apiError(e, 'The bills could not be exported')) }
   }
   const exportMsme = async () => {
-    try { await payablesApi.msmeCsv(fyStart(today), today) } catch { toast.error('Export failed') }
+    try { await payablesApi.msmeCsv(fyStart(today), today) } catch (e) { toast.error(apiError(e, 'The MSME payments list could not be exported')) }
   }
 
   const ageingTotal = summary ? AGEING.reduce((t, a) => t + Number(summary.ageing[a.key] ?? 0), 0) : 0

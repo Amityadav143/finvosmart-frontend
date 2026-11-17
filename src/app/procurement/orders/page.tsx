@@ -14,6 +14,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { procurementApi } from '@/lib/api/procurement'
+import { allPages } from '@/lib/api/allPages'
 import { DataTable } from '@/components/ui/Table'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -119,10 +120,11 @@ export default function PurchaseOrdersPage(){
 
   const { data: vendorData } = useQuery({
     queryKey: ['vendors-for-po'],
-    queryFn: () => procurementApi.vendors.list({ size: 100 }),
+    // every supplier, not only the first 100 by name
+    queryFn: () => allPages(n => procurementApi.vendors.list({ page: n, size: 200 })),
     enabled: showCreate,
   })
-  const vendors = vendorData?.content ?? []
+  const vendors = vendorData ?? []
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['purchase-orders'] })

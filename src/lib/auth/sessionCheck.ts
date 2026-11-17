@@ -9,6 +9,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { postSealed } from '@/lib/security/seal'
 import axios from 'axios'
 import { lastServer } from '@/lib/api/client'
 import { renewSession, SESSION_HEADERS } from '@/lib/auth/session'
@@ -92,7 +93,7 @@ export async function verifyStoredSession(): Promise<{ state: 'ok' | 'ended' | '
  * (other devices are signed out).
  */
 export async function changePasswordAs(accessToken: string, currentPassword: string, newPassword: string) {
-  const r = await axios.post(`${API_URL}/auth/change-password`, { currentPassword, newPassword },
+  const r = await postSealed(`${API_URL}/auth/change-password`, { currentPassword, newPassword },
     { headers: { Authorization: `Bearer ${accessToken}`, ...SESSION_HEADERS }, withCredentials: true, timeout: 30000 })
   return r.data?.data
 }

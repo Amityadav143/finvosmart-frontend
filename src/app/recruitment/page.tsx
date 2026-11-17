@@ -18,6 +18,7 @@ import { PermissionGate } from '@/components/ui/PermissionGate'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Modal } from '@/components/ui/Modal'
 import { api } from '@/lib/api/client'
+import { allPages } from '@/lib/api/allPages'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { Plus, Briefcase, Users, ArrowRight, CalendarClock, IndianRupee, UserPlus, ChevronDown, ChevronUp } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -90,12 +91,13 @@ export default function RecruitmentPage() {
 
   const { data: postings = [], isLoading: loadingPostings } = useQuery({
     queryKey: ['job-postings'],
-    queryFn: () => api.get('/recruitment/postings', { params: { size: 100 } }).then(r => (r.data.data?.content ?? []) as JobPosting[]),
+    queryFn: () => allPages<JobPosting>(n => api.get('/recruitment/postings', { params: { page: n, size: 200 } }).then(r => r.data.data)),
   })
   const { data: apps = [], isLoading: loadingApps } = useQuery({
     queryKey: ['applications', posting, stage],
-    queryFn: () => api.get('/recruitment/applications', { params: { postingId: posting || undefined, stage: stage || undefined, size: 100 } })
-      .then(r => (r.data.data?.content ?? []) as JobApplication[]),
+    // every candidate of the posting and stage chosen, not only the latest 100
+    queryFn: () => allPages<JobApplication>(n => api.get('/recruitment/applications', { params: { postingId: posting || undefined, stage: stage || undefined, page: n, size: 200 } })
+      .then(r => r.data.data)),
     enabled: view === 'candidates',
   })
   const { data: pipeline } = useQuery({
