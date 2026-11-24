@@ -13,8 +13,11 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { InvoiceForm } from '@/components/invoicing/InvoiceForm'
+import { SkeletonCard } from '@/components/ui/Skeleton'
+import { warrantyApi } from '@/lib/api/warranty'
 import type { InvoiceType } from '@/types'
 
 const TYPES: InvoiceType[] = ['TAX_INVOICE', 'PROFORMA', 'QUOTATION', 'CREDIT_NOTE', 'DEBIT_NOTE', 'DELIVERY_CHALLAN']
@@ -30,6 +33,11 @@ function NewInvoice() {
   const t = params.get('type') as InvoiceType | null
   const type = t && TYPES.includes(t) ? t : 'TAX_INVOICE'
   const customer = params.get('customer')
+  // a credit note for a customer's warranty claim (approved for credit)
+  const claimId = params.get('claim')
+  const fromClaim = !!claimId && ID_RE.test(claimId)
+  const { data: claim, isLoading: claimLoading, isError: claimError } = useQuery({ queryKey: ['warranty-claim', claimId], queryFn: () => warrantyApi.get(claimId!), enabled: fromClaim })
+  const customerId = claim?.customerId ?? (customer && ID_RE.test(customer) ? customer : undefined)
   return (
     <div className="space-y-4">
       <div>
@@ -37,9 +45,14 @@ function NewInvoice() {
           <ArrowLeft size={14} />{type === 'QUOTATION' ? 'Quotations' : 'Invoices'}
         </Link>
         <h1 className="page-title mt-1">{TITLE[type]}</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Saved as a draft first. GST is worked out from the place of supply; totals match the PDF to the paisa.</p>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          {claim ? `For warranty claim ${claim.number} of ${claim.partyName}: the goods at what they paid. Saved as a draft first; issuing it resolves the claim.`
+            : claimError ? 'That warranty claim couldn’t be opened — enter the credit note by hand.'
+            : 'Saved as a draft first. GST is worked out from the place of supply; totals match the PDF to the paisa.'}</p>
       </div>
-      <InvoiceForm defaultType={type} defaultCustomerId={customer && ID_RE.test(customer) ? customer : undefined} />
+      {fromClaim && claimLoading ? <SkeletonCard lines={6} />
+        : <InvoiceForm defaultType={claim ? 'CREDIT_NOTE' : type} defaultCustomerId={customerId}
+            fromClaim={claim && claim.kind === 'CUSTOMER' ? claim : null} />}
     </div>
   )
 }

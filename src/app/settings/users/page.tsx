@@ -17,6 +17,8 @@ import { Modal } from '@/components/ui/Modal'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { useAuthStore } from '@/lib/store/slices/authStore'
+import { useSubscription } from '@/lib/hooks/useSubscription'
+import Link from 'next/link'
 import { Plus, Shield, Edit2, UserX, UserCheck, Check, Clock, KeyRound, Copy, UserPlus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiError } from '@/lib/utils'
@@ -65,7 +67,14 @@ export default function UsersPage() {
   const s = search.trim().toLowerCase()
   const filtered = users.filter(u =>
     (!s || u.name?.toLowerCase().includes(s) || u.email?.toLowerCase().includes(s)) && (!roleFilter || u.role === roleFilter))
-  const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-users'] }); qc.invalidateQueries({ queryKey: ['admin-roles'] }) }
+  // the plan's users (Starter 10, Growth 50): the server counts and refuses past them; the page says where things stand
+  const plan = useSubscription().data?.limits
+  const active = users.filter(u => u.active).length
+  const atLimit = !!plan && plan.maxUsers != null && active >= plan.maxUsers
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['admin-users'] }); qc.invalidateQueries({ queryKey: ['admin-roles'] })
+    qc.invalidateQueries({ queryKey: ['subscription'] })
+  }
 
   const inviteMut = useMutation({
     mutationFn: () => api.post('/admin/users', { name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim(), role: form.role }).then(r => r.data.data),
@@ -115,11 +124,17 @@ export default function UsersPage() {
         <div>
           <h1 className="page-title">Users & access</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {users.filter(u => u.active).length} active · {users.filter(u => !u.active).length} switched off · what each person can do comes from their role
+            {active} active{plan?.maxUsers != null ? ` of ${plan.maxUsers} on ${plan.tierName}` : ''} · {users.filter(u => !u.active).length} switched off · what each person can do comes from their role
           </p>
+          {atLimit && manage && (
+            <p className="text-sm mt-1" data-testid="users-plan-limit">
+              Your plan’s {plan!.maxUsers} users are all switched on: switch someone off to add another, or{' '}
+              <Link href="/settings/subscription" className="underline">move to a bigger plan</Link>.
+            </p>
+          )}
         </div>
         {manage && (
-          <button onClick={() => { setForm({ ...BLANK, role: assignable.some(r => r.name === 'EMPLOYEE') ? 'EMPLOYEE' : assignable[0]?.name ?? 'EMPLOYEE' }); setShowInvite(true) }} className="btn-primary h-9 text-sm">
+          <button onClick={() => { setForm({ ...BLANK, role: assignable.some(r => r.name === 'EMPLOYEE') ? 'EMPLOYEE' : assignable[0]?.name ?? 'EMPLOYEE' }); setShowInvite(true) }} className="btn-primary h-9 text-sm" disabled={atLimit} title={atLimit ? 'Every user your plan includes is switched on' : undefined}>
             <Plus className="w-4 h-4" />Add a user
           </button>
         )}

@@ -17,6 +17,7 @@
  */
 
 export type SolutionKey = 'gstBilling' | 'eInvoicing' | 'tallyAlternative' | 'accountingSoftware' | 'payrollSoftware' | 'hrmsSoftware'
+  | 'posBilling' | 'onlineStore' | 'inventorySoftware' | 'purchaseSoftware' | 'warrantySoftware' | 'erpSoftware'
 
 export interface Solution {
   eyebrow: string
@@ -32,6 +33,65 @@ export interface Solution {
 }
 
 export const SOLUTIONS: Record<SolutionKey, Solution> = {
+  erpSoftware: {
+    eyebrow: 'ERP software for Indian businesses',
+    h1: 'Cloud ERP software for small and medium businesses in India',
+    lead: 'Run sales and GST, accounts, purchasing and the stores, stock, the shop counter, payroll and HR from one set of books. Every invoice, bill, receipt and payslip posts where it belongs, so the figures agree everywhere — in a web app your team opens from any browser.',
+    highlights: [
+      { title: 'One set of books', text: 'An invoice moves stock and posts to the ledgers; so does a supplier’s bill; payroll posts salaries, PF and ESI. The Trial Balance, Profit & Loss and Balance Sheet come from what really happened, not from a second entry.' },
+      { title: 'GST from the start', text: 'CGST and SGST or IGST from the place of supply, HSN and SAC codes, reverse charge, GSTR-1 and GSTR-3B files made from your books, and your bills checked against GSTR-2B.' },
+      { title: 'From the order to the shelf', text: 'Purchase orders with approval, gate entry, goods receipts with quality inspection, returns with challans, and supplier bills matched to the order and the receipt — held for payment when they don’t match.' },
+      { title: 'Stock in every place', text: 'Warehouses, shops, factory stores and sites as godowns, with transfers, material issued to departments, stock counts, and batches sold first-to-expire.' },
+      { title: 'Selling, wherever it happens', text: 'GST invoices with UPI pay links and reminders, a counter for the shop with barcode scanning and receipts, and an online store whose orders become invoices.' },
+      { title: 'People and payroll', text: 'Attendance, leave and payroll under the labour codes — PF, ESI, professional tax and TDS on salary — with payslips and bank files, plus hiring and performance reviews.' },
+    ],
+    sections: [
+      {
+        h2: 'What an ERP does for a growing business',
+        paragraphs: [
+          'An ERP (enterprise resource planning) system keeps a business’s sales, purchases, stock, money and people in one database, so every department works from the same figures and nothing is typed twice. Finvosmart was built for Indian GST and labour law from the start, and is priced for small and medium businesses.',
+          'Everything shares the same customers, suppliers, items and accounts: set up a customer once and they flow through quotations, invoices, payments, statements and reports; buy an item once and it moves through the order, the gate, the receipt, the godown and the bill.',
+        ],
+      },
+      {
+        h2: 'The modules, in one system',
+        paragraphs: ['Every plan includes the core of the business; the Growth plan adds WhatsApp, the GSTR-2B credit check, bank matching and TDS registers.'],
+        bullets: [
+          'Sales: quotations, GST invoices with UPI pay links, payment reminders, credit notes, delivery challans and statements of account.',
+          'Purchasing: purchase orders with approval, gate entry, goods receipts (GRN), quality inspection, returns, matched bills, a reorder planner and supplier ratings.',
+          'Accounts: double-entry ledgers, journal entries, the Trial Balance, Profit & Loss and Balance Sheet, period locks and review by your accountant.',
+          'GST and TDS: GSTR-1 and GSTR-3B files, the GSTR-2B credit check, TDS on supplier bills and MSME payment dates.',
+          'Stock: items with HSN, godowns, transfers, material requests, stock counts, batches and expiry.',
+          'Shop and online: counter billing (POS) with shift close, and an online store for pickup and delivery orders.',
+          'After-sales: warranty claims from customers, passed on to the supplier the goods came from.',
+          'People: employees, attendance, leave, payroll with PF and ESI files, hiring and performance reviews.',
+          'Around them: CRM leads, projects and contracts, a tender tracker, a 13-week cash-flow forecast and an AI assistant.',
+        ],
+      },
+      {
+        h2: 'A desk for each person, and a record of every change',
+        paragraphs: [
+          'Roles decide what each person sees and does — the cashier at the counter, the store keeper at the gate, the accountant in the books, the manager who approves. Purchase orders, leave, payroll and bills held for payment wait for the people who approve them, and the audit trail keeps every change to the books.',
+          'Templates for retail stores, pharmacies, clinics, manufacturers, contractors and solar installers set up the menu, the fields on documents and the roles a business of that kind needs.',
+        ],
+      },
+    ],
+    steps: [
+      { title: 'Start the trial', text: 'Seven days free, no credit card.' },
+      { title: 'Choose your industry', text: 'The menu, fields and roles your kind of business needs.' },
+      { title: 'Bring your data', text: 'Customers, suppliers, items and opening balances from Excel.' },
+      { title: 'Add your team', text: 'Each person with the role for their desk.' },
+      { title: 'Run the day', text: 'Sell, buy, pay and file from one set of books.' },
+    ],
+    faqs: [
+      { q: 'What is ERP software?', a: 'ERP (enterprise resource planning) software runs a business’s core work — sales, purchases, stock, accounts and people — in one system with one database, so the figures agree across departments. Finvosmart is a cloud ERP: it runs in the browser, with nothing to install.' },
+      { q: 'Is Finvosmart suitable for a small business?', a: 'Yes. The Starter plan covers up to 10 users and one branch with invoicing, accounts, purchasing and the stores, stock, the counter, the online store, payroll and HR. Growth adds more users, branches and the GST and bank checks.' },
+      { q: 'Which industries does it suit?', a: 'Any Indian business that sells goods or services. Ready templates set it up for retail stores, pharmacies, clinics and hospitals, manufacturers, contractors and construction, and solar installers.' },
+      { q: 'Can I move from Tally or another system?', a: 'Yes. Import customers, suppliers, items, employees, opening balances and unpaid invoices and bills from Excel, including what you export from Tally. Each import is checked and previewed, and saved all or nothing.' },
+      { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
+    ],
+    cta: { title: 'One system for the whole business', text: 'Start a 7-day free trial — no credit card, nothing to install.' },
+  },
   gstBilling: {
     eyebrow: 'GST billing software',
     h1: 'GST billing software built for Indian businesses',
@@ -403,6 +463,298 @@ export const SOLUTIONS: Record<SolutionKey, Solution> = {
       { q: 'How much does it cost?', a: 'Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
     ],
     cta: { title: 'Bring HR and payroll together', text: 'Start a 7-day free trial — add your team, mark a month of attendance and run payroll.' },
+  },
+  posBilling: {
+    eyebrow: 'POS billing software',
+    h1: 'POS billing software for retail shops in India',
+    lead: 'Bill at the counter in seconds: scan the barcode, take cash, UPI or card, and hand over a GST receipt. Every counter bill is a proper tax invoice in your books, the stock leaves the counter\'s own godown, and at the end of the shift the drawer is counted against what it should hold.',
+    highlights: [
+      { title: 'Scan and bill', text: 'A USB or Bluetooth barcode scanner types straight into the counter, item code or barcode. On Android phones and tablets in Chrome, the camera can scan too. Type 3*code to add three at once.' },
+      { title: 'Cash, UPI, card or on account', text: 'Cash with the change worked out, a UPI QR code for the exact amount from your own UPI ID, card with its approval code — or several ways on one bill. A named customer can leave part of the bill on their account.' },
+      { title: 'A GST invoice every time', text: 'Each bill is a numbered tax invoice with HSN codes and CGST and SGST — or IGST for a customer from another state who gives a GSTIN. It sits with your other invoices and its payments post to the books.' },
+      { title: '58 mm and 80 mm receipts', text: 'Print on the receipt printer attached to the counter\'s computer, through the browser, in the width you set per counter — or send the bill on WhatsApp with its link, which also prints on the receipt as a QR code.' },
+      { title: 'Returns and refunds', text: 'Find the bill by its number, choose what came back and how many, and refund in cash, UPI or card — or keep it as credit for a regular customer. A credit note is made and the goods go back into stock.' },
+      { title: 'Shifts that balance', text: 'Open a shift with the cash in the drawer, record cash put in or taken out with a reason, and close by counting the drawer. The shift report shows bills, returns and money by way of payment.' },
+    ],
+    sections: [
+      {
+        h2: 'Built for a busy counter',
+        paragraphs: [
+          'The counter screen keeps the cashier on the keyboard: the search box is always ready for the next scan, F9 takes payment, F8 puts a bill on hold while a customer fetches one more thing, and F4 picks the customer by mobile number. Items sold most at that counter recently sit on the screen as buttons, for loose items without a barcode.',
+          'A bill on screen survives a reload of the page, and paying the same bill twice — a double tap, or a connection that drops halfway — makes it once. Up to 20 bills can be held at a counter and taken up again in any order.',
+        ],
+      },
+      {
+        h2: 'Stock and batches done right',
+        paragraphs: [
+          'Each counter sells from a godown you choose — the shop floor, say, while the warehouse keeps its own stock. A bill shows how many are left in that godown as items are added, and issuing it takes the stock out there.',
+          'Items kept by batch are sold first-to-expire, split across batches when one runs out, and expired batches are never sold. For a pharmacy, Schedule H1 and X medicines ask for the patient\'s and the prescriber\'s details before the bill is made, and the sale goes into the Schedule H1 register.',
+        ],
+      },
+      {
+        h2: 'Control without slowing anyone down',
+        paragraphs: [
+          'Cashiers bill at the price your items carry. Changing a price, giving a discount on a line or on the whole bill is for managers only, and the server checks it on every bill — not just the screen.',
+        ],
+        bullets: [
+          'Counters, the godown each sells from, the receipt width and the receipt\'s footer are set by a manager.',
+          'One shift open per counter at a time; colleagues can bill on an open shift, but only the person who opened it, or a manager, can move cash or close it.',
+          'A drawer that doesn\'t match at closing needs a note saying why, and the difference stays on the shift report.',
+          'Refunds are posted to your books — the customer\'s account against cash or bank — the moment the return is made.',
+        ],
+      },
+    ],
+    steps: [
+      { title: 'Add a counter', text: 'Name it, choose the godown it sells from and the receipt width.' },
+      { title: 'Open a shift', text: 'Count the cash in the drawer to start.' },
+      { title: 'Scan and take payment', text: 'Cash, UPI, card — or part on account for a regular customer.' },
+      { title: 'Close the shift', text: 'Count the drawer; print the shift report.' },
+    ],
+    faqs: [
+      { q: 'Which barcode scanners work with it?', a: 'Any USB or Bluetooth barcode scanner that types like a keyboard — almost all of them do. Scan into the counter\'s search box and the item goes on the bill. On Android phones and tablets in Chrome, the camera can read barcodes as well.' },
+      { q: 'Can I print on a thermal receipt printer?', a: 'Yes. Receipts are laid out for 58 mm or 80 mm paper, set per counter, and print through the browser on the receipt printer installed on the counter\'s computer. You can also send the bill on WhatsApp.' },
+      { q: 'Is every counter bill a GST invoice?', a: 'Yes. Each bill is a numbered tax invoice with HSN codes and the right split of CGST and SGST or IGST, issued at once. It is listed with your other invoices, goes into your GST returns and its payments post to your books.' },
+      { q: 'How do customers pay by UPI?', a: 'When the cashier chooses UPI, the screen shows a QR code for the exact amount, made from your own UPI ID (set it under Settings → Company). The customer scans it with any UPI app and the money goes straight to your account; the cashier checks it arrived before completing the bill.' },
+      { q: 'Does it work without the internet?', a: 'No — the counter needs an internet connection to make each bill. If the page reloads, the bill on screen is kept in the browser, and a bill sent twice because the connection dropped is made only once.' },
+      { q: 'How much does it cost?', a: 'Counter billing is included in every plan. Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
+    ],
+    cta: { title: 'Open your first counter', text: 'Start a 7-day free trial — add your items, open a shift and make your first bill.' },
+  },
+  onlineStore: {
+    eyebrow: 'Online store for your shop',
+    h1: 'An online store for your shop, run from your billing software',
+    lead: 'Put your shop online with a link of your own: customers see your items with photos, prices with GST and what is in stock, and order for pickup or delivery without signing up. Each order arrives in Finvosmart, where you confirm it, pack it, hand it over or deliver it, and turn it into a GST invoice in one step.',
+    highlights: [
+      { title: 'Your own store link', text: 'Choose the address (…/shop/your-shop-name), your store\'s name, colour and logo. Share it on WhatsApp and Instagram, or print the QR poster for the counter.' },
+      { title: 'Items straight from your stock', text: 'Choose which items to sell. Prices with GST, stock and categories come from your items, so there is nothing to keep in step by hand; up to four photos per item.' },
+      { title: 'Pickup or delivery', text: 'Offer either or both, with a delivery charge, free delivery above an amount you set, a smallest order, and a note on where you deliver.' },
+      { title: 'Orders the customer can follow', text: 'Every order has its own private page that shows where it stands — confirmed, packed or ready, out for delivery, delivered — with a button to WhatsApp the shop.' },
+      { title: 'Bill it in one step', text: 'Make the tax invoice from the order: the customer is found by mobile number or added, the stock leaves the store\'s godown, and an online payment link goes with the bill.' },
+      { title: 'Found on Google — if you want', text: 'Each store and item has its own page with prices and availability that search engines understand. Keep the store unlisted and only people with the link find it.' },
+    ],
+    sections: [
+      {
+        h2: 'Selling online without a second system',
+        paragraphs: [
+          'Most small shops that sell online keep two lists of products, two sets of prices and two stock counts — and spend the evening copying orders into the billing software. Here the store is part of the same system: an item\'s price, GST rate and stock are the ones you already bill with, so the store is always up to date.',
+          'The prices on the store are worked out on Finvosmart\'s server from your items, never taken from the customer\'s browser, and an item can\'t be ordered beyond the stock in the godown the store sells from.',
+        ],
+      },
+      {
+        h2: 'From order to delivery',
+        paragraphs: [
+          'A new order shows up in Online orders, with a notification in the app. Open it to see the customer, the items, the stock you have of each and the total with GST. Confirm it, mark it packed or ready for pickup, send it out for delivery and complete it — the customer\'s order page follows every step, and a WhatsApp message to the customer is ready to send with the link.',
+          'An order you can\'t fulfil can be cancelled with a reason, which the customer sees. Switch the store to "not taking orders" for a holiday and it stays visible, telling customers to call or message the shop meanwhile.',
+        ],
+      },
+      {
+        h2: 'Getting paid',
+        paragraphs: [
+          'Customers pay at pickup or on delivery, or choose to pay online. When you make the bill, its payment page offers your UPI ID, your bank details and, if you have connected one, your Razorpay payment gateway — the money goes straight to you, and Finvosmart takes no commission on orders.',
+        ],
+        bullets: [
+          'Payments are recorded against the invoice like any other, and the books stay right.',
+          'Limits on how many orders one connection can place guard the store against spam.',
+          'The online store is included in every plan.',
+        ],
+      },
+    ],
+    steps: [
+      { title: 'Choose your items', text: 'Pick what to sell and add photos.' },
+      { title: 'Set pickup and delivery', text: 'Delivery charge, free delivery above, the smallest order.' },
+      { title: 'Put it online', text: 'Share the link and the QR poster.' },
+      { title: 'Fulfil and bill', text: 'Confirm, pack, deliver — and invoice in one step.' },
+    ],
+    faqs: [
+      { q: 'Do my customers need to sign up?', a: 'No. They choose items, give their name and mobile number (and the address for delivery), and place the order. They get a private link to follow it, and their details are filled in for next time on the same phone.' },
+      { q: 'Does the store show my real stock?', a: 'Yes. The stock shown and checked on every order is the stock in the godown you choose for the store. Items that run out can be hidden or shown as out of stock, as you prefer.' },
+      { q: 'Can customers pay online?', a: 'Yes, once you bill the order: the invoice\'s payment page offers your UPI ID, bank transfer details and your Razorpay gateway if you have connected it. Customers can also pay at pickup or on delivery.' },
+      { q: 'Will my store appear on Google?', a: 'If you allow it. A listed store and its items are in the sitemap, and each item page carries its price and availability in the form search engines read. An unlisted store is kept out of search results but works for anyone with the link.' },
+      { q: 'What does it cost?', a: 'The online store is included in every plan, with no commission on orders. Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial.' },
+    ],
+    cta: { title: 'Put your shop online today', text: 'Start a 7-day free trial — choose your items, add photos and share your store link.' },
+  },
+  inventorySoftware: {
+    eyebrow: 'Inventory management software',
+    h1: 'Inventory management software with godowns, batches and stock counts',
+    lead: 'Know what you have, where it is and what it is worth. Stock moves by itself with your invoices, supplier bills, counter bills and online orders; each godown keeps its own stock; and transfers, material issues and stock counts keep the books and the shelves in agreement.',
+    highlights: [
+      { title: 'Stock that moves itself', text: 'Issuing an invoice or a counter bill takes stock out; a supplier bill or a credit note brings it in. Cancelling or correcting one puts the stock right, and the stock ledger links every movement to its document.' },
+      { title: 'Godowns', text: 'Keep stock by place — warehouses, shops, factory stores and sites. See every item\'s stock in each, with batches and expiry, and choose the godown on an invoice, a counter or the online store.' },
+      { title: 'Transfers with a challan', text: 'Move stock from one godown to another in one step and print the delivery challan to send with the goods, with the vehicle number. Cancelling a transfer puts the stock back.' },
+      { title: 'Material requests and issues', text: 'A site or a department asks for material, an approver says yes, and the stores issue it from a godown against the request — with an issue slip. What isn\'t used comes back with a return slip.' },
+      { title: 'Stock counts', text: 'Print the count sheet or count with a barcode scanner, see what is short or over and its value, then post the differences as adjustments.' },
+      { title: 'Batches and expiry', text: 'Items can be kept by batch with expiry and MRP. Stock leaves first-to-expire, and the counter never sells a batch that has expired.' },
+    ],
+    sections: [
+      {
+        h2: 'One stock, everywhere you sell',
+        paragraphs: [
+          'The same stock serves your invoices, your shop counter and your online store. Each takes stock out of the godown it names, so a sale at the counter can\'t be sold again online, and the stock in hand shows as you pick each item on an invoice.',
+          'Low-stock items are flagged at their reorder level, with a purchase order ready to start, and the stock ledger answers "where did it go?" for any item, movement by movement.',
+        ],
+      },
+      {
+        h2: 'Godowns, transfers and the stores',
+        paragraphs: [
+          'Add a godown for each place that holds stock and give it a code and an address. The main godown is where stock goes when nothing else is chosen, so a business with one place to keep things doesn\'t have to think about godowns at all.',
+          'Transfers move stock between godowns at once — out of one, into the other — and refuse to move more than a godown holds. Material requests suit contractors and factories: the site engineer or the production floor asks, the manager approves, the stores issue against the request until it is complete, and unused material returns to the godown.',
+        ],
+      },
+      {
+        h2: 'Counts that fix the books',
+        paragraphs: [
+          'Start a count for a godown — or one category in it — and the sheet lists every item and batch the books say is there. Enter what is on the shelves, or scan each piece with a barcode scanner, and add anything found that wasn\'t listed.',
+        ],
+        bullets: [
+          'The short and over lines, and their value at cost, are shown before anything changes.',
+          'Posting sets the stock to what was counted, as adjustments with the count\'s number on them.',
+          'Lines not counted are left as they are, so a count can cover just part of a godown.',
+        ],
+      },
+    ],
+    steps: [
+      { title: 'Add your items', text: 'Import them from Excel or add them with HSN, GST rate, unit and reorder level.' },
+      { title: 'Add your godowns', text: 'One for each warehouse, shop or site.' },
+      { title: 'Sell and buy as usual', text: 'Invoices, bills, the counter and the online store move the stock.' },
+      { title: 'Count and correct', text: 'Count a godown and post the differences.' },
+    ],
+    faqs: [
+      { q: 'Does stock update when I make an invoice?', a: 'Yes. Issuing a tax invoice or a counter bill takes the items out of stock, and a supplier bill or a credit note brings them in. Cancelling or correcting the document puts the stock right again.' },
+      { q: 'Can I keep stock in more than one place?', a: 'Yes. Add a godown for each warehouse, shop, factory store or site. Each keeps its own stock, and invoices, counters and the online store take stock from the godown they name.' },
+      { q: 'How do I move stock between godowns?', a: 'Make a stock transfer: choose the two godowns and the items, and the stock moves at once. Print the delivery challan to send with the goods; cancelling the transfer puts the stock back.' },
+      { q: 'Can I track batches and expiry dates?', a: 'Yes. An item can be kept by batch, with its expiry and MRP. Each godown shows its stock batch by batch, stock goes out first-to-expire, and the counter never sells an expired batch.' },
+      { q: 'How much does it cost?', a: 'Inventory and godowns are included in every plan. Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
+    ],
+    cta: { title: 'Get your stock in order', text: 'Start a 7-day free trial — add your items and godowns, and see your stock move with every bill.' },
+  },
+  purchaseSoftware: {
+    eyebrow: 'Purchase management software',
+    h1: 'Purchase management software with gate entry, GRN and quality inspection',
+    lead: 'Run buying from the order to the shelf: purchase orders approved before they go out, every consignment recorded at the gate, goods counted into a goods receipt (GRN) against the order, inspected before they go into stock, rejected goods sent back with a challan, and the supplier’s bill matched with what was ordered and received — and held for payment when it doesn’t match.',
+    highlights: [
+      { title: 'Gate entry', text: 'Security records each consignment as it arrives: the supplier, their invoice or delivery challan, the vehicle and driver, transporter, LR, e-way bill, packages and weight. The stores are told at once, and a gate pass prints.' },
+      { title: 'Goods receipt (GRN)', text: 'Count what came against the order’s lines: what their papers say, what was received, what was rejected and why, with batch and expiry. A receipt can come from the gate, from an order, or stand on its own.' },
+      { title: 'Quality inspection', text: 'Mark items “inspect on receipt”, or send a whole receipt to quality. The inspector accepts or rejects each line with a reason, and only what passes goes into stock — into the receipt’s godown, at the order’s rate.' },
+      { title: 'Returns to suppliers', text: 'Rejected goods go back with a delivery challan carrying the supplier’s GSTIN and the vehicle. They never entered stock, so nothing moves; the supplier’s credit note is recorded against the return.' },
+      { title: 'Three-way match, with a payment hold', text: 'Make the supplier’s bill from the receipt: what was accepted, at the order’s rates. Each item is checked against what was ordered and received; a bill for more than came in, or above the order’s rate, is held for payment until someone who approves purchases or finance releases it.' },
+      { title: 'Reorder planner', text: 'From your own books: what each item uses a day, what is in hand and on order, and how many days its supplier took on past orders. Choose what to order and make draft purchase orders, one per supplier.' },
+    ],
+    sections: [
+      {
+        h2: 'From the gate to the shelf',
+        paragraphs: [
+          'The purchase store page shows what waits at each step: consignments at the gate, receipts being counted, receipts waiting for quality, rejected goods to send back, receipts with no supplier bill yet, and deliveries that are late. Each figure opens the list behind it.',
+          'A consignment at the gate becomes a goods receipt in one step, with the supplier, the order and their papers carried over and the order’s lines filled in with what is still to come. Receiving more than the order still needs takes someone who approves purchase orders. Submitting puts the accepted goods into stock — or, when something on it is inspected on receipt, sends it to quality first, who are told.',
+          'Each order’s received quantities and its status follow its receipts, so nobody marks an order received by hand. When the rest of an order isn’t coming, close it with the reason, and it stops showing as due.',
+        ],
+      },
+      {
+        h2: 'Bills that match what came in',
+        paragraphs: [
+          'A supplier’s bill made from a goods receipt brings nothing into stock again — the receipt already did — and only one bill is made from each receipt. A bill recorded straight from an order whose goods came in on receipts is refused, so stock is never counted twice.',
+          'On the bill, every item shows what was ordered, received, billed before and billed now, with the order’s rate beside the bill’s. A bill that doesn’t match is held for payment, with what doesn’t match written on it: no payment can be recorded against it until someone who approves purchases or finance releases it with a reason, and they are told when a bill is held. Ask the supplier for a credit note, and record it against the return or the bill.',
+        ],
+      },
+      {
+        h2: 'Reports for the stores and for accounts',
+        paragraphs: ['Every report downloads as a CSV file.'],
+        bullets: [
+          'Pending deliveries: every approved order line still to come, the late orders first, with the value still to come.',
+          'Received, not billed: goods in stock with no supplier bill yet, and their value with GST.',
+          'Rejections: what failed at receipt or inspection, why, and what is still to go back.',
+          'Supplier performance: receipts on time against the order’s date, the average days late, how much was rejected or claimed under warranty, and a rating from 1 to 100 (A to D) that weighs quality, delivery, price and how they settle warranty claims.',
+          'The GRN register: every goods receipt between two dates.',
+        ],
+      },
+      {
+        h2: 'Warranty claims on suppliers',
+        paragraphs: [
+          'When a customer’s goods fail under warranty, pass their claim on to the supplier the goods came from: Finvosmart finds them from the batch’s goods receipt or bill, and checks the supplier’s own warranty from your purchase date. Faulty goods found in your own stock can be claimed straight from the receipt they came on.',
+          'Send the goods back with a delivery challan — goods sent for warranty, not a sale — and record the supplier’s answer: what they accept, and whether they repair, replace or credit it. Their credit note settles the claim, and what comes back can go into stock at the claim’s rate. A rejected claim can be appealed, or closed as not recovered.',
+        ],
+      },
+      {
+        h2: 'A desk for each job, and material released from the stores',
+        paragraphs: [
+          'Give the security guard the gate entry right and they see the gate, the deliveries due and the suppliers’ names — not your supplier records, rates or receipts. Store keepers count goods into receipts, quality inspectors release what passes, and buyers raise and approve orders. Rates show only to those whose role includes them.',
+          'Inside the company, a department or site asks for material, an approver agrees, and the stores issue it from a godown with an issue slip; what isn’t used comes back with a return slip.',
+        ],
+      },
+    ],
+    steps: [
+      { title: 'Approve the order', text: 'Raise the purchase order, or let the reorder planner start it, and approve it.' },
+      { title: 'Record it at the gate', text: 'Security notes the consignment, its papers and the vehicle, and prints the gate pass.' },
+      { title: 'Count it into a GRN', text: 'The stores count what came against the order, with rejections and batches.' },
+      { title: 'Inspect and release', text: 'Quality accepts or rejects each line; what passes goes into stock.' },
+      { title: 'Bill and pay', text: 'Make the supplier’s bill from the receipt, matched with the order.' },
+    ],
+    faqs: [
+      { q: 'What is a GRN?', a: 'A goods receipt note records what a supplier delivered against a purchase order: what their papers say, what was received, what was accepted and what was rejected. In Finvosmart the accepted goods go into stock when the GRN is submitted — or after quality releases them — and the order’s received quantities follow it.' },
+      { q: 'Can goods be received without a purchase order?', a: 'Yes. A goods receipt can be made with no order: choose the supplier and the items that came. Receipts against an order start from the order’s lines still to come.' },
+      { q: 'What happens to rejected goods?', a: 'They never go into stock. They wait on the receipt until they are sent back with a return delivery challan, and the supplier’s credit note is recorded against that return.' },
+      { q: 'Does every delivery need a gate entry?', a: 'No. Gate entries suit businesses with security at the gate; a goods receipt can also be made straight from an order or on its own.' },
+      { q: 'How does the bill get matched?', a: 'Make the supplier’s bill from the goods receipt: its lines are what was accepted, at the order’s rates. The bill shows each item’s ordered, received and billed quantities with both rates, and flags any item billed beyond what came in or above the order’s rate.' },
+      { q: 'What happens when a supplier’s bill doesn’t match?', a: 'It is saved, but held for payment: the bill says what doesn’t match — for example “Steel rod 12 billed, 10 received” — and no payment can be recorded against it. Correct the bill when the supplier sends a revised one and the hold lifts once it matches; or someone who approves purchases or finance releases it with a reason — the new rate was agreed, say — and who did and why stay on the bill.' },
+      { q: 'How much does it cost?', a: 'Purchase orders, the purchase store, warranty claims and inventory are included in every plan. Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
+    ],
+    cta: { title: 'Know what came in, and what you owe for it', text: 'Start a 7-day free trial — raise an order, record the delivery at the gate and count it into stock.' },
+  },
+  warrantySoftware: {
+    eyebrow: 'Warranty management software',
+    h1: 'Warranty claim management software that claims it back from your supplier',
+    lead: 'Register a customer’s faulty goods against the invoice they were sold on and see at once whether they are in warranty. Repair, replace or credit them — then pass the claim on to the supplier the goods came from, send the goods back with a challan and record what they accept, so the cost doesn’t stay with you.',
+    highlights: [
+      { title: 'Claims from the invoice', text: 'Find the sale by invoice number or customer: the item, batch, quantity, rate and date come from it, and what is already under claim is held back, so the same goods aren’t claimed twice. Goods sold before you used Finvosmart can be typed in with the date they were sold.' },
+      { title: 'The warranty worked out', text: 'Give each item its warranty to customers and the supplier’s warranty to you, in months — the warranty details of the Electronics and Solar packs count too. Every claim shows whether it is in warranty, until when and how many days are left, or when it ended.' },
+      { title: 'Repair, replace or credit', text: 'Approve a repair, a replacement from stock on a no-charge delivery challan, or a credit note against the original invoice. Outside the warranty, approve it as goodwill with the reason, or reject it — a rejected claim can be reopened.' },
+      { title: 'Passed on to the supplier', text: 'Finvosmart finds who sold you the goods — from the batch’s goods receipt or bill, or the item’s last receipt before the sale — and starts the claim on them with your purchase and their warranty filled in. The two claims stay linked.' },
+      { title: 'Goods back with a challan', text: 'Faulty goods go to the supplier with a delivery challan marked as sent for warranty, not a sale, with the vehicle, LR and e-way bill. What the supplier sends back can go into stock at the claim’s rate, or straight to your customer.' },
+      { title: 'What is still to recover', text: 'The claims page shows what waits on each side — to approve, to resolve, to send, with the supplier — and the value still to recover from suppliers. Their credit notes, recorded against the claims, settle them.' },
+    ],
+    sections: [
+      {
+        h2: 'From the counter to the credit note',
+        paragraphs: [
+          'A claim records the customer, the goods with their serial number or batch, the fault, and whether the goods were handed in — and with what, such as the box or the charger. Print an acknowledgement for the customer to keep. Everyone who handles claims is told when a customer’s claim comes in, and whoever registered it is told when it is approved.',
+          'Approve it with what you will do. A replacement leaves stock from the godown you choose, with a delivery challan for the customer and no charge. A credit note is made from the claim against the original invoice: issuing it resolves the claim, and cancelling it puts the claim back. A credit note for a claim never moves stock — the goods were dealt with on the claim.',
+          'A repair or replacement given free under warranty carries no further GST (CBIC Circular 195/07/2023-GST). If you charge the customer for anything more, invoice it as usual.',
+        ],
+      },
+      {
+        h2: 'Claims on suppliers, and what comes back',
+        paragraphs: [
+          'Pass a customer’s claim on from its page, or claim faulty goods found in your own stock straight from the goods receipt they came on — those goods leave stock when they are sent. The supplier’s warranty is counted from your goods receipt or bill.',
+          'Mark the claim sent with the challan, then record the supplier’s answer: what they accept — never more than you claimed — and whether they repair, replace or credit it. Their credit note, recorded against the claim, settles it; repaired or replaced goods that come back go into stock or straight to your customer. A rejected claim can be appealed, or closed as not recovered, and goods taken from stock for it put back.',
+        ],
+      },
+      {
+        h2: 'Every step on record',
+        paragraphs: ['Each claim keeps its history — who registered, approved, sent, accepted or settled it, when, and why — with links to the invoice or receipt, the credit notes and the claim on the other side.'],
+        bullets: [
+          'One right, warranty claims, lets service staff register and follow claims; a credit note still needs the right to make invoices, or bills for a supplier’s.',
+          'Values show only to those whose role includes sales, accounts, stock or purchasing.',
+          'Claims are listed by status and found by number, customer or supplier, goods or serial number.',
+          'The supplier report rates each supplier from 1 to 100 on quality, delivery, price and how they settle warranty claims.',
+        ],
+      },
+    ],
+    steps: [
+      { title: 'Register the claim', text: 'From the invoice, with the fault and what was handed in.' },
+      { title: 'Check the warranty', text: 'In warranty or not, worked out from the item’s period.' },
+      { title: 'Decide', text: 'Repair, replace from stock or credit — or reject with the reason.' },
+      { title: 'Pass it on', text: 'Claim from the supplier who sold it, and send the goods back.' },
+      { title: 'Recover', text: 'Record what the supplier accepts and their credit note.' },
+    ],
+    faqs: [
+      { q: 'How is the warranty period worked out?', a: 'From the item’s warranty in months, counted from the invoice date for a customer and from your goods receipt or bill for a supplier. A 12-month warranty on goods sold on 15 January runs to 14 January the next year; a one-month warranty from 31 January runs to the last day of February.' },
+      { q: 'Is GST charged on a warranty replacement?', a: 'Not on a replacement or repair given free under warranty: CBIC Circular 195/07/2023-GST of 17 July 2023 says no further GST is payable on it. Finvosmart gives the replacement on a delivery challan with no charge; anything you charge the customer for goes on an invoice as usual.' },
+      { q: 'How does Finvosmart know which supplier to claim from?', a: 'From the batch the goods were sold from: its goods receipt or bill names the supplier. Without a batch, it takes the latest receipt of the item before the sale, then the latest bill. It says how it found them, and you can choose another supplier before the claim is made.' },
+      { q: 'Can I claim goods sold before we used Finvosmart?', a: 'Yes. Type in the customer, the item or what the goods are, the date they were sold and the bill number; the warranty is worked out from that date, or from the start date and months you give.' },
+      { q: 'Does a warranty claim move stock?', a: 'Only when goods really move: a replacement given to the customer leaves stock, faulty goods sent to the supplier from your own stock leave it, and what the supplier sends back can go in. Credit notes made for claims never move stock.' },
+      { q: 'How much does it cost?', a: 'Warranty claims are included in every plan. Plans start at ₹3,999 per month billed annually (₹4,999 billed monthly), with a 7-day free trial and no credit card required.' },
+    ],
+    cta: { title: 'Settle every claim, and claim it back', text: 'Start a 7-day free trial — register a claim from an invoice and pass it on to the supplier who sold you the goods.' },
   },
 }
 

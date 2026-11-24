@@ -9,8 +9,8 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 import {
-  AlertTriangle, BadgeCheck, CalendarClock, CalendarDays, ClipboardCheck, FileCheck2, Info, IndianRupee, PackageMinus, Wallet,
-  type LucideIcon,
+  AlertTriangle, BadgeCheck, CalendarClock, CalendarDays, ClipboardCheck, FileCheck2, Info, IndianRupee, PackageCheck, PackageMinus, Wallet, ShieldPlus,
+  type LucideIcon, ShieldAlert,
 } from 'lucide-react'
 
 /** How each kind of notification looks — the bell and the notifications page share this. */
@@ -20,10 +20,14 @@ export const NOTIFICATION_TYPES: Record<string, { label: string; color: string; 
   OVERDUE:   { label: 'Overdue',       color: '#B91C1C', bg: 'rgba(220,38,38,0.12)',   icon: AlertTriangle },
   DUE_SOON:  { label: 'Bills due',     color: '#C2410C', bg: 'rgba(234,88,12,0.12)',   icon: CalendarClock },
   LOW_STOCK: { label: 'Low stock',     color: '#1D4ED8', bg: 'rgba(37,99,235,0.12)',   icon: PackageMinus },
+  RECEIVING: { label: 'Receiving',     color: '#0E7490', bg: 'rgba(8,145,178,0.12)',   icon: PackageCheck },
+  WARRANTY:  { label: 'Warranty',      color: '#0369A1', bg: 'rgba(2,132,199,0.12)',   icon: ShieldPlus },
   PAYROLL:   { label: 'Payroll',       color: '#0F766E', bg: 'rgba(13,148,136,0.12)',  icon: Wallet },
   LEAVE:     { label: 'Leave',         color: '#6D28D9', bg: 'rgba(124,58,237,0.12)',  icon: CalendarDays },
   REVIEW:    { label: 'Reviews',       color: '#9D174D', bg: 'rgba(219,39,119,0.12)',  icon: FileCheck2 },
   SALES:     { label: 'Sales',         color: '#15803D', bg: 'rgba(22,163,74,0.12)',   icon: BadgeCheck },
+  // bank details changed — how payment fraud starts (ChangeAlerts on the server)
+  SECURITY:  { label: 'Security',      color: '#B91C1C', bg: 'rgba(220,38,38,0.12)',   icon: ShieldAlert },
   SYSTEM:    { label: 'System',        color: '#4B5563', bg: 'rgba(107,114,128,0.12)', icon: Info },
 }
 

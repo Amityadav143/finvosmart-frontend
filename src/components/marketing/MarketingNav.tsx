@@ -28,7 +28,6 @@ export default function MarketingNav() {
           <span className="mk-logo-mark"><Zap size={16} color="var(--text-on-gold)" aria-hidden /></span>
           <span className="font-serif mk-logo-text">
             FINVOSMART
-            <span className="mk-logo-by">by Navgrow</span>
           </span>
         </Link>
 

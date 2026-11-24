@@ -20,12 +20,12 @@ export const PREVIEWS_ON = process.env.NEXT_PUBLIC_PREVIEW_FEATURES === 'true'
 
 export type PreviewFeature =
   | 'ai-cfo' | 'health-score' | 'fraud' | 'cashflow' | 'wellness' | 'bill-scanner'
-  | 'expense-claims' | 'client-portal' | 'recurring-billing' | 'demand-forecast' | 'esign' | 'automations' | 'timesheets'
-  | 'integrations' | 'goods-receipts' | 'fixed-assets' | 'module-settings' | 'approval-workflows'
+  | 'expense-claims' | 'client-portal' | 'recurring-billing' | 'esign' | 'automations' | 'timesheets'
+  | 'integrations' | 'fixed-assets' | 'module-settings' | 'approval-workflows'
 
 /** Route prefixes (without the leading slash) of preview features: the route and everything under it. */
-const PREVIEW_ROUTES = ['ai', 'expense-claims', 'client-portal', 'subscriptions', 'demand-forecast', 'esign', 'automations', 'timesheet', 'marketplace',
-  'procurement/grn', 'inventory/assets', 'assets', 'settings/modules', 'settings/workflow']
+const PREVIEW_ROUTES = ['ai', 'expense-claims', 'client-portal', 'subscriptions', 'esign', 'automations', 'timesheet', 'marketplace',
+  'inventory/assets', 'assets', 'settings/modules', 'settings/workflow']
 
 export function isPreviewRoute(href: string): boolean {
   const path = href.split(/[?#]/)[0]
@@ -42,17 +42,15 @@ export const PREVIEW_INFO: Record<PreviewFeature, { name: string; instead?: { la
   'ai-cfo': { name: 'AI CFO', instead: { label: 'Open the dashboard', href: '/dashboard', why: 'The dashboard shows what customers owe you, what you owe, cash, GST due and payroll — from your own books.' } },
   'health-score': { name: 'Health Score', instead: { label: 'Open the dashboard', href: '/dashboard', why: 'The dashboard shows receivables, payables, cash and GST from your own books.' } },
   'fraud': { name: 'Fraud Detection', instead: { label: 'Open the audit log', href: '/settings/audit-log', why: 'The audit log records every change to invoices, bills, payments and payroll, with who made it.' } },
-  'cashflow': { name: 'Cash Flow Oracle', instead: { label: 'Open the dashboard', href: '/dashboard', why: 'The dashboard shows money due in and out, with ageing, from your own invoices and bills.' } },
+  'cashflow': { name: 'Cash Flow Oracle', instead: { label: 'Open the cash-flow forecast', href: '/cash-flow', why: 'The 13-week forecast works out cash week by week from your books — open invoices as late as each customer usually pays, supplier bills, salaries and taxes — and names the week it would run short.' } },
   'wellness': { name: 'Wellness AI' },
-  'bill-scanner': { name: 'Bill Scanner', instead: { label: 'Record a supplier bill', href: '/purchases/bills/new', why: 'Enter a bill by hand, or check your bills against GSTR-2B under GST credit check.' } },
+  'bill-scanner': { name: 'Bill Scanner', instead: { label: 'Record an expense', href: '/purchases/bills/new?type=EXPENSE', why: 'Bills and receipts are read as you record them: under Record expense or New bill, upload the PDF or a photo, and the number, date, supplier, GST and total are filled in for you to check.' } },
   'expense-claims': { name: 'Expense Claims', instead: { label: 'Record an expense', href: '/purchases/bills/new?type=EXPENSE', why: 'Spends paid on the spot can be recorded as expenses, with GST and TDS worked out.' } },
   'client-portal': { name: 'Client Portal', instead: { label: 'Go to invoices', href: '/invoicing', why: 'Every issued invoice already has a view-and-pay link your customer can open without logging in.' } },
   'recurring-billing': { name: 'Recurring Billing', instead: { label: 'Go to invoices', href: '/invoicing', why: 'To bill a customer again, open an invoice and use Duplicate.' } },
-  'demand-forecast': { name: 'Demand Forecast', instead: { label: 'Open inventory', href: '/inventory/items', why: 'Inventory shows stock levels and items below their reorder level.' } },
   'esign': { name: 'Digital Signing' },
   'automations': { name: 'Automations', instead: { label: 'Email alert settings', href: '/settings/email', why: 'Payment reminders and alerts are set up under Email Alerts.' } },
   'timesheets': { name: 'Timesheets', instead: { label: 'Open attendance', href: '/hrms/attendance', why: 'Attendance records who worked on which day, and feeds payroll.' } },
-  'goods-receipts': { name: 'Goods Receipts', instead: { label: 'Open purchase orders', href: '/procurement/orders', why: 'Mark a purchase order partly received or received when the goods arrive, and record the supplier’s bill under Purchases.' } },
   'fixed-assets': { name: 'Fixed Assets', instead: { label: 'Open journal entries', href: '/finance/vouchers', why: 'Until the asset register posts to your books, record asset purchases and depreciation as journal entries.' } },
   'module-settings': { name: 'Module Settings', instead: { label: 'Roles and permissions', href: '/settings/roles', why: 'What each person sees in the app is decided by their role.' } },
   'approval-workflows': { name: 'Approval Workflows', instead: { label: 'Roles and permissions', href: '/settings/roles', why: 'Approvals happen where the document is — purchase orders, leave and payroll runs each have their own approve permission, given through roles.' } },

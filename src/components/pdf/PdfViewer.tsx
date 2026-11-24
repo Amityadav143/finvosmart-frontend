@@ -11,22 +11,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { PDFJS_ICC, PDFJS_WASM, pdfjs } from '@/lib/pdfjs'
 
 /** pdf.js's worker, served from public/ (the same version as the pdfjs-dist package). */
-const WORKER = '/pdfjs/pdf.worker-3.11.174.min.js'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let loader: Promise<any> | null = null
-function pdfjs() {
-  if (!loader) {
-    loader = import('pdfjs-dist/legacy/build/pdf').then(m => {
-      m.GlobalWorkerOptions.workerSrc = WORKER
-      return m
-    })
-    loader.catch(() => { loader = null })
-  }
-  return loader
-}
 
 /**
  * Shows a PDF on the page, every page drawn by pdf.js — the very file that is downloaded and sent, so what is seen
@@ -73,7 +60,8 @@ export function PdfViewer({ data, title, maxWidth = 900, testId = 'pdf-viewer', 
       try {
         const lib = await pdfjs()
         const bytes = new Uint8Array(await data.arrayBuffer())
-        doc = await lib.getDocument({ data: bytes, isEvalSupported: false }).promise
+        // pdf.js 6 evaluates no code from a PDF at all (3.x needed isEvalSupported: false for that)
+        doc = await lib.getDocument({ data: bytes, wasmUrl: PDFJS_WASM, iccUrl: PDFJS_ICC }).promise
         const drawn: HTMLCanvasElement[] = []
         const cssWidth = Math.min(width, maxWidth)
         const ratio = Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 2)
@@ -94,9 +82,7 @@ export function PdfViewer({ data, title, maxWidth = 900, testId = 'pdf-viewer', 
           canvas.dataset.page = String(i)
           canvas.setAttribute('role', 'img')
           canvas.setAttribute('aria-label', `${title} — page ${i} of ${doc.numPages}`)
-          const context = canvas.getContext('2d')
-          if (!context) throw new Error('no canvas')
-          await page.render({ canvasContext: context, viewport }).promise
+          await page.render({ canvas, viewport }).promise
           drawn.push(canvas)
         }
         if (cancelled || !holder.current) return

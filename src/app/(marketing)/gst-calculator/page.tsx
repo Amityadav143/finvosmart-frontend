@@ -51,8 +51,8 @@ export default function GstCalculatorPage() {
 
           <h2 style={{ ...h2Style, marginTop: '36px' }}>GST rates in 2026 (GST 2.0)</h2>
           <p style={pStyle}>Since 22 September 2025, most goods and services fall into three slabs, with 0% for exempt items and special rates for a few goods. The old 12% and 28% slabs were largely removed, with items moved to 5%, 18% or 40%.</p>
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '14px', background: 'var(--bg-card)', margin: '8px 0 12px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
+          <div role="region" aria-label="GST rates in 2026" tabIndex={0} style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '14px', background: 'var(--bg-card)', margin: '8px 0 12px' }}>
+            <table className="keep-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
               <thead><tr><th style={th}>Rate</th><th style={th}>Slab</th><th style={th}>Applies to (examples)</th></tr></thead>
               <tbody>
                 {C.slabs.map(s => (

@@ -60,13 +60,13 @@ export default function IndustryPage() {
   const [picked, setPicked] = useState<string | null>(null)
   // a template the sectors chosen at sign-up suggest (?suggest=MANUFACTURING): picked to start with
   const [suggested, setSuggested] = useState<string | null>(null)
+  const [variant, setVariant] = useState<string | null>(null)
   useEffect(() => { try { setSuggested(new URLSearchParams(window.location.search).get('suggest')) } catch { /* no URL */ } }, [])
   useEffect(() => {
     if (!suggested || picked || !packList.length) return
     const p = packList.find(x => x.code === suggested)
     if (p && !p.applied) { setPicked(p.code); setVariant(p.appliedVariant ?? (p.variants.length === 1 ? p.variants[0].code : null)) }
   }, [suggested, packList]) // eslint-disable-line react-hooks/exhaustive-deps
-  const [variant, setVariant] = useState<string | null>(null)
   const pack = packList.find(p => p.code === picked) ?? null
   // start on the main sector (or nothing) once the company's templates are known
   useEffect(() => {

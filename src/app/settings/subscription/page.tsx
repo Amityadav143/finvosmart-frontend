@@ -16,7 +16,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { CheckCircle2, CreditCard, Lock, Receipt, Sparkles } from 'lucide-react'
 import { billingApi, rupeesFromPaise, type CheckoutOrder, type PlanOffer } from '@/lib/api/billing'
-import { useSubscription, lastDay, dayOf } from '@/lib/hooks/useSubscription'
+import { useSubscription, lastDay, dayOf, PLAN_FEATURES } from '@/lib/hooks/useSubscription'
+import type { PlanFeature } from '@/lib/api/billing'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { apiError } from '@/lib/apiError'
 import { SupportEmail } from '@/components/marketing/PlatformContact'
@@ -74,7 +75,7 @@ export default function SubscriptionPage() {
           try {
             const after = await billingApi.verify(r)
             qc.setQueryData(['subscription'], after)
-            toast.success(`Thank you — the ${after.planName ?? p.name} plan is active until ${dayOf(after.paidUntil)}.`)
+            toast.success(`Thank you — the ${after.planName ?? p.name} plan is active until ${lastDay(after.paidUntil)}.`)
           } catch (e: any) {
             toast.error(apiError(e, 'The payment could not be confirmed yet. It is confirmed automatically within a few minutes.'))
           } finally {
@@ -122,11 +123,35 @@ export default function SubscriptionPage() {
           </dl>
         )}
         {s.status === 'PAID' && s.paidUntil && (
-          <p className="text-sm">Billed {s.billingCycle === 'ANNUAL' ? 'yearly' : 'monthly'} · paid until <strong>{dayOf(s.paidUntil)}</strong>.
+          <p className="text-sm">Billed {s.billingCycle === 'ANNUAL' ? 'yearly' : 'monthly'} · paid until <strong>{lastDay(s.paidUntil)}</strong>.
             Paying again adds the new period after this one.</p>
         )}
         {s.status === 'LEGACY' && <p className="text-sm">Your company signed up before plans were introduced and keeps full access.</p>}
       </div>
+
+      {s.limits && (
+        <div className="card space-y-3" data-testid="plan-limits" data-tier={s.limits.tier}>
+          <h2 className="font-semibold">What {s.limits.tier === 'TRIAL' ? 'the free trial' : s.limits.tier === 'LEGACY' ? 'your access' : `the ${s.limits.tierName} plan`} includes</h2>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Users switched on</dt>
+              <dd data-testid="plan-users">{s.limits.activeUsers}{s.limits.maxUsers != null ? ` of ${s.limits.maxUsers}` : ' · no limit'}</dd></div>
+            <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Branches</dt>
+              <dd data-testid="plan-branches">{s.limits.activeBranches}{s.limits.maxBranches != null ? ` of ${s.limits.maxBranches}` : ' · no limit'}</dd></div>
+          </dl>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            {(Object.keys(PLAN_FEATURES) as PlanFeature[]).map(f => {
+              const has = s.limits!.features.includes(f)
+              return (
+                <li key={f} className="flex items-center gap-2" data-plan-feature={f} data-included={has ? 'yes' : 'no'}>
+                  {has ? <CheckCircle2 size={15} color="#16a34a" /> : <Lock size={15} style={{ color: 'var(--text-muted)' }} />}
+                  <span>{PLAN_FEATURES[f].title}{has ? '' : ' — on Growth and Enterprise'}</span>
+                </li>
+              )
+            })}
+          </ul>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Everything else — sales, purchases, stock, the counter, the online store, accounts, GST returns, payroll and HR — is on every plan.</p>
+        </div>
+      )}
 
       {s.status !== 'LEGACY' && (
         <div className="space-y-3">

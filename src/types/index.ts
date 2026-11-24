@@ -177,16 +177,20 @@ export interface Invoice {
   warning?: string
   /** Whether issuing it moves the stock of the items on it (tax invoices and credit notes) */
   movesStock?: boolean
+  /** the godown the goods leave from (or come back into) — none, the main godown */
+  godownId?: string | null
   /** The quotation, proforma or challan this invoice was made from */
   sourceId?: string | null; sourceNumber?: string | null; sourceType?: InvoiceType | null
   /** For a quotation, proforma or challan: the invoice made from it */
   convertedToId?: string | null; convertedToNumber?: string | null; convertedToStatus?: InvoiceStatus | null
   /** A quotation the customer accepted from its link */
   acceptedAt?: string | null; acceptedBy?: string | null
+  /** A credit note made for a customer's warranty claim (issuing it resolves the claim) */
+  warrantyClaimId?: string | null; warrantyClaimNumber?: string | null
 }
 export interface InvoicePaymentRecord {
   id: string; invoiceId: string; paymentDate: string; amount: number; tdsAmount: number
-  mode: string; reference?: string; source: 'MANUAL'|'BANK'|'RAZORPAY'|'LEGACY'; notes?: string
+  mode: string; reference?: string; source: 'MANUAL'|'BANK'|'RAZORPAY'|'LEGACY'|'POS'; notes?: string
   voided: boolean; voidedAt?: string; voidReason?: string; createdAt?: string
 }
 export interface InvoiceStats {
@@ -201,13 +205,15 @@ export interface PurchaseOrderLineItem {
 }
 /** A supplier bill entered against a purchase order */
 export interface PurchaseOrderBill { id: string; referenceNumber: string; billNumber?: string | null; status: string; billDate: string; totalAmount: number }
-export type PurchaseOrderStatus = 'DRAFT'|'SUBMITTED'|'APPROVED'|'ORDERED'|'PARTIALLY_RECEIVED'|'RECEIVED'|'CANCELLED'
+export type PurchaseOrderStatus = 'DRAFT'|'SUBMITTED'|'APPROVED'|'ORDERED'|'PARTIALLY_RECEIVED'|'RECEIVED'|'CLOSED'|'CANCELLED'
 export interface PurchaseOrder {
   id: string; poNumber: string; vendorId: string; vendorName: string
   poDate: string; expectedDeliveryDate?: string
   status: PurchaseOrderStatus
   subtotal: number; taxAmount: number; totalAmount: number
   paymentTerms?: string; remarks?: string
+  /** Why the rest of a closed order isn't coming. */
+  closeNote?: string | null
   lineItems?: PurchaseOrderLineItem[]
   /** On a single order: the bills entered for it */
   bills?: PurchaseOrderBill[] | null
@@ -226,12 +232,6 @@ export interface Vendor {
   /** Open bills less unused credit notes */
   outstanding?: number | string
 }
-export interface GoodsReceiptNote {
-  id: string; grnNumber: string; purchaseOrderId: string; poNumber?: string
-  vendorName?: string; receivedDate: string
-  status: 'DRAFT'|'QUALITY_CHECK'|'ACCEPTED'|'PARTIALLY_ACCEPTED'|'REJECTED'
-  totalItems: number; totalValue: number; remarks?: string
-}
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
 export interface InventoryItem {
@@ -244,6 +244,10 @@ export interface InventoryItem {
   trackStock?: boolean
   /** Stock kept by batch and expiry: bills bring in batches, invoices sell the first to expire */
   trackBatchNumbers?: boolean
+  /** Inspected on receipt: its goods receipts wait for quality before the stock moves */
+  needsInspection?: boolean
+  /** Months of warranty given to customers, and the supplier's warranty to you (null: none set) */
+  warrantyMonths?: number | null; supplierWarrantyMonths?: number | null
 }
 /** A batch's expiry against today: past it, within 90 days, later, or none given. */
 export type BatchState = 'EXPIRED' | 'EXPIRING' | 'OK' | 'NO_EXPIRY'
@@ -281,6 +285,10 @@ export interface InventoryItemInput {
   description?: string; active?: boolean; openingStock?: number | null; trackStock?: boolean
   /** Keep stock by batch and expiry; the opening stock then needs its batch number (and expiry) */
   trackBatches?: boolean; openingBatchNo?: string; openingExpiry?: string | null
+  /** Inspect it when it arrives (receipts wait for quality before the stock moves) */
+  needsInspection?: boolean
+  /** Warranties in months (left out: unchanged; -1: none set) */
+  warrantyMonths?: number | null; supplierWarrantyMonths?: number | null
 }
 /** An item at or below its reorder level (the server sends the whole item). */
 export interface LowStockAlert extends InventoryItem {}
@@ -335,9 +343,6 @@ export interface Subscription { id: string; customerId: string; customerName: st
 // ── TDS ───────────────────────────────────────────────────────────────────────
 export interface TdsEntry { vendorId: string; vendorName: string; vendorPan: string; section: string; paymentAmount: number; tdsRate: number; tdsAmount: number; paymentDate: string; status: string }
 export interface TdsSection { section: string; description: string; rateIndividual: number; rateCompany: number; threshold: number }
-
-// ── Forecasting ───────────────────────────────────────────────────────────────
-export interface ForecastItem { itemId: string; itemCode: string; itemName: string; currentStock: number; reorderLevel: number; avgDailyUsage: number; supplierLeadDays: number; predictedStockoutDate: string; recommendedOrderQty: number; riskScore: number; riskLevel: string; action: string }
 
 // ── Signing ───────────────────────────────────────────────────────────────────
 export interface SigningRequest { id: string; docType: string; documentName: string; documentId: string; signers: any[]; status: string; createdAt: string; completedAt?: string }

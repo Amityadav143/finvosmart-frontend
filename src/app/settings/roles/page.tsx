@@ -80,7 +80,9 @@ const PERMISSION_GROUPS = [
     { key:'PROCUREMENT_CREATE',  label:'Create POs' },
     { key:'PROCUREMENT_EDIT',    label:'Edit POs' },
     { key:'PROCUREMENT_APPROVE', label:'Approve POs' },
-    { key:'PROCUREMENT_RECEIVE', label:'Record GRN' },
+    { key:'PROCUREMENT_RECEIVE', label:'Record goods receipts (GRN) and returns' },
+    { key:'GATE_ENTRY', label:'Gate entries (consignments at the gate)' },
+    { key:'QUALITY_INSPECT', label:'Inspect goods received, release to stock' },
   ]},
   { group: 'Inventory', color: '#0D9488', perms: [
     { key:'INVENTORY_VIEW',   label:'View Inventory' },
@@ -88,6 +90,17 @@ const PERMISSION_GROUPS = [
     { key:'INVENTORY_EDIT',   label:'Edit Items' },
     { key:'INVENTORY_ADJUST', label:'Stock Adjustments' },
     { key:'INVENTORY_ADMIN',  label:'Item Master Admin' },
+    { key:'MATERIAL_REQUEST', label:'Ask for Material' },
+    { key:'MATERIAL_APPROVE', label:'Approve Material Requests' },
+  ]},
+  { group: 'Warranty', color: '#0891B2', perms: [
+    { key:'WARRANTY_CLAIMS', label:'Warranty claims (from customers and on suppliers)' },
+  ]},
+  { group: 'Store', color: '#DB2777', perms: [
+    { key:'POS_SELL',         label:'Bill at the Counter' },
+    { key:'POS_MANAGE',       label:'Manage Counters & Prices' },
+    { key:'SHOP_VIEW',        label:'View Online Orders' },
+    { key:'SHOP_MANAGE',      label:'Run the Online Store' },
   ]},
   { group: 'AI Features', color: '#8B5CF6', perms: [
     { key:'AI_CASHFLOW_VIEW', label:'View Cash Flow AI' },

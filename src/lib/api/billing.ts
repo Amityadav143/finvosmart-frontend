@@ -41,6 +41,20 @@ export interface PlanStatus {
   message?: string
   gstPercent: number
   plans: PlanOffer[]
+  /** what the plan includes and what is in use (absent from a server older than plan limits: then nothing is limited) */
+  limits?: PlanLimits
+}
+
+/** The features the plans tell apart: on Growth, Enterprise and the free trial, not on Starter. */
+export type PlanFeature = 'WHATSAPP' | 'GSTR2B_CHECK' | 'BANK_MATCHING' | 'TDS_REGISTER'
+
+export interface PlanLimits {
+  /** STARTER, GROWTH, ENTERPRISE, TRIAL (the free trial: what Growth has) or LEGACY (no limits) */
+  tier: string; tierName: string
+  /** users and branches switched on now; a null max is no limit */
+  maxUsers: number | null; activeUsers: number
+  maxBranches: number | null; activeBranches: number
+  features: PlanFeature[]
 }
 
 /** What Razorpay Checkout opens with (POST /billing/checkout). */

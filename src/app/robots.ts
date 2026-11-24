@@ -10,7 +10,7 @@
  */
 
 import type { MetadataRoute } from 'next'
-import { SITE } from '@/lib/seo'
+import { AI_CRAWLERS, SITE } from '@/lib/seo'
 
 /**
  * Only the API is blocked. Signed-in app screens (dashboard, hrms, …) are NOT
@@ -21,7 +21,12 @@ import { SITE } from '@/lib/seo'
  */
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: '*', allow: '/', disallow: ['/api/'] }],
+    rules: [
+      // the online stores' product photos and logos may be fetched (for image search and product results)
+      { userAgent: '*', allow: ['/', '/api/v1/public/shop/'], disallow: ['/api/'] },
+      // AI assistants and answer engines, by name (lib/seo.ts): the same rules, and the files written for them
+      { userAgent: [...AI_CRAWLERS], allow: ['/', '/llms.txt', '/llms-full.txt', '/api/v1/public/shop/'], disallow: ['/api/'] },
+    ],
     sitemap: `${SITE.url}/sitemap.xml`,
     host: SITE.url,
   }

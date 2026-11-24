@@ -27,6 +27,7 @@ export const TABS = [
   { href: '/platform/users', label: 'Logins' },
   { href: '/platform/payments', label: 'Payments' },
   { href: '/platform/leads', label: 'Enquiries' },
+  { href: '/platform/acquisition', label: 'Sign-up sources' },
   { href: '/platform/activity', label: 'Activity' },
   { href: '/platform/admins', label: 'Administrators' },
   { href: '/platform/settings', label: 'Settings' },

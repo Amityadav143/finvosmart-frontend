@@ -27,10 +27,16 @@ export interface NavLink { href: string; label: string }
 
 /** Software pages, by what a business searches for. */
 export const SOLUTIONS_MENU: NavItem[] = [
+  { key: 'erpSoftware',        blurb: 'The whole business in one system' },
   { key: 'gstBilling',         blurb: 'GST invoices, pay links, GSTR-1 and GSTR-3B' },
   { key: 'accountingSoftware', blurb: 'Double-entry books that post themselves' },
   { key: 'payrollSoftware',    blurb: 'PF, ESI, TDS, payslips and bank files' },
   { key: 'hrmsSoftware',       blurb: 'Attendance, leave, hiring and reviews' },
+  { key: 'posBilling',         blurb: 'Counter billing with barcode, UPI and receipts' },
+  { key: 'onlineStore',        blurb: 'Your shop online: pickup and delivery orders' },
+  { key: 'inventorySoftware',  blurb: 'Stock by godown, batches, transfers, counts' },
+  { key: 'purchaseSoftware',   blurb: 'Gate entry, GRN, inspection and returns' },
+  { key: 'warrantySoftware',   blurb: 'Warranty claims, claimed back from suppliers' },
   { key: 'tallyAlternative',   blurb: 'Cloud books your accountant knows' },
   { key: 'eInvoicing',         blurb: 'Who must e-invoice in 2026, and how' },
 ]

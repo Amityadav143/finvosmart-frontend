@@ -42,10 +42,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         // Every create, edit or delete — saved or refused — refreshes what is on screen, so a list always shows
         // what the server holds now: a page that refreshed the wrong list, or a save that failed after the record
         // was stored, used to leave the list out of date until the page was reloaded. A mutation that keeps its
-        // own data up to date (marking attendance cell by cell) opts out with meta: { refresh: false }.
+        // own data up to date (marking attendance cell by cell) opts out with meta: { refresh: false }, and so does a
+        // query no company's save can change (Finvosmart's public details: the platform console refreshes them itself).
         onSettled: (_data, _error, _variables, _context, mutation) => {
           if ((mutation.options.meta as { refresh?: boolean } | undefined)?.refresh === false) return
-          client.invalidateQueries({ refetchType: 'active' })
+          client.invalidateQueries({ refetchType: 'active', predicate: q => (q.meta as { refresh?: boolean } | undefined)?.refresh !== false })
         },
       }),
       defaultOptions: {

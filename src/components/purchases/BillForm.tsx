@@ -15,7 +15,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, UserPlus } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { billsApi, vendorsApi } from '@/lib/api/purchases'
 import { Notice } from '@/components/invoicing/InvoiceForm'
@@ -27,9 +27,13 @@ import { checkGstin } from '@/lib/gstin'
 import { GST_RATE_OPTIONS, PAYMENT_MODES, PLACES_OF_SUPPLY, inr, stateName, todayIST } from '@/lib/money'
 import { BILL_TYPE_LABEL, TDS_NATURES, addDays, daysBetween, errText, msmeCovered, msmePayBy, termsDays } from '@/lib/purchases'
 import { useDebounce } from '@/lib/hooks'
-import { formatDate } from '@/lib/utils'
+import { apiError, formatDate } from '@/lib/utils'
+import { InvoiceReader } from '@/components/purchases/InvoiceReader'
+import { forKeeping, type ReadResult } from '@/lib/billReader/read'
 import type { PurchaseOrder, Vendor } from '@/types'
 import type { Bill, BillInput, BillType, ItcDocument } from '@/types/purchases'
+import type { GoodsReceipt, PurchaseReturn } from '@/types/purchaseStore'
+import type { WarrantyClaim } from '@/types/warranty'
 
 interface Line {
   key: string; itemId?: string; description: string; hsnSacCode: string; accountCode: string; quantity: string; unit: string; unitPrice: string; discountPct: string; gstRate: string
@@ -52,7 +56,15 @@ const ourStateCode = (c?: { gstin?: string; state?: string }) => {
   return PLACES_OF_SUPPLY.find(p => p.name.toLowerCase() === s || p.code === s)?.code ?? ''
 }
 
-export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: { bill?: Bill; defaultType?: BillType; fromDocument?: ItcDocument | null; fromPo?: PurchaseOrder | null }) {
+export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo, fromGrn, fromReturn, fromClaim }: {
+  bill?: Bill; defaultType?: BillType; fromDocument?: ItcDocument | null; fromPo?: PurchaseOrder | null
+  /** the goods receipt this bill is made from (its stock came in with the receipt) */
+  fromGrn?: GoodsReceipt | null
+  /** for a supplier credit note: the return of rejected goods it credits */
+  fromReturn?: PurchaseReturn | null
+  /** for a supplier credit note: the warranty claim on the supplier it settles (one they accepted to credit) */
+  fromClaim?: WarrantyClaim | null
+}) {
   const router = useRouter()
   const qc = useQueryClient()
   const editing = !!bill
@@ -94,7 +106,16 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
   const [updateStock, setUpdateStock] = useState(bill ? bill.movesStock !== false : true)
   // The purchase order this bill is for (filled in from the order, or kept when editing).
   const [po, setPo] = useState<{ id: string; number?: string | null } | null>(bill?.poId ? { id: bill.poId, number: bill.poNumber } : null)
+  // The purchase store: the receipt a bill is made from, the return a credit note is for — neither moves stock.
+  const [grn, setGrn] = useState<{ id: string; number?: string | null } | null>(bill?.grnId ? { id: bill.grnId, number: bill.grnNumber } : null)
+  const [ret, setRet] = useState<{ id: string; number?: string | null } | null>(bill?.purchaseReturnId ? { id: bill.purchaseReturnId, number: bill.purchaseReturnNumber } : null)
+  // a supplier credit note for a warranty claim on them: it settles the claim and moves no stock
+  const [claim, setClaim] = useState<{ id: string; number?: string | null } | null>(bill?.warrantyClaimId ? { id: bill.warrantyClaimId, number: bill.warrantyClaimNumber } : null)
   const prefilled = useRef(false)
+  // the supplier's invoice or the receipt: read to fill the form, kept with the bill once it is saved
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null)
+  const [readInfo, setReadInfo] = useState<{ filled: string[]; notes: string[]; source: string; total?: string; newSupplier?: { name: string; gstin: string } } | null>(null)
+  const adjustAfterRead = useRef(false)
 
   // A bill for a purchase order: the supplier and the order's lines (items, quantities, rates, GST) filled in.
   useEffect(() => {
@@ -109,6 +130,58 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
       gstRate: String(Number(l.gstRate ?? 0)) }))
     if (poLines.length) setLines(poLines)
   }, [fromPo]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A bill from a goods receipt: the supplier, their invoice, and what was accepted at the order's rates.
+  useEffect(() => {
+    if (!fromGrn || prefilled.current || editing) return
+    prefilled.current = true
+    setType('BILL')
+    setVendor({ id: fromGrn.vendorId, name: fromGrn.vendorName, gstin: fromGrn.vendorGstin ?? undefined })
+    if (fromGrn.vendorGstin) setGstin(fromGrn.vendorGstin)
+    setGrn({ id: fromGrn.id, number: fromGrn.number })
+    if (fromGrn.poId) setPo({ id: fromGrn.poId, number: fromGrn.poNumber })
+    if (fromGrn.invoiceNumber) setNumber(fromGrn.invoiceNumber)
+    if (fromGrn.invoiceDate) setDate(fromGrn.invoiceDate)
+    if (fromGrn.receivedDate && fromGrn.receivedDate !== (fromGrn.invoiceDate ?? today)) setReceived(fromGrn.receivedDate)
+    setUpdateStock(false)
+    const got = fromGrn.lines.filter(l => Number(l.accepted) > 0).map(l => ({ ...newLine(), itemId: l.itemId ?? undefined, description: l.description,
+      hsnSacCode: l.hsn ?? '', quantity: String(Number(l.accepted)), unit: l.unit ?? '', unitPrice: l.rate != null ? String(Number(l.rate)) : '',
+      gstRate: String(Number(l.gstRate ?? 0)) }))
+    if (got.length) setLines(got)
+  }, [fromGrn]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A supplier credit note for goods sent back: what went back at the receipt's rates.
+  useEffect(() => {
+    if (!fromReturn || prefilled.current || editing) return
+    prefilled.current = true
+    setType('CREDIT_NOTE')
+    if (fromReturn.vendorId) setVendor({ id: fromReturn.vendorId, name: fromReturn.vendorName, gstin: fromReturn.vendorGstin ?? undefined })
+    if (fromReturn.vendorGstin) setGstin(fromReturn.vendorGstin)
+    setRet({ id: fromReturn.id, number: fromReturn.number })
+    if (fromReturn.poId) setPo({ id: fromReturn.poId, number: fromReturn.poNumber })
+    setUpdateStock(false)
+    setNotes(`For goods rejected on ${fromReturn.grnNumber} and returned with ${fromReturn.number}`)
+    const back = fromReturn.lines.map(l => ({ ...newLine(), itemId: l.itemId ?? undefined, description: l.itemName, hsnSacCode: l.hsn ?? '',
+      quantity: String(Number(l.quantity)), unit: l.unit ?? '', unitPrice: l.rate != null ? String(Number(l.rate)) : '', gstRate: String(Number(l.gstRate ?? 0)) }))
+    if (back.length) setLines(back)
+  }, [fromReturn]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A supplier credit note for a warranty claim they accepted: the goods at the value they accepted.
+  useEffect(() => {
+    if (!fromClaim || prefilled.current || editing) return
+    prefilled.current = true
+    setType('CREDIT_NOTE')
+    if (fromClaim.vendorId) setVendor({ id: fromClaim.vendorId, name: fromClaim.partyName, gstin: fromClaim.partyGstin ?? undefined })
+    if (fromClaim.partyGstin) setGstin(fromClaim.partyGstin)
+    setClaim({ id: fromClaim.id, number: fromClaim.number })
+    setUpdateStock(false)
+    setNotes(`For warranty claim ${fromClaim.number}${fromClaim.serialNo ? ` (serial ${fromClaim.serialNo})` : ''}`)
+    const q = Number(fromClaim.quantity) || 1
+    const value = fromClaim.acceptedValue ?? fromClaim.claimedValue
+    const rate = value != null ? Math.round((Number(value) / q) * 100) / 100 : fromClaim.unitRate != null ? Number(fromClaim.unitRate) : null
+    setLines([{ ...newLine(), itemId: fromClaim.itemId ?? undefined, description: fromClaim.description, hsnSacCode: fromClaim.hsn ?? '',
+      quantity: String(q), unit: fromClaim.unit ?? '', unitPrice: rate != null ? String(rate) : '', gstRate: String(Number(fromClaim.gstRate ?? 0)) }])
+  }, [fromClaim]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // A bill from the GST portal's GSTR-2B: supplier, number, date and amounts filled in.
   useEffect(() => {
@@ -192,6 +265,56 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
   const legalPayBy = covered && acceptance ? msmePayBy(acceptance, agreed) : null
   const beyond45 = covered && due && daysBetween(acceptance, due) > 45
 
+  /** What was read from the invoice, into the form: the number, date, supplier, place of supply, lines by GST rate. */
+  const applyRead = async ({ read: r, kind }: ReadResult) => {
+    const filled: string[] = []
+    let newSupplier: { name: string; gstin: string } | undefined
+    if (r.invoiceNumber) { setNumber(r.invoiceNumber.value.slice(0, 50)); filled.push(`number ${r.invoiceNumber.value}`) }
+    if (r.invoiceDate) { setDate(r.invoiceDate.value); filled.push(`date ${formatDate(r.invoiceDate.value)}`) }
+    if (r.placeOfSupply) { setPos(r.placeOfSupply.value); filled.push(`place of supply ${stateName(r.placeOfSupply.value)}`) }
+    if (r.reverseCharge) setRcm(r.reverseCharge.value)
+    if (r.supplierGstin) {
+      const known = await vendorsApi.byGstin(r.supplierGstin.value).catch(() => null)
+      if (known?.id) {
+        setVendor(known); vendorApplied.current = undefined; filled.push(`supplier ${known.name}`)
+      } else {
+        setVendor(null); setGstin(r.supplierGstin.value); filled.push(`supplier's GSTIN ${r.supplierGstin.value}`)
+        if (type === 'EXPENSE' && r.supplierName) { setPaidTo(r.supplierName.value); filled.push(`paid to ${r.supplierName.value}`) }
+        if (type !== 'EXPENSE') newSupplier = { name: r.supplierName?.value ?? '', gstin: r.supplierGstin.value }
+      }
+    } else if (r.supplierName && type === 'EXPENSE' && !vendor?.id) {
+      setPaidTo(r.supplierName.value); filled.push(`paid to ${r.supplierName.value}`)
+    }
+    if (r.rates.length) {
+      const label = `As per ${type === 'EXPENSE' ? 'bill' : 'invoice'}${r.invoiceNumber ? ' ' + r.invoiceNumber.value : ''}`
+      setLines(r.rates.map(x => ({ ...newLine(defaultAccount), description: r.rates.length > 1 ? `${label} — GST ${x.rate}%` : label,
+        hsnSacCode: r.hsn?.value ?? '', unitPrice: x.taxable, gstRate: x.rate })))
+      filled.push(r.rates.length > 1 ? `${r.rates.length} lines, one for each GST rate` : `${inr(r.rates[0].taxable)} before GST at ${r.rates[0].rate}%`)
+    }
+    if (r.total) {
+      // their total to the paisa: rounding to the rupee only when they rounded; a few rupees' difference goes in the adjustment
+      setRoundOff(/\.00$/.test(r.total.value)); setAdjustment(''); adjustAfterRead.current = true
+    }
+    setReadInfo({
+      filled, notes: r.notes, total: r.total?.value, newSupplier,
+      source: kind === 'pdf' ? (r.irn ? 'the e-invoice QR code and the PDF’s text' : 'the PDF’s text') : kind === 'scan' ? 'the scanned page — check every figure' : 'the photo — check every figure',
+    })
+  }
+
+  // once the lines read are in: a few rupees between their total and ours (rounding) go in the adjustment, once
+  useEffect(() => {
+    if (!adjustAfterRead.current || !readInfo?.total || !totals.value) return
+    adjustAfterRead.current = false
+    const diff = Number(readInfo.total) - Number(totals.value.total)
+    if (Math.abs(diff) >= 0.01 && Math.abs(diff) <= 10) setAdjustment(diff.toFixed(2))
+  }, [totals.value?.total, readInfo]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const addSupplier = useMutation({
+    mutationFn: (s: { name: string; gstin: string }) => vendorsApi.create({ name: s.name.trim(), gstin: s.gstin }),
+    onSuccess: v => { setVendor(v); vendorApplied.current = undefined; setReadInfo(i => (i ? { ...i, newSupplier: undefined } : i)); toast.success(`${v.name} added to your suppliers`) },
+    onError: (e: unknown) => toast.error(apiError(e, 'The supplier could not be added')),
+  })
+
   const gstinCheck = gstin ? checkGstin(gstin) : null
   const tax = totals.value ? Number(totals.value.cgst) + Number(totals.value.sgst) + Number(totals.value.igst) : 0
   const setLine = (key: string, patch: Partial<Line>) => setLines(ls => ls.map(l => (l.key === key ? { ...l, ...patch } : l)))
@@ -230,7 +353,9 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
         tdsNature: type === 'CREDIT_NOTE' ? 'NONE' : tdsNature || 'NONE', tdsAmount: overrideTds && tdsNature ? (tdsOverride || '0') : null,
         notes: notes.trim() || undefined, draft,
         paidNow: !draft && payNow && type !== 'CREDIT_NOTE' ? { mode: payMode, reference: payRef.trim() || undefined, date } : null,
-        poId: po?.id ?? null, updateStock,
+        poId: po?.id ?? null, grnId: grn?.id ?? null, purchaseReturnId: ret?.id ?? null, updateStock: grn || ret ? false : updateStock,
+        // a supplier's credit note for a warranty claim on them: linked when made, moving no stock
+        ...(claim ? { updateStock: false, ...(!editing ? { warrantyClaimId: claim.id } : {}) } : {}),
         lines: lines.filter(l => l.description.trim()).map(l => ({
           itemId: l.itemId, description: l.description.trim(), hsnSacCode: l.hsnSacCode || undefined, accountCode: l.accountCode || undefined,
           quantity: l.quantity, unit: l.unit || undefined, unitPrice: l.unitPrice === '' ? 0 : l.unitPrice, discountPct: l.discountPct || 0, gstRate: l.gstRate,
@@ -240,20 +365,54 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
           } : {}),
         })),
       }
-      return editing ? billsApi.update(bill!.id, body) : billsApi.create(body)
+      const saved = editing ? await billsApi.update(bill!.id, body) : await billsApi.create(body)
+      let attachProblem: string | null = null
+      if (invoiceFile) {
+        try { await billsApi.attach(saved.id, await forKeeping(invoiceFile)) }
+        catch (e) { attachProblem = apiError(e, 'The file could not be kept') }
+      }
+      return { saved, attachProblem }
     },
-    onSuccess: saved => {
+    onSuccess: ({ saved, attachProblem }) => {
       qc.invalidateQueries({ queryKey: ['bills'] })
       qc.invalidateQueries({ queryKey: ['payables'] })
+      qc.invalidateQueries({ queryKey: ['bill-attachments', saved.id] })
       qc.setQueryData(['bill', saved.id], saved)
       toast.success(saved.status === 'DRAFT' ? `Draft ${saved.referenceNumber} saved` : `${saved.referenceNumber} recorded in your books`)
+      if (attachProblem) toast.error(`${attachProblem} — attach it from the bill’s page.`, { duration: 8000 })
       router.push(`/purchases/bills/${saved.id}`)
     },
     onError: (e: any) => toast.error(errText(e, 'The bill could not be saved')),
   })
 
+  const what = type === 'EXPENSE' ? 'bill or receipt' : type === 'CREDIT_NOTE' ? 'supplier’s credit note' : 'supplier’s invoice'
+  const lineTotal = totals.value?.total
   return (
     <div className="space-y-5">
+      {!editing && (
+        <InvoiceReader what={what} file={invoiceFile} onFile={f => { setInvoiceFile(f); if (!f) setReadInfo(null) }} onRead={applyRead}
+          ourGstin={company?.gstin} today={today}
+          summary={readInfo && (
+            <div className="text-sm space-y-1.5" data-testid="invoice-read">
+              <p>{readInfo.filled.length ? <>Filled in from {readInfo.source}: {readInfo.filled.join(' · ')}.</> : <>Nothing could be read from {readInfo.source}: type the details below.</>}</p>
+              {readInfo.total && lineTotal && (
+                Math.abs(Number(lineTotal) - Number(readInfo.total)) < 0.01
+                  ? <p data-testid="invoice-total-check" style={{ color: '#15803d' }}>Their total, {inr(readInfo.total)}, matches the lines.</p>
+                  : <p data-testid="invoice-total-check" style={{ color: '#b45309' }}>Their total is {inr(readInfo.total)}; the lines come to {inr(lineTotal)} — check the lines and GST rates.</p>
+              )}
+              {readInfo.notes.map(n => <p key={n} className="text-xs" style={{ color: '#b45309' }}>{n}</p>)}
+              {readInfo.newSupplier && (
+                <div className="flex items-center gap-2 flex-wrap pt-1" data-testid="invoice-new-supplier">
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{readInfo.newSupplier.gstin} isn’t one of your suppliers yet:</span>
+                  <input className="input h-8 text-sm w-56" value={readInfo.newSupplier.name} placeholder="Their name" aria-label="New supplier's name"
+                    onChange={e => setReadInfo(i => (i?.newSupplier ? { ...i, newSupplier: { ...i.newSupplier, name: e.target.value } } : i))} />
+                  <button type="button" className="btn-secondary h-8 text-sm" disabled={!readInfo.newSupplier.name.trim() || addSupplier.isPending}
+                    onClick={() => addSupplier.mutate(readInfo.newSupplier!)} data-action="add-read-supplier"><UserPlus size={13} />Add as a supplier</button>
+                </div>
+              )}
+            </div>
+          )} />
+      )}
       {po && (
         <Notice tone="blue">
           {editing ? 'For' : 'Recording the bill for'} purchase order <Link href={`/procurement/orders?open=${po.id}`} className="underline font-semibold">{po.number ?? 'linked order'}</Link>
@@ -412,7 +571,13 @@ export function BillForm({ bill, defaultType = 'BILL', fromDocument, fromPo }: {
           })}
         </div>
         <button type="button" className="btn-secondary h-9 mt-3" onClick={() => setLines(ls => [...ls, newLine(defaultAccount)])}><Plus size={14} />Add line</button>
-        {linkedLines > 0 && (
+        {grn || ret || claim ? (
+          <p className="text-xs mt-3 rounded-xl px-3 py-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }} data-testid="bill-store-link">
+            {grn ? <>Made from goods receipt <Link href={`/procurement/grn/${grn.id}`} className="underline font-mono">{grn.number}</Link>: its goods are in stock already, so this bill moves none. It is checked against what was ordered and received.</>
+              : ret ? <>For return <Link href={`/procurement/returns?open=${ret.id}`} className="underline font-mono">{ret.number}</Link>: the rejected goods never went into stock, so nothing moves.</>
+              : <>For warranty claim <Link href={`/warranty/${claim!.id}`} className="underline font-mono">{claim!.number}</Link>: recording it settles the claim. Nothing moves in stock — the faulty goods went back to the supplier.</>}
+          </p>
+        ) : linkedLines > 0 && (
           <StockChoice direction={type === 'CREDIT_NOTE' ? 'purchaseReturn' : 'purchase'} checked={updateStock} onChange={setUpdateStock} linked={linkedLines} />
         )}
 
@@ -565,6 +730,8 @@ function VendorPicker({ value, onChange, allowFreeText, freeText, onFreeText }: 
 }) {
   const [q, setQ] = useState(allowFreeText ? freeText : '')
   const [open, setOpen] = useState(false)
+  // a name filled in from the invoice read shows in the box
+  useEffect(() => { if (allowFreeText && freeText !== q) setQ(freeText) }, [freeText]) // eslint-disable-line react-hooks/exhaustive-deps
   const query = useDebounce(q, 250)
   const { data, isFetching } = useQuery({ queryKey: ['vendor-search', query], queryFn: () => vendorsApi.list({ q: query || undefined, size: 8 }), enabled: open })
   const results = data?.content ?? []

@@ -54,7 +54,7 @@ function validate(f: Form, accepted: boolean, withGoogle: boolean): Partial<Reco
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg-base)' }}>
+    <main className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg-base)' }}>
       <div className="relative w-full max-w-md slide-up" style={{ padding: '24px 0' }}>
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center justify-center rounded-2xl mb-3"
@@ -66,7 +66,7 @@ function Shell({ children }: { children: ReactNode }) {
         </div>
         {children}
       </div>
-    </div>
+    </main>
   )
 }
 
@@ -117,7 +117,6 @@ export default function RegisterPage() {
   useEffect(() => {
     const handed = takeGoogleSignIn()
     if (handed) startWithGoogle(handed)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   // This Google account already has a login: sign in with it instead (no second trip to Google).
   const signInInstead = () => {

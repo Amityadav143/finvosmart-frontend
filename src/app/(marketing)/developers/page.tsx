@@ -100,7 +100,7 @@ const code: CSSProperties = {
   fontSize: '13px', lineHeight: 1.6, overflowX: 'auto', color: 'var(--text-primary)', margin: '8px 0 18px',
   fontFamily: 'var(--font-geist-mono), ui-monospace, monospace', whiteSpace: 'pre',
 }
-const METHOD_COLOR: Record<string, string> = { GET: '#2563eb', POST: '#16a34a', PUT: '#d97706', PATCH: '#9333ea', DELETE: '#dc2626' }
+const METHOD_COLOR: Record<string, string> = { GET: 'var(--info-text)', POST: 'var(--ok-text)', PUT: 'var(--warn-text)', PATCH: 'var(--violet-text)', DELETE: 'var(--danger-text)' }
 
 export default function DevelopersPage() {
   const groups = reference.groups
@@ -123,10 +123,10 @@ export default function DevelopersPage() {
         <div style={narrow}>
           <h2 style={h2Style}>Quick start</h2>
           <p style={pStyle}><strong style={{ color: 'var(--text-primary)' }}>1. Sign in.</strong> Use a dedicated user for your integration, with the least-privileged role that covers what it needs. You get an access token.</p>
-          <pre style={code}>{SIGN_IN}</pre>
-          <pre style={code}>{SIGN_IN_RESPONSE}</pre>
+          <pre style={code} tabIndex={0}>{SIGN_IN}</pre>
+          <pre style={code} tabIndex={0}>{SIGN_IN_RESPONSE}</pre>
           <p style={pStyle}><strong style={{ color: 'var(--text-primary)' }}>2. Call the API</strong> with the token in the <code>Authorization</code> header. When it expires, sign in again or use <code>POST /auth/refresh</code> with the refresh token.</p>
-          <pre style={code}>{CALL}</pre>
+          <pre style={code} tabIndex={0}>{CALL}</pre>
         </div>
       </section>
 
@@ -143,7 +143,7 @@ export default function DevelopersPage() {
               <>Rate limits: 30 requests per second per IP for the API; 5 sign-in attempts per minute per IP.</>,
             ].map((item, i) => <li key={i} style={{ ...pStyle, marginBottom: '8px' }}>{item}</li>)}
           </ul>
-          <pre style={code}>{PAGE}</pre>
+          <pre style={code} tabIndex={0}>{PAGE}</pre>
         </div>
       </section>
 
@@ -155,17 +155,17 @@ export default function DevelopersPage() {
             with <code>POST /webhooks</code>), choosing one event or <code>*</code> for all of them. The signing secret is shown once, when the
             endpoint is registered or its secret is replaced — store it then. When something happens, Finvosmart sends a JSON <code>POST</code>:
           </p>
-          <pre style={code}>{DELIVERY}</pre>
+          <pre style={code} tabIndex={0}>{DELIVERY}</pre>
           <p style={pStyle}>
             <strong style={{ color: 'var(--text-primary)' }}>Verify every delivery.</strong> The signature is <code>sha256=</code> followed by the
             HMAC-SHA256, in lowercase hex, of the timestamp header, a full stop and the raw body, keyed with your secret. Refuse deliveries whose
             timestamp is more than five minutes away from your clock, and compare in constant time:
           </p>
-          <pre style={code}>{VERIFY_NODE}</pre>
-          <pre style={code}>{VERIFY_PY}</pre>
+          <pre style={code} tabIndex={0}>{VERIFY_NODE}</pre>
+          <pre style={code} tabIndex={0}>{VERIFY_PY}</pre>
           <p style={pStyle}><strong style={{ color: 'var(--text-primary)' }}>Events</strong></p>
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--bg-card)', margin: '0 0 18px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }} data-testid="webhook-events">
+          <div role="region" aria-label="Webhook events" tabIndex={0} style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--bg-card)', margin: '0 0 18px' }}>
+            <table className="keep-table" style={{ width: '100%', borderCollapse: 'collapse' }} data-testid="webhook-events">
               <tbody>
                 {EVENTS.map(([type, what]) => (
                   <tr key={type} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -204,8 +204,8 @@ export default function DevelopersPage() {
             <div key={g.id} id={`api-${g.id}`} style={{ maxWidth: '980px', margin: '0 auto 34px', scrollMarginTop: '96px' }}>
               <h3 style={{ fontSize: '19px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{g.title}</h3>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '10px' }}>{g.intro}</p>
-              <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--bg-card)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
+              <div role="region" aria-label={`${g.title}: endpoints`} tabIndex={0} style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '12px', background: 'var(--bg-card)' }}>
+                <table className="keep-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
                   <tbody>
                     {g.endpoints.map(e => (
                       <tr key={e.method + e.path} style={{ borderBottom: '1px solid var(--border)' }}>

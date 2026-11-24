@@ -221,7 +221,7 @@ function ImportPanel({ info }: { info: ImportKindInfo }) {
             {file ? <FileSpreadsheet size={22} style={{ color: 'var(--gold)' }} aria-hidden /> : <FileUp size={22} style={{ color: 'var(--gold)' }} aria-hidden />}
             <p className="text-sm font-medium break-all">{check.isPending ? 'Checking the file…' : file ? file.name : 'Choose or drop the file'}</p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{file ? 'Choose another file to replace it' : 'Excel (.xlsx, .xls) or CSV, up to 10 MB'}</p>
-            <input ref={fileRef} type="file" hidden accept=".xlsx,.xls,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+            <input ref={fileRef} type="file" hidden accept=".xlsx,.xls,.xml,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
               onChange={e => { choose(e.target.files?.[0]); e.target.value = '' }} />
           </div>
         </div>

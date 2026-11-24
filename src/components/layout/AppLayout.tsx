@@ -11,10 +11,12 @@
  */
 
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
+import { AppAssistant, useAssistantStatus } from '@/components/assistant/AppAssistant'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { followOtherTabs, forgetHere, renewSession } from '@/lib/auth/session'
 import { Sidebar } from './Sidebar'
+import { MobileTabs } from './MobileTabs'
 import { Topbar } from './Topbar'
 import { TrialBanner } from '../billing/TrialBanner'
 import { PlatformNotice } from './PlatformNotice'
@@ -51,8 +53,28 @@ function Shell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // the menu folded to a rail of icons on a wide screen — remembered in this browser
+  const [rail, setRail] = useState(false)
+  useEffect(() => { try { setRail(localStorage.getItem('finvo-menu-rail') === '1') } catch { /* not remembered */ } }, [])
+  const toggleRail = () => setRail(r => { try { localStorage.setItem('finvo-menu-rail', r ? '0' : '1') } catch { /* not remembered */ } return !r })
   const [cmdOpen, setCmdOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  // the assistant: open or not (kept while the person moves between pages), and a question asked from the search
+  const [asstOpen, setAsstOpen] = useState(false)
+  const [ask, setAsk] = useState<{ text: string; at: number } | null>(null)
+  const { data: assistant } = useAssistantStatus()
+  useEffect(() => { try { setAsstOpen(sessionStorage.getItem('finvo-assistant-open:app') === '1') } catch { /* storage blocked */ } }, [])
+  useEffect(() => { try { sessionStorage.setItem('finvo-assistant-open:app', asstOpen ? '1' : '0') } catch { /* storage blocked */ } }, [asstOpen])
+  useEffect(() => {
+    const on = (e: Event) => {
+      const q = String((e as CustomEvent).detail?.question ?? '').trim()
+      setAsstOpen(true)
+      if (q) setAsk({ text: q, at: Date.now() })
+    }
+    window.addEventListener('finvo:ask', on)
+    return () => window.removeEventListener('finvo:ask', on)
+  }, [])
+  const closeAssistant = useCallback(() => setAsstOpen(false), [])
   const createAllowed = useCreateAllowed()
   const { canAny, isSuperAdmin } = usePermissions()
   const { visible } = useIndustry()
@@ -143,8 +165,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-base)' }}>
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex flex-col flex-shrink-0" style={{ width: '252px' }}>
-        <Sidebar />
+      <div className="hidden lg:flex flex-col flex-shrink-0" style={{ width: rail ? '68px' : '252px', transition: 'width .2s' }} data-menu={rail ? 'rail' : 'open'}>
+        <Sidebar rail={rail} onToggleRail={toggleRail} onHelp={() => setHelpOpen(true)} />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -153,23 +175,26 @@ function Shell({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} />
           <div className="absolute left-0 top-0 bottom-0" style={{ width: '268px', zIndex: 50 }}
             onClick={(e: any) => e.stopPropagation()}>
-            <Sidebar onClose={() => setSidebarOpen(false)} />
+            <Sidebar onClose={() => setSidebarOpen(false)} onHelp={() => { setSidebarOpen(false); setHelpOpen(true) }} />
           </div>
         </div>
       )}
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar onMenuClick={() => setSidebarOpen(true)} onSearchOpen={() => setCmdOpen(true)} onShortcuts={() => setHelpOpen(true)} />
+      {/* Main content (on a wide screen it makes room for the assistant beside it, rather than going under it) */}
+      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden${asstOpen && assistant?.available ? ' asst-push' : ''}`}>
+        <Topbar onSearchOpen={() => setCmdOpen(true)} onShortcuts={() => setHelpOpen(true)}
+          assistant={assistant?.available ? { open: asstOpen, toggle: () => setAsstOpen(v => !v) } : undefined} />
         <TrialBanner />
         <PlatformNotice />
-        <main className="flex-1 overflow-y-auto p-5 md:p-6 page-enter" style={{ background: 'var(--bg-base)' }}>
+        <main className="app-main flex-1 overflow-y-auto p-5 md:p-6 pb-24 lg:pb-6 page-enter" style={{ background: 'var(--bg-base)' }}>
           <div className="max-w-screen-2xl mx-auto">{children}</div>
         </main>
       </div>
 
+      <MobileTabs onMenu={() => setSidebarOpen(true)} onSearch={() => setCmdOpen(true)} />
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
       <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <AppAssistant open={asstOpen} onClose={closeAssistant} ask={ask} />
     </div>
   )
 }

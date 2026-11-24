@@ -68,7 +68,6 @@ let warned = false
 function plainOnce(why: string) {
   if (warned) return
   warned = true
-  // eslint-disable-next-line no-console
   console.warn(`[Finvosmart set-up] Passwords are sent unsealed: ${why}`)
 }
 

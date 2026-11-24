@@ -13,12 +13,12 @@ import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { HOME_FAQ, PAGES, PLANS } from '@/lib/seo'
 import { SOLUTIONS_MENU, TOOLS_MENU, link } from '@/lib/siteNav'
-import { SoonBadge } from '@/components/marketing/SoonBadge'
+import { AskAssistantButton } from '@/components/assistant/WebsiteAssistant'
 import {
-  ArrowRight, Play, Zap, Brain, MessageCircle, Camera, RefreshCw, Building2,
+  ArrowRight, Play, Zap, LineChart, MessageCircle, Camera, RefreshCw, Building2,
   CreditCard, Globe, Package2, CheckCircle, Check, X, ChevronDown, TrendingUp,
   Users, DollarSign, FileText, ShoppingCart, Boxes, FolderOpen, BarChart3,
-  Settings, Shield, Sparkles, Clock, Layers, Calculator, BookOpen,
+  Settings, Shield, ShieldCheck, Sparkles, Clock, Layers, Calculator, BookOpen,
 } from 'lucide-react'
 
 /*
@@ -58,12 +58,16 @@ const inr = (n: number) => n.toLocaleString('en-IN')
 
 /** Module tiles: each opens the page that explains it. */
 const MODULE_TILES = [
+  { label: 'Cloud ERP',   icon: <Layers size={22} />,       color: 'var(--gold)', href: '/erp-software' },
   { label: 'Dashboard',   icon: <BarChart3 size={22} />,    color: 'var(--gold)', href: '/features' },
   { label: 'HRMS',        icon: <Users size={22} />,        color: '#2563EB', href: '/hrms-software' },
   { label: 'Accounting',  icon: <DollarSign size={22} />,   color: '#16A34A', href: '/accounting-software' },
   { label: 'Invoicing',   icon: <FileText size={22} />,     color: 'var(--gold)', href: '/gst-billing-software' },
-  { label: 'Procurement', icon: <ShoppingCart size={22} />, color: '#EA580C', href: '/features' },
-  { label: 'Inventory',   icon: <Boxes size={22} />,        color: '#0D9488', href: '/features' },
+  { label: 'Purchasing',  icon: <ShoppingCart size={22} />, color: '#EA580C', href: '/purchase-management-software' },
+  { label: 'Warranty',    icon: <ShieldCheck size={22} />,  color: '#16A34A', href: '/warranty-management-software' },
+  { label: 'Inventory',   icon: <Boxes size={22} />,        color: '#0D9488', href: '/inventory-management-software' },
+  { label: 'POS billing', icon: <ShoppingCart size={22} />, color: '#DB2777', href: '/pos-billing-software' },
+  { label: 'Online store', icon: <Globe size={22} />,       color: '#2563EB', href: '/online-store-builder' },
   { label: 'CRM',         icon: <TrendingUp size={22} />,   color: '#7C3AED', href: '/features' },
   { label: 'Projects',    icon: <FolderOpen size={22} />,   color: '#DB2777', href: '/features' },
   { label: 'Analytics',   icon: <BarChart3 size={22} />,    color: '#2563EB', href: '/features' },
@@ -141,7 +145,7 @@ export default function LandingPageContent() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
                 {['No credit card', '7-day free trial', 'Cancel anytime'].map(t => (
                   <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                    <Check size={14} style={{ color: '#22C55E' }} aria-hidden /> {t}
+                    <Check size={14} style={{ color: 'var(--ok-text)' }} aria-hidden /> {t}
                   </span>
                 ))}
               </div>
@@ -172,12 +176,12 @@ export default function LandingPageContent() {
                 <div style={{ padding: '18px' }}>
                   {/* KPI grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '10px', marginBottom: '14px' }}>
-                    {[['CASH POSITION', '₹48.2L', 'var(--gold)', '+12%'], ['EMPLOYEES', '247', '#60A5FA', '+8'], ['OUTSTANDING', '₹8.4L', '#F87171', '-5%'], ['LEADS WON', '18', '#4ADE80', '+3']].map(([l, v, c, d]) => (
+                    {[['CASH POSITION', '₹48.2L', 'var(--gold)', '+12%'], ['EMPLOYEES', '247', 'var(--info-text)', '+8'], ['OUTSTANDING', '₹8.4L', 'var(--danger-text)', '-5%'], ['LEADS WON', '18', 'var(--ok-text)', '+3']].map(([l, v, c, d]) => (
                       <div key={l} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '13px' }}>
                         <div style={{ fontSize: '8px', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px' }}>{l}</div>
                         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                           <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: '24px', color: c }}>{v}</span>
-                          <span style={{ fontSize: '9px', fontWeight: 600, color: d.startsWith('-') ? '#F87171' : '#4ADE80' }}>{d}</span>
+                          <span style={{ fontSize: '9px', fontWeight: 600, color: d.startsWith('-') ? 'var(--danger-text)' : 'var(--ok-text)' }}>{d}</span>
                         </div>
                       </div>
                     ))}
@@ -208,7 +212,7 @@ export default function LandingPageContent() {
         <div style={S.container()}>
           <div className="stats-bar" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', padding: '40px 0' }}>
             {[
-              { v: '14', suffix: '', label: 'Integrated modules' },
+              { v: '20', suffix: '+', label: 'Integrated modules' },
               { v: `₹${inr(starter.annual)}`, suffix: '/mo', label: `${starter.name} plan, billed annually` },
               { v: '40', suffix: 'hrs', label: 'Saved a month (our estimate)' },
               { v: '4', suffix: '', label: 'Statutory files, ready to upload' },
@@ -301,8 +305,10 @@ export default function LandingPageContent() {
             <h2 style={S.h2()}>One platform vs. a stack of compromises</h2>
             <p style={{ ...S.sub(), margin: '0 auto' }}>Tally does accounting. Zoho needs ten separate apps. Odoo and Salesforce are built for the West. FINVOSMART does it all — natively, for India.</p>
           </div>
-          <div style={{ overflowX: 'auto', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-            <table style={{ width: '100%', minWidth: '720px', borderCollapse: 'collapse', fontSize: '14px' }}>
+          {/* scrolls sideways on a phone: reachable with the keyboard, named for screen readers */}
+          <div style={{ overflowX: 'auto', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}
+            tabIndex={0} role="region" aria-label="Finvosmart compared with Tally, Zoho, Odoo and Salesforce">
+            <table className="keep-table" style={{ width: '100%', minWidth: '720px', borderCollapse: 'collapse', fontSize: '14px' }}>
               <caption style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Finvosmart compared with Tally, Zoho, Odoo and Salesforce</caption>
               <thead>
                 <tr>
@@ -326,7 +332,7 @@ export default function LandingPageContent() {
                     <th scope="row" style={{ padding: '16px 24px', color: 'var(--text-primary)', fontWeight: 500, textAlign: 'left' }}>{row.cap}</th>
                     {row.vals.map((v, ci) => (
                       <td key={ci} style={{ padding: '16px', textAlign: 'center', borderLeft: ci === 0 ? '1px solid var(--gold)' : 'none', borderRight: ci === 0 ? '1px solid var(--gold)' : 'none', background: ci === 0 ? 'var(--gold-muted)' : 'transparent' }}>
-                        {v === true ? <Check size={18} style={{ color: ci === 0 ? 'var(--gold)' : '#22C55E' }} role="img" aria-label="Yes" />
+                        {v === true ? <Check size={18} style={{ color: ci === 0 ? 'var(--gold)' : 'var(--ok-text)' }} role="img" aria-label="Yes" />
                           : v === false ? <X size={16} style={{ color: '#EF4444', opacity: 0.55 }} role="img" aria-label="No" />
                           : <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{v === 'addon' ? 'paid add-on' : v}</span>}
                       </td>
@@ -346,7 +352,7 @@ export default function LandingPageContent() {
           <div className="reveal" style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 56px' }}>
             <span style={S.eyebrow()}><Sparkles size={13} style={{ verticalAlign: '-2px' }} aria-hidden /> Built in</span>
             <h2 style={S.h2()}>The routine work, done for you</h2>
-            <p style={{ ...S.sub(), margin: '0 auto' }}>Reminders, matching and returns run on your own data. AI features are on the way — marked below.</p>
+            <p style={{ ...S.sub(), margin: '0 auto' }}>Reminders, matching, returns and the cash forecast run on your own books — worked out, not guessed — and an assistant answers when you are stuck.</p>
           </div>
           <div className="usp-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
             {[
@@ -354,13 +360,14 @@ export default function LandingPageContent() {
               { icon: <Building2 size={22} />,     color: '#2563EB', title: 'Bank payment matching', desc: 'Upload any bank statement and payments are matched to invoices and bills by number and amount.' },
               { icon: <RefreshCw size={22} />,     color: '#14B8A6', title: 'GSTR-2B credit check', desc: 'Every supplier invoice on your GSTR-2B is matched with your bills, so eligible credit isn’t missed.' },
               { icon: <CheckCircle size={22} />,   color: '#16A34A', title: 'GST returns', desc: 'GSTR-1 and GSTR-3B worked out from your books, as files ready to upload on the GST portal.' },
-              { icon: <Brain size={22} />, color: '#8B5CF6', title: 'ARIS cash-flow forecast', desc: 'Spots payment delays and cash crunches weeks ahead.', soon: true },
-              { icon: <Camera size={22} />, color: '#F59E0B', title: 'Bill scanner (OCR)', desc: 'Snap a supplier bill and get a draft bill to check.', soon: true },
+              { icon: <LineChart size={22} />, color: '#8B5CF6', title: '13-week cash-flow forecast', desc: 'Week by week from your books — invoices as late as each customer usually pays, bills, salaries and taxes — with the week cash would run short.' },
+              { icon: <Camera size={22} />, color: '#F59E0B', title: 'Supplier invoices read for you', desc: 'Upload the supplier’s PDF or a photo while recording a bill: number, date, supplier, GST and total are filled in to check.' },
+              { icon: <Sparkles size={22} />, color: '#E9C46A', wide: true, title: 'Ask Finvosmart — the AI assistant', desc: 'Ask how to do anything, in English, Hindi or Hinglish, and get the steps with a link to the page. Once your admin allows it, it answers from your own books too — who owes you the most, what is overdue, cash for the next 13 weeks — and never shows anyone more than their role allows. It only reads.' },
             ].map(f => (
-              <div key={f.title} className="lp-card reveal" style={{ ...S.card({ background: 'var(--bg-card)' }), ...accent(f.color) }}>
+              <div key={f.title} className="lp-card reveal" style={{ ...S.card({ background: 'var(--bg-card)' }), ...accent(f.color), ...('wide' in f ? { gridColumn: '1 / -1' } : {}) }}>
                 <div style={{ width: '48px', height: '48px', borderRadius: '13px', background: f.color + '18', color: f.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }} aria-hidden="true">{f.icon}</div>
-                <h3 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '9px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>{f.title}{f.soon && <SoonBadge />}</h3>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.65 }}>{f.desc}</p>
+                <h3 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '9px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>{f.title}</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.65, ...('wide' in f ? { maxWidth: '72ch' } : {}) }}>{f.desc}</p>
               </div>
             ))}
           </div>
@@ -385,9 +392,9 @@ export default function LandingPageContent() {
           <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '22px', alignItems: 'stretch' }}>
             {[
               { name:'Starter', monthly:'4,999', annual:'3,999', users:'Up to 10 users · 1 branch', featured: false,
-                feats:['Core ERP modules','HRMS + Finance','Invoicing + GST','CRM + Procurement','Standard support'] },
+                feats:['Core ERP modules','HRMS + Finance','Invoicing + GST','CRM + Procurement','13-week cash-flow forecast','AI assistant (Ask Finvosmart)','Standard support'] },
               { name:'Growth', monthly:'12,999', annual:'10,399', users:'Up to 50 users · Multi-branch', featured: true,
-                feats:['Everything in Starter','WhatsApp invoices & reminders','GST credit check (GSTR-2B)','Bank payment matching','TDS on supplier bills','Priority support'] },
+                feats:['Everything in Starter','WhatsApp invoices & reminders','GST credit check (GSTR-2B)','Bank payment matching','TDS register','Priority support'] },
               { name:'Enterprise', monthly:'29,999', annual:'23,999', users:'Unlimited users & branches', featured: false,
                 feats:['Everything in Growth','All modules, unlimited users','White-labelling','Dedicated SLA support','On-premise option'] },
             ].map(({ name, monthly, annual, users, featured, feats }) => (
@@ -506,7 +513,7 @@ export default function LandingPageContent() {
                 { ...link('developers', 'API documentation'), blurb: 'Connect your own systems' },
               ] },
             ].map(col => (
-              <nav key={col.title} aria-label={col.title} className="reveal" style={{ ...S.card({ padding: '26px 24px' }) }}>
+              <nav key={col.title} aria-label={`Explore: ${col.title}`} className="reveal" style={{ ...S.card({ padding: '26px 24px' }) }}>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '14px' }}>
                   <span style={{ color: 'var(--gold)', display: 'inline-flex' }} aria-hidden="true">{col.icon}</span>{col.title}
                 </h3>
@@ -575,6 +582,9 @@ export default function LandingPageContent() {
           <p style={{ textAlign: 'center', fontSize: '14px', color: 'var(--text-secondary)', marginTop: '28px' }}>
             More questions? <Link href="/contact" className="text-link" style={{ fontWeight: 600 }}>Talk to our team</Link> — in English or Hindi.
           </p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '14px' }}>
+            <AskAssistantButton label="Or ask our AI assistant — it answers at once" className="btn-secondary h-10 px-5 text-sm" />
+          </div>
         </div>
       </section>
 

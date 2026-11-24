@@ -144,7 +144,7 @@ export function PaymentSettings() {
           </div>
           <span className="badge" style={{ background: rp?.connected ? 'rgba(22,163,74,0.12)' : 'var(--bg-hover)', color: rp?.connected ? '#16a34a' : 'var(--text-muted)' }}>{rp?.connected ? `Connected · ${rp.keyId}` : 'Not connected'}</span>
         </div>
-        {rp && !rp.encryptionReady && <p className="text-sm" style={{ color: '#d97706' }}>The server&apos;s APP_ENCRYPTION_KEY isn&apos;t set, so gateway keys can&apos;t be stored yet. Ask your administrator.</p>}
+        {rp && !rp.encryptionReady && <p className="text-sm" style={{ color: '#d97706' }}>The server has no key to keep gateway keys encrypted with, so they can&apos;t be stored yet. Ask your administrator.</p>}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div><label className="label">Key ID</label><input className="input h-10 font-mono" value={keys.keyId} onChange={e => setKeys(k => ({ ...k, keyId: e.target.value.trim() }))} placeholder={rp?.keyId ?? 'rzp_live_…'} autoComplete="off" /></div>
           <div><label className="label">Key secret</label><input className="input h-10 font-mono" type="password" value={keys.keySecret} onChange={e => setKeys(k => ({ ...k, keySecret: e.target.value }))} placeholder={rp?.connected ? 'Leave empty to keep the saved one' : ''} autoComplete="new-password" /></div>

@@ -30,6 +30,8 @@ function Reference({ m }: { m: StockLedgerRow }) {
   const text = m.reference || '—'
   if (m.referenceId && m.referenceType === 'INVOICE') return <Link href={`/invoicing/${m.referenceId}`} className="underline" style={{ color: 'var(--gold)' }}>{text}</Link>
   if (m.referenceId && m.referenceType === 'BILL') return <Link href={`/purchases/bills/${m.referenceId}`} className="underline" style={{ color: 'var(--gold)' }}>{text}</Link>
+  if (m.referenceId && m.referenceType === 'GRN') return <Link href={`/procurement/grn/${m.referenceId}`} className="underline" style={{ color: 'var(--gold)' }}>{text}</Link>
+  if (m.referenceId && m.referenceType === 'WARRANTY_CLAIM') return <Link href={`/warranty/${m.referenceId}`} className="underline" style={{ color: 'var(--gold)' }}>{text}</Link>
   return <>{text}</>
 }
 

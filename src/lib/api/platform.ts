@@ -42,6 +42,12 @@ export interface PlatformSetup {
   emailReady: boolean; emailServer?: string; emailFrom?: string
   paymentsReady: boolean; paymentsMode?: 'LIVE' | 'TEST'; webhookReady: boolean
   googleReady: boolean; whatsappReady: boolean; signupsOpen: boolean; noticeShown: boolean; encryptionReady: boolean
+  /** Where the key sealing the secrets comes from: APP_ENCRYPTION_KEY, a key the server made and keeps in a file, or none. */
+  encryptionSource?: 'ENVIRONMENT' | 'KEPT_FILE' | 'NONE'
+  /** The file of the key the server keeps (KEPT_FILE only). */
+  encryptionKeyFile?: string | null
+  /** What is wrong with the key's set-up (null: nothing). */
+  encryptionProblem?: string | null
 }
 
 /** A login of the platform company. console: it can open the console; you: the person signed in. */
@@ -184,10 +190,19 @@ export interface ConsoleAccess {
   yourCompanyIsPlatform: boolean; allowed: boolean; consoleAdmins: string[]
 }
 
+/** What brought the sign-ups and demo requests (GET /platform/acquisition): by the first visit's channel, by the latest campaign. */
+export interface AcquisitionChannel { channel: string; label: string; signups: number; demos: number }
+export interface AcquisitionCampaign { source: string; medium: string; campaign: string; signups: number; demos: number }
+export interface Acquisition { days: number; signups: number; demos: number; channels: AcquisitionChannel[]; campaigns: AcquisitionCampaign[]; adSignups: number }
+
 export const platformApi = {
   /** for any Super Admin — the console's closed screen asks it (404 from a backend older than 13 November 2026) */
   consoleAccess: async () => need(await api.get<ApiResponse<ConsoleAccess>>('/console-access')),
   overview: async () => need(await api.get<ApiResponse<PlatformOverview>>('/platform/overview')),
+  acquisition: async (days: number) => need(await api.get<ApiResponse<Acquisition>>('/platform/acquisition', { params: { days } })),
+  /** the sign-ups from Google ads, as Google Ads' offline conversion import file (name: the conversion action's name there) */
+  googleAdsFile: async (days: number, name: string): Promise<Blob> =>
+    (await api.get('/platform/acquisition/google-ads', { params: { days, name }, responseType: 'blob' })).data as Blob,
   companies: async (q: string, filter: string, page: number) =>
     need(await api.get<ApiResponse<CompanyPage>>('/platform/companies', { params: { q: q || undefined, filter: filter || undefined, page } })),
   company: async (id: string) => need(await api.get<ApiResponse<CompanyDetail>>(`/platform/companies/${id}`)),
@@ -228,6 +243,30 @@ export const platformApi = {
     need(await api.post<ApiResponse<ActionResult>>('/platform/settings/test-razorpay', { values })).result,
   testWhatsApp: async (values: Record<string, string>) =>
     need(await api.post<ApiResponse<ActionResult>>('/platform/settings/test-whatsapp', { values })).result,
+  testAssistant: async (values: Record<string, string>) =>
+    need(await api.post<ApiResponse<ActionResult>>('/platform/settings/test-assistant', { values })).result,
+  assistantUsage: async () => need(await api.get<ApiResponse<AssistantUsage>>('/platform/assistant/usage')),
+}
+
+/** One day of the AI assistant's use: questions on the website and in the app (and how many companies asked), tokens. */
+export interface AssistantDay {
+  day: string; website: number; app: number; companies: number
+  inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; toolCalls: number; failed: number
+  /** answers rated helpful, and not (the thumbs under an answer) */
+  helpful: number; unhelpful: number
+  /** questions answered in-house (on this server, nothing sent to Anthropic), and those with no in-house answer that Claude wasn't asked */
+  inHouse: number; unanswered: number
+}
+/** The AI assistant over the last 30 days (newest day first), whether it answers now, and with which model. */
+export interface AssistantUsage {
+  available: { website: boolean; app: boolean }
+  model: string
+  totals: { website: number; app: number; inputTokens: number; cachedTokens: number; outputTokens: number; failed: number; helpful: number; unhelpful: number
+    inHouse: number; unanswered: number }
+  /** how it answers (the console's choice): IN_HOUSE, IN_HOUSE_FIRST or CLAUDE; and whether Claude may be asked (a key, a mode that uses it) */
+  answering: 'IN_HOUSE' | 'IN_HOUSE_FIRST' | 'CLAUDE'
+  claude: boolean
+  days: AssistantDay[]
 }
 
 /** What "access" means, in words. */

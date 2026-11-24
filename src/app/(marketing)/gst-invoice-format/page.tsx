@@ -60,8 +60,8 @@ export default function GstInvoiceFormatPage() {
         <div style={narrow}>
           <h2 style={h2Style}>What a GST invoice must contain</h2>
           <p style={pStyle}>Rule 46 of the CGST Rules, 2017 sets out what a tax invoice must show. The layout is up to you — what matters is that every detail is there.</p>
-          <div style={tableWrap}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
+          <div role="region" aria-label="What a GST invoice must contain" tabIndex={0} style={tableWrap}>
+            <table className="keep-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
               <thead><tr><th style={th}>Field</th><th style={th}>What to show</th></tr></thead>
               <tbody>
                 {C.fields.map(f => (
@@ -76,8 +76,8 @@ export default function GstInvoiceFormatPage() {
 
           <h2 style={{ ...h2Style, marginTop: '36px' }}>HSN digits by turnover</h2>
           <p style={pStyle}>The number of HSN or SAC digits depends on your aggregate turnover in the previous financial year.</p>
-          <div style={tableWrap}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '480px' }}>
+          <div role="region" aria-label="HSN digits by turnover" tabIndex={0} style={tableWrap}>
+            <table className="keep-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '480px' }}>
               <thead><tr><th style={th}>Turnover</th><th style={th}>HSN digits</th><th style={th}>Applies to</th></tr></thead>
               <tbody>
                 {C.hsn.map(h => (

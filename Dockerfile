@@ -1,16 +1,16 @@
 # ============================================================
-# FINVOSMART Frontend — Next.js 14 (standalone output)
+# FINVOSMART Frontend — Next.js 16 on Node.js 24 LTS (standalone output)
 # ============================================================
 
 # ── Dependencies (full install incl. devDependencies for build) ──────────────
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 # Use npm ci when a lockfile exists (reproducible); fall back to npm install otherwise.
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # ── Build ────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -29,7 +29,7 @@ ENV NEXT_OUTPUT=standalone
 RUN npm run build
 
 # ── Runtime (minimal standalone image) ───────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

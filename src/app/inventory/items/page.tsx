@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { AlertTriangle, ArrowLeftRight, Boxes, CalendarClock, ClipboardList, Download, FileUp, History, Pencil, Plus } from 'lucide-react'
 import { inventoryApi } from '@/lib/api/inventory'
+import { godownsApi } from '@/lib/api/store'
 import { DataTable } from '@/components/ui/Table'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Badge } from '@/components/ui/Badge'
@@ -41,11 +42,15 @@ type Form = { itemCode: string; itemName: string; category: string; hsnSacCode: 
   /** null: decided by the HSN/SAC code (services, SAC 99…, keep no stock) until the box is ticked or cleared */
   trackStock: boolean | null
   /** stock kept by batch and expiry; the opening stock's batch number and expiry (as typed) */
-  trackBatches: boolean; openingBatchNo: string; openingExpiry: string }
+  trackBatches: boolean; openingBatchNo: string; openingExpiry: string
+  /** inspected on receipt: its goods receipts wait for quality */
+  needsInspection: boolean
+  /** months of warranty to customers, and the supplier's to you (as typed; empty: none set) */
+  warrantyMonths: string; supplierWarrantyMonths: string }
 
 const BLANK: Form = { itemCode: '', itemName: '', category: '', hsnSacCode: '', unit: 'NOS', purchasePrice: '', sellingPrice: '',
   gstRate: '18', reorderLevel: '', description: '', active: true, openingStock: '', trackStock: null,
-  trackBatches: false, openingBatchNo: '', openingExpiry: '' }
+  trackBatches: false, openingBatchNo: '', openingExpiry: '', needsInspection: false, warrantyMonths: '', supplierWarrantyMonths: '' }
 
 /** How a batch's expiry reads, and its colour. */
 const STATE: Record<BatchState, { label: string; tone: string }> = {
@@ -302,6 +307,8 @@ function ItemModal({ item, categories, thing, presets, batchesByDefault, onClose
     sellingPrice: item.sellingPrice == null ? '' : String(item.sellingPrice), gstRate: String(Number(item.gstRate ?? 0)),
     reorderLevel: Number(item.reorderLevel) ? String(item.reorderLevel) : '', description: item.description ?? '', active: item.active !== false, openingStock: '',
     trackStock: item.trackStock !== false, trackBatches: !!item.trackBatchNumbers, openingBatchNo: '', openingExpiry: '',
+    needsInspection: !!item.needsInspection,
+    warrantyMonths: item.warrantyMonths != null ? String(item.warrantyMonths) : '', supplierWarrantyMonths: item.supplierWarrantyMonths != null ? String(item.supplierWarrantyMonths) : '',
   } : { ...BLANK, trackBatches: batchesByDefault })
   const { data: batches } = useQuery({ queryKey: ['item-batches', item?.id], queryFn: () => inventoryApi.items.batches(item!.id),
     enabled: !!item?.trackBatchNumbers })
@@ -316,7 +323,10 @@ function ItemModal({ item, categories, thing, presets, batchesByDefault, onClose
         itemCode: f.itemCode.trim() || undefined, itemName: f.itemName.trim(), category: f.category.trim() || undefined,
         hsnSacCode: f.hsnSacCode.trim() || undefined, unit: f.unit, purchasePrice: num(f.purchasePrice), sellingPrice: num(f.sellingPrice),
         gstRate: Number(f.gstRate), reorderLevel: num(f.reorderLevel), description: f.description.trim() || undefined,
-        trackStock: keeps, trackBatches: byBatch,
+        trackStock: keeps, trackBatches: byBatch, needsInspection: keeps && f.needsInspection,
+        // a warranty cleared on an item that had one is sent as -1 (none set); left empty on a new item, left out
+        warrantyMonths: f.warrantyMonths.trim() ? Number(f.warrantyMonths) : item?.warrantyMonths != null ? -1 : undefined,
+        supplierWarrantyMonths: f.supplierWarrantyMonths.trim() ? Number(f.supplierWarrantyMonths) : item?.supplierWarrantyMonths != null ? -1 : undefined,
         ...(item ? { active: f.active } : { openingStock: keeps ? num(f.openingStock) : null }),
         ...(opening && byBatch ? { openingBatchNo: normaliseBatch(f.openingBatchNo), openingExpiry: openingExpiry ?? null } : {}),
       }
@@ -405,6 +415,27 @@ function ItemModal({ item, categories, thing, presets, batchesByDefault, onClose
             </span>
           </label>
         )}
+        {keeps && (
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="mt-0.5" checked={f.needsInspection} onChange={e => set('needsInspection', e.target.checked)} data-testid="needs-inspection" />
+            <span>Inspect on receipt
+              <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>
+                Goods receipts of this item wait for quality: only what passes inspection goes into stock, and what fails goes back to the supplier.
+              </span>
+            </span>
+          </label>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="item-warranty">
+          <div><label className="label" htmlFor="item-warranty">Warranty to customers (months)</label>
+            <input id="item-warranty" className="input h-10" inputMode="numeric" maxLength={3} value={f.warrantyMonths} placeholder="None"
+              onChange={e => set('warrantyMonths', e.target.value.replace(/[^0-9]/g, ''))} data-testid="item-warranty-months" />
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>From the date of sale: warranty claims check against it.
+              {extra.fields.some(x => x.key === 'warranty_months' || x.key === 'warranty_years') ? ' Left empty, the warranty in the details below is used.' : ''}</p></div>
+          <div><label className="label" htmlFor="item-supplier-warranty">Supplier’s warranty to you (months)</label>
+            <input id="item-supplier-warranty" className="input h-10" inputMode="numeric" maxLength={3} value={f.supplierWarrantyMonths} placeholder="None"
+              onChange={e => set('supplierWarrantyMonths', e.target.value.replace(/[^0-9]/g, ''))} data-testid="item-supplier-warranty-months" />
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>From the date received: claims on the supplier check against it.</p></div>
+        </div>
         {opening && byBatch && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="opening-batch">
             <div><label className="label label-required" htmlFor="opening-batch-no">Batch number of the opening stock</label>
@@ -468,6 +499,15 @@ function MoveModal({ item, onClose, onSaved }: { item: InventoryItem; onClose: (
   const [mrp, setMrp] = useState('')
   const [batchId, setBatchId] = useState<string | null>(null)
   const { data: batches } = useQuery({ queryKey: ['item-batches', item.id], queryFn: () => inventoryApi.items.batches(item.id), enabled: byBatch })
+  // with more than one godown: which one the stock comes into or goes out of (the main one unless chosen)
+  const { data: godowns = [] } = useQuery({ queryKey: ['godowns'], queryFn: godownsApi.list, staleTime: 60_000 })
+  const places = godowns.filter(g => g.active)
+  const mainId = godowns.find(g => g.main)?.id ?? ''
+  const [godownId, setGodownId] = useState('')
+  const elsewhere = !!godownId && godownId !== mainId
+  const { data: spread } = useQuery({ queryKey: ['godown-item', item.id], queryFn: () => godownsApi.item(item.id), enabled: elsewhere })
+  const here = elsewhere ? (spread?.places ?? []).filter(p => p.godownId === godownId).reduce((t, p) => t + Number(p.quantity), 0) : null
+  const hereName = places.find(g => g.id === godownId)?.name ?? ''
   const unbatched = Number(item.currentStock) - (batches ?? []).reduce((t, b) => t + Number(b.quantity), 0)
   const choices: ItemBatch[] = (batches ?? []).filter(b => type === 'ADJUSTMENT' || Number(b.quantity) > 0)
   // stock out: the first batch with stock, soonest expiry first (expired ones are what usually goes out)
@@ -475,26 +515,28 @@ function MoveModal({ item, onClose, onSaved }: { item: InventoryItem; onClose: (
   const chosen = choices.find(b => b.id === chosenId) ?? null
   const n = Number(q)
   const change = type === 'OUT' ? -Math.abs(n) : type === 'IN' ? Math.abs(n) : n
-  const after = Number(item.currentStock) + (isFinite(change) ? change : 0)
+  const after = (here ?? Number(item.currentStock)) + (isFinite(change) ? change : 0)
   const parsedExpiry = parseExpiry(expiry)
   const knownBatch = (batches ?? []).find(b => b.batchNo === normaliseBatch(batchNo))
   const problem = q.trim() === '' || !isFinite(n) || n === 0 ? 'Enter the quantity.'
     : type !== 'ADJUSTMENT' && n < 0 ? 'Enter the quantity without a minus sign.'
-    : change < 0 && after < 0 ? (Number(item.currentStock) <= 0 ? 'There is no stock to take out.' : `Only ${qty(item.currentStock)} ${item.unit} in stock.`)
+    : change < 0 && after < 0 ? (here !== null ? (here <= 0 ? `There is none in ${hereName}.` : `Only ${qty(here)} ${item.unit} in ${hereName}.`)
+      : Number(item.currentStock) <= 0 ? 'There is no stock to take out.' : `Only ${qty(item.currentStock)} ${item.unit} in stock.`)
     : byBatch && type === 'IN' && batchNoProblem(batchNo) ? batchNoProblem(batchNo)
     : byBatch && type === 'IN' && parsedExpiry === undefined ? EXPIRY_HINT
     : byBatch && type === 'IN' && mrp.trim() !== '' && !(Number(mrp) >= 0) ? 'The MRP must be a number, not below zero.'
     : byBatch && type === 'IN' && knownBatch?.expiryDate && parsedExpiry && knownBatch.expiryDate !== parsedExpiry
       ? `Batch ${knownBatch.batchNo} expires ${expiryText(knownBatch.expiryDate)} in your records — check the batch number or the expiry.`
-    : byBatch && type !== 'IN' && chosen && change < 0 && Number(chosen.quantity) + change < 0 ? `Only ${qty(chosen.quantity)} ${item.unit} of batch ${chosen.batchNo} in stock.`
-    : byBatch && type !== 'IN' && !chosen && change < 0 && unbatched + change < 0 ? `Only ${qty(Math.max(unbatched, 0))} ${item.unit} held without a batch — choose the batch.` : null
+    : !elsewhere && byBatch && type !== 'IN' && chosen && change < 0 && Number(chosen.quantity) + change < 0 ? `Only ${qty(chosen.quantity)} ${item.unit} of batch ${chosen.batchNo} in stock.`
+    : !elsewhere && byBatch && type !== 'IN' && !chosen && change < 0 && unbatched + change < 0 ? `Only ${qty(Math.max(unbatched, 0))} ${item.unit} held without a batch — choose the batch.` : null
   const save = useMutation({
     mutationFn: () => inventoryApi.items.adjust(item.id, type === 'ADJUSTMENT' ? n : Math.abs(n), type, {
       reference: reference.trim() || undefined, remarks: remarks.trim() || undefined,
       ...(byBatch && type === 'IN' ? { batchNo: normaliseBatch(batchNo), expiry: parsedExpiry ?? undefined, mrp: mrp.trim() ? Number(mrp) : undefined } : {}),
       ...(byBatch && type !== 'IN' && chosen ? { batchId: chosen.id } : {}),
+      ...(elsewhere ? { godownId } : {}),
     }),
-    onSuccess: () => { toast.success(`${item.itemName}: ${qty(after)} ${item.unit} in stock`); onSaved() },
+    onSuccess: () => { toast.success(elsewhere ? `${item.itemName}: ${qty(after)} ${item.unit} in ${hereName}` : `${item.itemName}: ${qty(after)} ${item.unit} in stock`); onSaved() },
     onError: (e: any) => toast.error(errText(e, 'The stock could not be updated')),
   })
   return (
@@ -509,6 +551,13 @@ function MoveModal({ item, onClose, onSaved }: { item: InventoryItem; onClose: (
           ))}
         </div>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{MOVES.find(m => m.type === type)?.hint}</p>
+        {places.length > 1 && (
+          <div><label className="label" htmlFor="move-godown">Godown</label>
+            <select id="move-godown" className="input h-10" value={godownId || mainId} onChange={e => setGodownId(e.target.value)} data-testid="move-godown">
+              {places.map(g => <option key={g.id} value={g.id}>{g.name}{g.main ? ' (main)' : ''}</option>)}
+            </select>
+            {elsewhere && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{here === null ? '' : `${qty(here)} ${item.unit} in ${hereName} now. `}To move stock between godowns, make a transfer instead.</p>}</div>
+        )}
         <p className="text-xs rounded-lg px-2.5 py-2" style={{ background: 'var(--bg-surface)', color: 'var(--text-secondary)' }}>
           Sales, customer returns and supplier bills move stock by themselves when an invoice, credit note or bill is linked to this item — don&apos;t enter those here too.
         </p>

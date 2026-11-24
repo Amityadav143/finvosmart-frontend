@@ -24,9 +24,9 @@ export const inventoryApi = {
      * by batch, stock in names its batch (batchNo, expiry yyyy-mm-dd, mrp); out and adjustments say which batch (batchId).
      */
     adjust: async (id: string, qty: number, type: string,
-                   opts: { reference?: string; remarks?: string; batchId?: string; batchNo?: string; expiry?: string | null; mrp?: number | null } = {}) => {
+                   opts: { reference?: string; remarks?: string; batchId?: string; batchNo?: string; expiry?: string | null; mrp?: number | null; godownId?: string } = {}) => {
       const params: Record<string, string | number> = { qty, type }
-      for (const k of ['reference', 'remarks', 'batchId', 'batchNo', 'expiry', 'mrp'] as const) {
+      for (const k of ['reference', 'remarks', 'batchId', 'batchNo', 'expiry', 'mrp', 'godownId'] as const) {
         const v = opts[k]
         if (v !== undefined && v !== null && v !== '') params[k] = v
       }

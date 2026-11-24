@@ -26,8 +26,16 @@ const PLANS = [
       'HRMS — Employees, Attendance, Leave, Payroll',
       'CRM — Leads & Customer management',
       'Procurement — purchase orders, suppliers, supplier bills',
+      'Purchase store — gate entry, goods receipts (GRN) with inspection, returns, bills matched and held when they don’t, supplier rating',
+      'Warranty claims — from customers, passed on to the supplier, with challans and credit notes',
       'Inventory — stock that moves with invoices and bills, low-stock reorders',
+      'Godowns — stock by location, transfers, material issue and stock counts',
+      'Counter billing (POS) — barcode scanning, cash, UPI and card, shift close',
+      'Online store — your own store link, pickup and delivery orders',
       'India GST auto-calculation on all invoices',
+      'Supplier invoices read into bills — PDF, e-invoice QR code or photo',
+      '13-week cash-flow forecast from your books',
+      'Ask Finvosmart — the AI assistant, answering from your own figures once you allow it',
       'Standard email support',
       '1 company branch / GST registration',
     ],
@@ -41,11 +49,9 @@ const PLANS = [
       'WhatsApp — invoices and payment reminders with a pay link',
       'GST credit check — upload GSTR-2B, match it with your bills',
       'Bank payment matching — any bank’s statement',
-      'TDS on supplier bills — by section, with a register',
+      'TDS register — the TDS on supplier bills, by section',
       'Multi-branch support (unlimited branches)',
       'Priority support (4hr response)',
-      SOON + 'ARIS — AI cash-flow forecast',
-      SOON + 'Smart bill scanner (OCR)',
       SOON + 'Employee wellness insights',
       SOON + 'Client self-service portal',
       SOON + 'Recurring / subscription billing',
@@ -79,12 +85,16 @@ const COMPARE_ROWS = [
   { feature: 'Core ERP modules',  starter: true,          growth: true,             enterprise: true },
   { feature: 'HRMS + Payroll',    starter: true,          growth: true,             enterprise: true },
   { feature: 'India GST native',  starter: true,          growth: true,             enterprise: true },
+  { feature: 'Supplier invoices read (PDF, QR, photo)', starter: true, growth: true, enterprise: true },
+  { feature: '13-week cash-flow forecast', starter: true, growth: true,            enterprise: true },
+  { feature: 'AI assistant (Ask Finvosmart)', starter: true, growth: true,         enterprise: true },
+  { feature: 'Counter billing (POS)', starter: true,      growth: true,             enterprise: true },
+  { feature: 'Online store',      starter: true,          growth: true,             enterprise: true },
+  { feature: 'Godowns, transfers & stock counts', starter: true, growth: true,      enterprise: true },
   { feature: 'WhatsApp invoices & reminders', starter: false, growth: true,       enterprise: true },
   { feature: 'GST credit check (GSTR-2B)', starter: false, growth: true,          enterprise: true },
   { feature: 'Bank payment matching', starter: false,     growth: true,             enterprise: true },
   { feature: 'White-labelling',   starter: false,         growth: false,            enterprise: true },
-  { feature: 'AI cash-flow forecast (ARIS)', soon: true, starter: false,  growth: true,  enterprise: true },
-  { feature: 'Bill scanner (OCR)', soon: true,            starter: false,  growth: true,  enterprise: true },
   { feature: 'Wellness insights', soon: true,             starter: false,  growth: true,  enterprise: true },
   { feature: 'BharatVoice',       soon: true,             starter: false,  growth: false, enterprise: true },
   { feature: 'Aadhaar eSign',     soon: true,             starter: false,  growth: false, enterprise: true },
@@ -202,8 +212,10 @@ export default function PricingPage() {
       <section style={{ padding: '0 0 80px', background: 'var(--bg-base)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
           <h2 style={{ fontFamily: "'Instrument Serif', serif", fontWeight: 400, fontSize: '28px', color: 'var(--text-primary)', textAlign: 'center', marginBottom: '36px' }}>Full feature comparison</h2>
-          <div style={{ border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          {/* on a phone it scrolls sideways: reachable with the keyboard, named for screen readers */}
+          <div style={{ border: '1px solid var(--border)', borderRadius: '16px', overflowX: 'auto' }} tabIndex={0} role="region" aria-label="Plans compared, feature by feature">
+            <table className="keep-table" style={{ width: '100%', minWidth: '560px', borderCollapse: 'collapse' }}>
+              <caption className="sr-only">Plans compared, feature by feature</caption>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   <th scope="col" style={{ padding: '14px 20px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-card)' }}>Feature</th>

@@ -20,8 +20,8 @@
  *  • Have a lawyer review before relying on these documents.
  */
 
-export const LEGAL_VERSION = '2026-11-04'
-export const LEGAL_UPDATED = '4 November 2026'
+export const LEGAL_VERSION = '2026-11-21'
+export const LEGAL_UPDATED = '21 November 2026'
 
 export const LEGAL_ENTITY = {
   name: 'Navgrow Engineering Service Pvt. Ltd.',
@@ -55,12 +55,15 @@ export const PRIVACY: LegalDoc = {
       'To give each business and person one free trial: a one-way hash (SHA-256) of the sign-up email address, mobile number and PAN — not the details themselves.',
       'If you subscribe: the plan, amounts and Razorpay\'s reference for each payment. Card, UPI and bank details are entered with Razorpay, not with us, and we never see them.',
       'Messages you send us, such as support requests.',
+      'How you found us, if you sign up or ask for a demo: the campaign tags of the link that brought you (utm_source, utm_medium and the like), an ad\'s click ID, the name of the website you came from (not the page) and the page you landed on — see "Cookies and tracking".',
+      'Questions you ask the AI assistant, "Ask Finvosmart", and its answers. We pass them on to answer them and don\'t keep them — see "The AI assistant" below.',
     ]},
     { id: 'use', h2: 'Why we use it', bullets: [
       'To create your account and company, and to sign you in securely.',
       'To provide the features you use — GST invoicing, e-invoicing, inventory, CRM, HR and the rest of Finvosmart.',
       'To send emails about your account: welcome messages, sign-in codes, password resets and important service updates.',
       'To answer your questions and give support.',
+      'To answer questions you ask the AI assistant.',
       'To keep the service secure: to detect abuse, prevent fraud and investigate incidents.',
       'To meet our legal obligations, such as keeping records required by law.',
     ], after: [
@@ -73,15 +76,19 @@ export const PRIVACY: LegalDoc = {
       'Our email delivery provider, which sends account emails such as sign-in codes and password resets.',
       'Google, if you sign up or sign in with Google: the button and the sign-in window come from Google, which handles that step under its own privacy policy and then tells us who you are. We check its answer with the public keys Google publishes; we don\'t send your data to Google.',
       'Meta\'s WhatsApp Business service, only if your business turns on WhatsApp sending: the recipient\'s number and the message or invoice being sent.',
+      'Google Ads, only if you came to us from a Google ad and then signed up: we may give Google back that ad click\'s ID and the time you signed up, so it can count the sign-up for the ad. Nothing else about you is sent.',
       'Razorpay, our payment partner, when you subscribe to a paid plan: the amount, your company name, and the name, email address and mobile number entered at checkout. Razorpay processes the payment under its own privacy policy.',
       'The Government of India\'s e-invoice (IRP) and e-way bill systems, only when you generate an e-invoice or e-way bill: the invoice details the law requires, including your customer\'s GSTIN.',
+      'Anthropic, which provides the AI model (Claude) the AI assistant may pass a question to, only when it does: what is described under "The AI assistant" below.',
     ], after: [
       'We may also disclose personal data where the law requires it, for example to comply with a valid order from a court or government authority.',
     ]},
     { id: 'cookies', h2: 'Cookies and tracking', paragraphs: [
       'We do not use advertising or analytics trackers. To keep you signed in, our server sets one cookie (finvo_rt) that holds your sign-in: it is HttpOnly (scripts in the page can\'t read it), sent only to our sign-in service, and never to other websites. The app keeps your name, company and preferences, such as the light or dark theme, in your browser\'s local storage. Signing out ends your session on our server and removes the cookie.',
+      'If you come to our website from a link with campaign tags or an ad\'s click ID, or from another website, your browser keeps — in its own storage, not in a cookie, for up to 90 days — those tags, the other website\'s name and the page you landed on. They stay on your device unless you sign up or ask for a demo; then they are sent with it and kept with your company\'s or your request\'s record, so we know which campaigns, search engines and websites bring customers. Clearing your browser\'s site data removes them.',
       'When you subscribe, the payment window is loaded from Razorpay, which may use its own cookies under Razorpay\'s privacy policy.',
       'Where Google sign-in is offered, the sign-in and sign-up pages load Google\'s button from Google, which may use Google\'s own cookies under Google\'s privacy policy.',
+      'A conversation with the AI assistant is kept in your browser\'s session storage for that tab only, so it stays while you move between pages. It is gone when the tab is closed, when you start a new conversation, or when you sign out.',
     ]},
     { id: 'security', h2: 'How we protect it', bullets: [
       'Encrypted connections (HTTPS) between your browser and our servers.',
@@ -96,6 +103,7 @@ export const PRIVACY: LegalDoc = {
       'We keep account and company data for as long as your account is open.',
       'When an account is closed, we delete or anonymise its personal data unless the law requires us to keep it longer — for example, tax records — or we need it to resolve a dispute. Before deleting a company\'s data, we give the business a chance to export it.',
       'We keep security logs for at least one year, as the DPDP Rules require.',
+      'We don\'t keep conversations with the AI assistant. Our server keeps only daily counts — how many questions were asked, how much of the AI model they used, and how many answers were marked helpful or not — not what was asked or answered.',
     ]},
     { id: 'rights', h2: 'Your rights', paragraphs: ['Under the DPDP Act, you can:'], bullets: [
       'Ask for a summary of the personal data we hold about you and how we use it.',
@@ -114,8 +122,20 @@ export const PRIVACY: LegalDoc = {
     { id: 'children', h2: 'Children', paragraphs: [
       'Finvosmart is a tool for businesses and is not meant for anyone under 18. We do not knowingly collect children\'s personal data. If you believe a child has given us personal data, contact us and we will delete it.',
     ]},
+    { id: 'assistant', h2: 'The AI assistant', paragraphs: [
+      'Finvosmart\'s website and app have an AI assistant, "Ask Finvosmart", that answers questions about Finvosmart, GST and running your business. Most questions are answered by Finvosmart\'s own server, from Finvosmart\'s own guide and pages — and, in the app, from the company\'s figures if the company allows it (below) — and nothing of them leaves Finvosmart. A question it can\'t answer itself may be passed to a model called Claude, provided by Anthropic, where Finvosmart has switched that on. Only then does our server send Anthropic:',
+    ], bullets: [
+      'the conversation so far (the latest questions and answers) and the page it was asked from;',
+      'in the app, also the first name of the person asking, their role and their company\'s name, so it can answer for them; and',
+      'only if the company has turned on "Answers from your company\'s figures" (Settings → AI assistant, off until a company admin turns it on): the figures needed for that answer — for example, which invoices are overdue, with the customer\'s name and the amount. It looks only at what the person asking may open in Finvosmart, and it can only read: it can\'t create, change, send, pay or delete anything.',
+    ], after: [
+      'Anthropic processes these to write the answer, as our service provider under its commercial terms: it keeps them only for a limited time, and doesn\'t use them to train its models. Its servers are outside India, for example in the United States. Each answer says who wrote it: "Finvosmart" for our own server, "Claude (AI)" for Anthropic\'s model.',
+      'We don\'t keep the conversation (see "How long we keep it"). On the website, your IP address is used in memory to limit how many questions can be asked, and is not sent to Anthropic. A conversation reaches people only if you send it: "Email this chat to support" in the app sends it to our support team with your name and email, so we can reply; "Talk to our team" on the website sends the details you type to our sales team.',
+      'Please don\'t type passwords, OTPs, card or bank details, or Aadhaar numbers into the assistant. It will never ask for them.',
+      'Links in its answers go to pages of Finvosmart or to the government\'s own sites (such as the GST portal), which open apart and have their own privacy policies.',
+    ]},
     { id: 'storage', h2: 'Where your data is stored', paragraphs: [
-      'Your data is stored on servers operated by our hosting provider. If personal data is ever transferred outside India, we will do so only as permitted under Indian law.',
+      'Your data is stored on servers operated by our hosting provider. Questions the AI assistant answers itself stay on our servers; those it passes to Claude are answered on Anthropic\'s servers outside India, as described above. Whenever personal data is transferred outside India, we do so only as permitted under Indian law.',
     ]},
     { id: 'changes', h2: 'Changes to this policy', paragraphs: [
       'When this policy changes, we will update the date at the top. For significant changes, we will also tell you by email or in the app.',
@@ -164,8 +184,12 @@ export const TERMS: LegalDoc = {
     ], after: [
       `If you find a security issue, please report it to ${E}.`,
     ]},
+    { id: 'assistant', h2: 'The AI assistant', paragraphs: [
+      'The AI assistant, "Ask Finvosmart", answers questions itself from Finvosmart\'s own guide, pages and — where allowed — your figures, and, where switched on, with an AI model (Claude, by Anthropic). Its answers are written automatically and can be wrong or incomplete — check them, and any figures it gives, against your records before you rely on them. Like the rest of Finvosmart, it gives general information, not tax, legal or accounting advice.',
+      'It only reads: it can\'t change your records. A company admin decides whether it may answer from the company\'s figures, and it never shows anyone more than their role may open. To keep it available for everyone, the number of questions each company and each website visitor can ask in a day is limited. Don\'t use it to send anything unlawful, or to try to make it reveal or do what it is not meant to.',
+    ]},
     { id: 'third-party', h2: 'Third-party services', paragraphs: [
-      'Some features connect to services we do not control, such as the Government\'s GST, e-invoice and e-way bill systems, WhatsApp and Google. Their own terms apply, and we are not responsible for their availability or errors — for example, when a government portal is down.',
+      'Some features connect to services we do not control, such as the Government\'s GST, e-invoice and e-way bill systems, WhatsApp, Google and Anthropic (for the AI assistant). Their own terms apply, and we are not responsible for their availability or errors — for example, when a government portal is down.',
     ]},
     { id: 'availability', h2: 'Availability and changes', paragraphs: [
       'We work to keep Finvosmart available and secure, but we cannot promise it will be uninterrupted or error-free. We may carry out maintenance and change or improve features. If we remove a feature you rely on, we will try to give you reasonable notice.',

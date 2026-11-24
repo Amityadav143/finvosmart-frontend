@@ -13,7 +13,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, Sun, Moon, Search, ChevronDown, LogOut, Keyboard, UserCircle, Rocket, Globe } from 'lucide-react'
+import { Sun, Moon, Search, Sparkles, ChevronDown, LogOut, Keyboard, UserCircle, Rocket, Globe, Lock, Settings } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { signOut } from '@/lib/auth/session'
 import { useTheme } from '@/lib/context/ThemeContext'
@@ -24,144 +24,66 @@ import { QuickCreate } from './QuickCreate'
 import { showSetupChecklist } from '@/components/ui/OnboardingChecklist'
 import { useRouter } from 'next/navigation'
 import { RELEASE } from '@/lib/release'
+import { placeOf } from '@/lib/navigation'
 import { PLATFORM_COLOR } from '@/components/platform/theme'
 
-/* ── Page titles keyed by route ─────────────────────────────────────── */
-const TITLES: Record<string, string> = {
-  '/dashboard':                'Dashboard',
-  '/notifications':            'Notifications',
-  '/hrms/employees':           'Employees',
-  '/hrms/attendance':          'Attendance',
-  '/hrms/leave':               'Leave',
-  '/hrms/payroll':             'Payroll',
-  '/hrms/payroll/setup':       'Salary set-up',
-  '/finance/accounts':         'Chart of Accounts',
-  '/finance/vouchers':         'Journal Entries',
-  '/finance/ledger':           'Ledger',
-  '/finance/reports':          'Financial Reports',
-  '/invoicing':                'Invoices',
-  '/quotations':               'Quotations',
-  '/crm/leads':                'CRM — Pipeline',
-  '/crm/customers':            'Customers',
-  '/procurement/orders':       'Purchase Orders',
-  '/procurement/vendors':      'Suppliers',
-  '/purchases':                'Bills and Payables',
-  '/purchases/bills/new':      'New Bill',
-  '/procurement/grn':          'Goods Receipt Notes',
-  '/inventory/items':          'Inventory Items',
-  '/inventory/stock':          'Stock Ledger',
-  '/inventory/assets':         'Fixed Assets',
-  '/projects':                 'Projects',
-  '/reports':                  'Analytics',
-  '/ai/cashflow':              'ARIS — Cash Flow Oracle',
-  '/ai/wellness':              'Employee Wellness AI',
-  '/ai/scanner':               'Smart Bill Scanner',
-  '/whatsapp':                 'WhatsApp Hub',
-  '/gst-reconciler':           'GST Credit Check',
-  '/bank-reconciliation':      'Bank Reconciliation',
-  '/expense-claims':           'Expense Claims',
-  '/client-portal':            'Client Portal',
-  '/subscriptions':            'Recurring Billing',
-  '/tds':                      'TDS Register',
-  '/invoicing/h1-register':    'Schedule H1 Register',
-  '/demand-forecast':          'Demand Forecasting',
-  '/esign':                    'Digital Signing',
-  '/automations':              'Smart Automations',
-  '/settings/industry':       'Industry',
-  '/settings/company':         'Company Settings',
-  '/settings/users':           'Users & Access',
-  '/settings/roles':           'Roles & Permissions',
-  '/settings/modules':         'Module Settings',
-  '/settings/workflow':        'Approval Workflows',
-  '/settings/audit-log':       'Audit Log',
-  '/import':                   'Import from Excel',
-  '/webhooks':                 'Webhooks',
-  '/statements':               'Statement of Account',
-  '/settings':                 'Settings',
-  '/settings/templates':       'Document Templates',
-  '/settings/email':           'Email Alerts',
-  '/settings/security':        'Sign-in & security',
-  '/self-service':             'My Portal',
-  '/recruitment':              'Recruitment',
-  '/performance':              'Performance',
-  '/contracts':                'Contracts',
-  '/tenders':                  'Tenders',
-  '/ca-workspace':             'CA Workspace',
-  '/gst-export':               'GST Returns',
-  '/purchases/bills':          'Bills',
-  '/procurement':              'Procurement',
-  '/inventory/warehouses':     'Warehouses',
-  '/inventory/scanner':        'Stock Scanner',
-  '/platform':                 'Platform console',
-  '/platform/companies':       'All companies',
-  '/platform/users':           'All logins',
-  '/platform/payments':        'Plan payments',
-  '/platform/leads':           'Website enquiries',
-  '/platform/activity':        'Console activity',
-  '/platform/admins':          'Console administrators',
-  '/platform/settings':        'Platform settings',
-}
-
 interface TopbarProps {
-  onMenuClick?: () => void
   onSearchOpen?: () => void
   onShortcuts?: () => void
+  /** the assistant answers here: its button, and what it opens */
+  assistant?: { open: boolean; toggle: () => void }
 }
 
-export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) {
+export function Topbar({ onSearchOpen, onShortcuts, assistant }: TopbarProps) {
   const pathname          = usePathname()
   const router            = useRouter()
   const { user }  = useAuthStore()
   const { isDark, toggle } = useTheme()
   const { roles, isPlatformAdmin } = usePermissions()
   const industry          = useIndustry()
-  const [time, setTime]   = useState('')
   const [mounted, setMounted] = useState(false)
+  // the query (?type=EXPENSE) names some forms; read after the page is open (no Suspense needed for it)
+  const [search, setSearch] = useState('')
+  useEffect(() => { setSearch(window.location.search) }, [pathname])
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date()
-      setTime(now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }))
-    }
-    tick()
-    const id = setInterval(tick, 60000)
-    return () => clearInterval(id)
-  }, [])
-
-  // The page's own title, else the nearest section's (e.g. /invoicing/123 → Invoices)
-  // …in the words of the company's sector ("Patients" for customers in a clinic)
-  const titleKey  = TITLES[pathname] ? pathname
-    : Object.keys(TITLES).filter(k => pathname.startsWith(k + '/')).sort((a, b) => b.length - a.length)[0]
-  const title     = titleKey ? industry.name(titleKey, TITLES[titleKey]) : 'FINVOSMART'
+  // The page's title and its place (lib/navigation.ts): "Sales › Invoices"; a page inside an entry (/invoicing/123)
+  // takes the entry's title. In the words of the company's sector ("Patients" for customers in a clinic).
+  const place     = placeOf(pathname, search)
+  const entryWord = place.entry ? industry.name(place.entry.href, place.entry.label) : undefined
+  const ownTitle  = !place.entry || place.title === (place.entry.title ?? place.entry.label)
+  const title     = place.title ? (ownTitle && place.entry ? industry.name(place.entry.href, place.title) : place.title) : 'FINVOSMART'
   const initials  = (user?.fullName ?? 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
   const firstName = user?.fullName?.split(' ')[0] ?? 'User'
   const roleLabel = roles[0]?.replace(/_/g, ' ') ?? 'Employee'
   const inConsole = pathname === '/platform' || pathname.startsWith('/platform/')
+  // the assistant open beside the page: the bar is narrower, so search and the account keep only their icons
+  const tight = !!assistant?.open
 
   return (
     <header
       className="flex items-center gap-3 px-4 md:px-5 flex-shrink-0"
       style={{ height: '60px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}
     >
-      {/* Mobile menu toggle */}
-      <button aria-label="Open menu" className="btn-icon lg:hidden" onClick={onMenuClick}><Menu size={18} />
-      </button>
-
-      {/* Page title */}
-      <h1 className="font-serif flex-1 truncate" style={{ fontSize: '18px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-        {title}
-      </h1>
+      {/* Below the desktop width the tab bar at the foot of the screen has Menu and Search (MobileTabs), so the top bar
+          leaves them out and the page's title has the room. */}
+      {/* Where the page is, and its title */}
+      <div className="flex-1 min-w-0">
+        {place.section && place.section.id !== 'home' && (
+          <p className="app-trail hidden md:flex" data-testid="page-trail">
+            <span>{place.section.label}</span>
+            {place.entry && !ownTitle && <><span aria-hidden>›</span><Link href={place.entry.href}>{entryWord}</Link></>}
+          </p>
+        )}
+        <h1 className="font-serif truncate" style={{ fontSize: '18px', fontWeight: 400, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+          {title}
+        </h1>
+      </div>
 
       {/* Actions */}
       <div className="flex items-center gap-2">
-
-        {/* Clock */}
-        <span className="hidden xl:block text-xs font-mono whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
-          {time}
-        </span>
 
         {/* The platform console — for Finvosmart's own administrators, always one click away */}
         {isPlatformAdmin && (
@@ -184,20 +106,29 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
         {/* Create */}
         <QuickCreate />
 
+        {/* Ask Finvosmart — the assistant */}
+        {assistant && (
+          <button type="button" className="asst-topbtn" onClick={assistant.toggle} aria-expanded={assistant.open}
+            aria-label="Ask Finvosmart, the AI assistant" title="Ask Finvosmart — how to do something, or about your figures" data-testid="open-assistant">
+            <Sparkles size={15} aria-hidden /><span className="hidden md:inline">Ask</span>
+          </button>
+        )}
+
         {/* Search */}
         <button
           className="hidden sm:flex items-center gap-2 h-9 rounded-xl px-3 text-sm"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', minWidth: '210px' }}
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', minWidth: tight ? undefined : '210px' }}
           onClick={onSearchOpen}
           title="Search invoices, customers, bills, items… (Ctrl K or /)"
           aria-label="Search"
           data-testid="open-search"
         >
           <Search size={15} />
-          <span className="flex-1 text-left">Search…</span>
-          <kbd className="font-mono" style={{ fontSize: '10px', border: '1px solid var(--border)', borderRadius: '5px', padding: '0 5px' }}>Ctrl K</kbd>
+          {!tight && <>
+            <span className="flex-1 text-left">Search…</span>
+            <kbd className="font-mono" style={{ fontSize: '10px', border: '1px solid var(--border)', borderRadius: '5px', padding: '0 5px' }}>Ctrl K</kbd>
+          </>}
         </button>
-        <button className="btn-icon sm:hidden" onClick={onSearchOpen} aria-label="Search"><Search size={16} /></button>
 
         {/* Theme toggle */}
         {mounted && (
@@ -230,7 +161,7 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
             >
               {initials}
             </div>
-            <div className="hidden sm:block text-left">
+            <div className={tight ? 'hidden' : 'hidden sm:block text-left'}>
               <p className="text-sm font-semibold leading-none" style={{ color: 'var(--text-primary)' }}>{firstName}</p>
               <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'capitalize' }}>{roleLabel.toLowerCase()}</p>
             </div>
@@ -289,6 +220,16 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
                     <UserCircle size={14} />My portal
                   </Link>
                   <Link
+                    href="/settings/security"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all no-underline"
+                    style={{ color: 'var(--text-secondary)' }}
+                    onMouseEnter={(e: any) => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
+                    onMouseLeave={(e: any) => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                  >
+                    <Lock size={14} />Sign-in & security
+                  </Link>
+                  <Link
                     href="/settings"
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all no-underline"
@@ -296,7 +237,7 @@ export function Topbar({ onMenuClick, onSearchOpen, onShortcuts }: TopbarProps) 
                     onMouseEnter={(e: any) => (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'}
                     onMouseLeave={(e: any) => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                   >
-                    Settings
+                    <Settings size={14} />Settings
                   </Link>
                   <button
                     onClick={() => { setUserMenuOpen(false); onShortcuts?.() }}

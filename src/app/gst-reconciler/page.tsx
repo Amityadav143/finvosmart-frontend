@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import PlanGate from '@/components/ui/PlanGate'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -29,7 +30,7 @@ const KIND: Record<string, string> = {
   INVOICE: 'Invoice', DEBIT_NOTE: 'Debit note', CREDIT_NOTE: 'Credit note', BILL_OF_ENTRY: 'Bill of entry', ISD_INVOICE: 'ISD invoice', ISD_CREDIT_NOTE: 'ISD credit note',
 }
 
-export default function GstCreditCheckPage() {
+function GstCreditCheckPageContent() {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [period, setPeriod] = useState<string>('')
@@ -240,4 +241,9 @@ function Row({ l }: { l: ItcLine }) {
       <td className="px-4 py-3">{ims ? <span className="text-xs font-semibold" style={{ color: ims.color }}>{ims.label}</span> : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>}</td>
     </tr>
   )
+}
+
+/** On a plan without it (Starter): what it does and where to move, instead of a page the server would refuse. */
+export default function GstCreditCheckPage() {
+  return <PlanGate feature="GSTR2B_CHECK"><GstCreditCheckPageContent /></PlanGate>
 }

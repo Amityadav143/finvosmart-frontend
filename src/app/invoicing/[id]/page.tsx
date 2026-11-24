@@ -12,10 +12,11 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { usePlanFeature } from '@/lib/hooks/useSubscription'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Ban, Bell, Copy, CopyPlus, Download, ExternalLink, FileCheck2, IndianRupee, Mail, Package, Pencil, Send } from 'lucide-react'
+import { ArrowLeft, Ban, Bell, Copy, CopyPlus, Download, ExternalLink, FileCheck2, IndianRupee, Mail, Package, Pencil, Send, ShieldPlus } from 'lucide-react'
 import { invoicingApi, type InvoiceInput, type PaymentInput, type SendInput } from '@/lib/api/invoicing'
 import { crmApi } from '@/lib/api/crm'
 import { Modal } from '@/components/ui/Modal'
@@ -177,10 +178,16 @@ function InvoiceDetail() {
           {payable && canAny('INVOICE_EDIT', 'FINANCE_CREATE') && (
             <button className="btn-primary h-9" onClick={() => setModal('pay')}><IndianRupee size={15} />Record payment</button>
           )}
+          {inv.invoiceType === 'TAX_INVOICE' && inv.status !== 'DRAFT' && inv.status !== 'CANCELLED' && can('WARRANTY_CLAIMS') && (
+            <Link className="btn-secondary h-9" href={`/warranty/new?invoice=${inv.id}`} data-testid="invoice-claim-warranty"><ShieldPlus size={15} />Warranty claim</Link>
+          )}
         </div>
       </div>
 
       {inv.warning && <Notice tone="amber">{inv.warning}</Notice>}
+      {inv.warrantyClaimId && <Notice tone="blue">For warranty claim {can('WARRANTY_CLAIMS')
+        ? <Link href={`/warranty/${inv.warrantyClaimId}`} className="underline font-semibold">{inv.warrantyClaimNumber}</Link> : <b>{inv.warrantyClaimNumber}</b>}
+        {inv.status === 'DRAFT' ? ': issuing it resolves the claim.' : '.'} It moves no stock.</Notice>}
       {inv.status === 'CANCELLED' && <Notice tone="red">Cancelled{inv.cancelledAt ? ` on ${when(inv.cancelledAt)}` : ''}{inv.cancelReason ? ` — ${inv.cancelReason}` : ''}. {opening ? 'The opening balance has been taken out of the books.' : 'The sale has been reversed in the books.'}</Notice>}
       {opening && inv.status !== 'CANCELLED' && <Notice tone="blue">An invoice from before you started using Finvosmart, carried over unpaid. It is in your books as an opening balance — not a sale, no GST — and is collected here like any invoice. Automatic reminders aren't sent for it; email one when you choose.</Notice>}
       {inv.status === 'DRAFT' && <Notice tone="blue">This is a draft: it isn't in your books and the customer can't see it yet. Issue it or send it when ready.</Notice>}
@@ -267,7 +274,7 @@ function InvoiceDetail() {
                     {Number(p.tdsAmount) > 0 && <p className="text-xs mt-0.5">+ TDS deducted {inr(p.tdsAmount)}</p>}
                     {p.reference && <p className="text-xs mt-0.5 font-mono truncate" style={{ color: 'var(--text-muted)' }}>Ref {p.reference}</p>}
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      {p.source === 'BANK' ? 'Matched from bank statement' : p.source === 'RAZORPAY' ? 'Paid online (Razorpay)' : p.source === 'LEGACY' ? 'Marked as paid earlier' : 'Recorded by hand'}
+                      {p.source === 'BANK' ? 'Matched from bank statement' : p.source === 'RAZORPAY' ? 'Paid online (Razorpay)' : p.source === 'LEGACY' ? 'Marked as paid earlier' : p.source === 'POS' ? 'Paid at the counter' : 'Recorded by hand'}
                     </p>
                     {p.voided
                       ? <p className="text-xs mt-1" style={{ color: '#dc2626' }}>Voided{p.voidReason ? ` — ${p.voidReason}` : ''}</p>
@@ -314,9 +321,10 @@ function Line({ label, value, strong, color }: { label: string; value: string; s
 function SendModal({ inv, onClose, onDone }: { inv: Invoice; onClose: () => void; onDone: (i: Invoice) => void }) {
   const { data: customer } = useQuery({ queryKey: ['customer', inv.customerId], queryFn: () => crmApi.customers.get(inv.customerId) })
   const [form, setForm] = useState<SendInput>({ email: true, to: '', cc: '', message: '', whatsapp: false, phone: '' })
+  const wa = usePlanFeature('WHATSAPP')                // a Growth feature: Starter sends by email
   useEffect(() => { if (customer) setForm(f => ({ ...f, to: f.to || customer.email || '', phone: f.phone || customer.phone || '' })) }, [customer])
   const send = useMutation({
-    mutationFn: () => invoicingApi.send(inv.id, form),
+    mutationFn: () => invoicingApi.send(inv.id, { ...form, whatsapp: form.whatsapp && wa.allowed }),
     onSuccess: r => {
       onDone(r.invoice)
       toast.success(r.emailed ? `Emailed to ${r.emailedTo}` : 'Sent')
@@ -337,13 +345,18 @@ function SendModal({ inv, onClose, onDone }: { inv: Invoice; onClose: () => void
             <div><label className="label">Message</label><textarea className="input" rows={3} value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} placeholder="Leave empty for the standard message (amount, due date and how to pay)." /></div>
           </div>
         )}
-        <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: e.target.checked }))} />WhatsApp message</label>
-        {form.whatsapp && (
+        <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={form.whatsapp && wa.allowed} disabled={!wa.allowed} onChange={e => setForm(f => ({ ...f, whatsapp: e.target.checked }))} />WhatsApp message</label>
+        {!wa.allowed && (
+          <p className="pl-6 text-xs" style={{ color: 'var(--text-muted)' }} data-testid="send-whatsapp-plan">
+            WhatsApp sending is on the Growth plan. <Link href="/settings/subscription" className="underline">See the plans</Link>
+          </p>
+        )}
+        {form.whatsapp && wa.allowed && (
           <div className="pl-6"><label className="label">WhatsApp number</label><input className="input h-10" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="98765 43210" /></div>
         )}
         <div className="flex justify-end gap-2 pt-1">
           <button className="btn-secondary h-10" onClick={onClose}>Cancel</button>
-          <button className="btn-primary h-10" disabled={send.isPending || (!form.email && !form.whatsapp) || (form.email && !form.to)} onClick={() => send.mutate()}>
+          <button className="btn-primary h-10" disabled={send.isPending || (!form.email && !(form.whatsapp && wa.allowed)) || (form.email && !form.to)} onClick={() => send.mutate()}>
             <Send size={15} />{send.isPending ? 'Sending…' : 'Send'}
           </button>
         </div>

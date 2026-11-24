@@ -11,7 +11,7 @@
 import { api } from './client'
 import type { ApiResponse, PageResponse, Vendor } from '@/types'
 import type {
-  AccountOption, Bill, BillInput, BillPaymentRecord, ItcDocument, ItcReport, ItcStatement, PayablesSummary,
+  AccountOption, Bill, BillAttachment, BillInput, BillPaymentRecord, ItcDocument, ItcReport, ItcStatement, PayablesSummary,
   TdsNatureInfo, TdsRegister, TdsSuggestion,
 } from '@/types/purchases'
 
@@ -33,6 +33,8 @@ export const billsApi = {
   update: async (id: string, b: BillInput) => data<Bill>(await api.put(`/bills/${id}`, b)),
   record: async (id: string) => data<Bill>(await api.post(`/bills/${id}/record`)),
   cancel: async (id: string, reason: string) => data<Bill>(await api.post(`/bills/${id}/cancel`, { reason })),
+  /** Release a bill held for payment (it doesn't match its order and receipt), saying why it may be paid as it is. */
+  releaseHold: async (id: string, reason: string) => data<Bill>(await api.post(`/bills/${id}/release-hold`, { reason })),
   remove: async (id: string) => api.delete(`/bills/${id}`),
   payments: async (id: string) => data<BillPaymentRecord[]>(await api.get(`/bills/${id}/payments`)),
   pay: async (id: string, p: { amount: string | number; paymentDate: string; mode: string; reference?: string; notes?: string }) =>
@@ -45,6 +47,17 @@ export const billsApi = {
     data<TdsSuggestion>(await api.get('/bills/tds-suggestion', { params: p })),
   accounts: async () => data<AccountOption[]>(await api.get('/bills/accounts')),
   exportCsv: (from: string, to: string) => download('/bills/export/csv', { from, to }, `purchases_${from}_to_${to}.csv`),
+  /** The files kept with the bill (the supplier's invoice, the receipt). */
+  attachments: async (id: string) => data<BillAttachment[]>(await api.get(`/bills/${id}/attachments`)),
+  attach: async (id: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file, file.name)
+    return data<BillAttachment>(await api.post(`/bills/${id}/attachments`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }))
+  },
+  /** A kept file's content. */
+  attachment: async (id: string, attachmentId: string) =>
+    (await api.get(`/bills/${id}/attachments/${attachmentId}`, { responseType: 'blob', timeout: 120000 })).data as Blob,
+  detach: async (id: string, attachmentId: string) => api.delete(`/bills/${id}/attachments/${attachmentId}`),
 }
 
 export const payablesApi = {

@@ -13,6 +13,7 @@ import type { Metadata } from 'next'
 import LandingPageContent from '@/components/marketing/LandingPageContent'
 import MarketingNav from '@/components/marketing/MarketingNav'
 import MarketingFooter from '@/components/marketing/MarketingFooter'
+import { WebsiteAssistant } from '@/components/assistant/WebsiteAssistant'
 import SignedInRedirect from '@/components/marketing/SignedInRedirect'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { pageMetadata, organizationSchema, websiteSchema, softwareSchema, faqSchema, webPageSchema } from '@/lib/seo'
@@ -32,6 +33,7 @@ export default function Home() {
         <LandingPageContent />
       </main>
       <MarketingFooter />
+      <WebsiteAssistant />
     </>
   )
 }

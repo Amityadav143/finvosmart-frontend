@@ -31,7 +31,6 @@ export default function MarketingFooter() {
               <span className="mk-logo-mark mk-logo-mark-sm"><Zap size={14} color="var(--text-on-gold)" aria-hidden /></span>
               <span className="font-serif mk-logo-text mk-logo-text-sm">
                 FINVOSMART
-                <span className="mk-logo-by">by Navgrow</span>
               </span>
             </Link>
             <p className="mk-footer-tagline">
@@ -64,7 +63,8 @@ export default function MarketingFooter() {
         </div>
 
         <div className="mk-footer-bottom">
-          <span>© 2026 Navgrow Engineering Service Pvt. Ltd. · CIN: U29302WB2025PTC281015 · All rights reserved.</span>
+          {/* The company's details, as the law asks — on every page, but never in a search result's snippet */}
+          <span data-nosnippet>© 2026 Navgrow Engineering Service Pvt. Ltd. · CIN: U29302WB2025PTC281015 · All rights reserved.</span>
           <div className="mk-footer-legal">
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>

@@ -10,12 +10,13 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useEffect } from 'react'
+import { use, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 /** A statement is for one customer or supplier: without one chosen, go to the list to pick. */
-export default function StatementsIndex({ params }: { params: { side: string } }) {
+export default function StatementsIndex(props: { params: Promise<{ side: string }> }) {
+  const params = use(props.params)       // the address's values come as a promise (Next.js 15 and later)
   const router = useRouter()
   const list = params.side === 'supplier' ? { href: '/procurement/vendors', label: 'Suppliers' } : { href: '/crm/customers', label: 'Customers' }
   useEffect(() => { router.replace(list.href) }, [router, list.href])

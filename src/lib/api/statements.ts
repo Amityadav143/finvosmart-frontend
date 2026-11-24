@@ -11,6 +11,7 @@
 import { api } from './client'
 import type { ApiResponse } from '@/types'
 import { download } from './purchases'
+import { fileNamePart } from '@/lib/utils'
 
 const data = <T,>(r: { data: ApiResponse<T> }) => r.data.data as T
 
@@ -45,7 +46,7 @@ const base = (side: StatementSide, id: string) => `/statements/${side === 'custo
 export const statementsApi = {
   get: async (side: StatementSide, id: string, from?: string, to?: string) => data<StatementView>(await api.get(base(side, id), { params: { from, to } })),
   pdf: (side: StatementSide, id: string, from: string, to: string, name: string) =>
-    download(`${base(side, id)}/pdf`, { from, to }, `Statement_${name.replace(/[^A-Za-z0-9]+/g, '_')}_${from}_to_${to}.pdf`),
+    download(`${base(side, id)}/pdf`, { from, to }, `Statement_${fileNamePart(name) || side}_${from}_to_${to}.pdf`),
   email: async (id: string, from: string, to: string, body: { to?: string; cc?: string; message?: string }) =>
     data<{ sentTo: string }>(await api.post(`${base('customer', id)}/email`, body, { params: { from, to } })),
 }

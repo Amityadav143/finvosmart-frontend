@@ -10,14 +10,16 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import { askAssistant, useAssistantStatus } from '@/components/assistant/AppAssistant'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Search, ArrowRight, Users, FileText, ShoppingCart, Package, TrendingUp, BarChart3, Settings, Building2, Clock, Boxes,
-  Receipt, Truck, UserCheck, Plus, History, Loader2, Globe, type LucideIcon,
+  Receipt, Truck, UserCheck, Plus, History, Loader2, Globe, Sparkles, type LucideIcon,
 } from 'lucide-react'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { shown } from '@/lib/previews'
+import { allowed, MORE_PAGES, NAV_SECTIONS, sectionOf, type NavItem } from '@/lib/navigation'
 import { searchApi, type SearchHit } from '@/lib/api/search'
 import { CREATE_ACTIONS } from '@/lib/quickCreate'
 import { useCreateAllowed, useCreateLabel } from '@/components/layout/QuickCreate'
@@ -26,88 +28,17 @@ import { goTo } from '@/lib/hooks/useUrlParams'
 
 /** when: offered only to a company whose industry needs it (drugRegister: a pharmacy's Schedule H1 register) */
 /** console: the platform console's pages — offered to Finvosmart's own administrators only */
-type Command = { label: string; href: string; icon: LucideIcon; perm?: string | string[]; when?: 'drugRegister'; console?: boolean }
-
-const COMMANDS: { group: string; items: Command[] }[] = [
-  { group: 'Platform console', items: [
-    { label: 'Platform console: overview',              href: '/platform',           icon: Globe,     console: true },
-    { label: 'All companies (suspend, trial, plan)',    href: '/platform/companies', icon: Building2, console: true },
-    { label: 'All logins across companies',             href: '/platform/users',     icon: Users,     console: true },
-    { label: 'Plan payments of every company',          href: '/platform/payments',  icon: Receipt,   console: true },
-    { label: 'Website enquiries',                       href: '/platform/leads',     icon: FileText,  console: true },
-    { label: 'Console activity log',                    href: '/platform/activity',  icon: History,   console: true },
-    { label: 'Console administrators',                  href: '/platform/admins',    icon: UserCheck, console: true },
-    { label: 'Platform settings: contact details, email server (SMTP), payment gateway, sign-in', href: '/platform/settings', icon: Settings, console: true },
-  ]},
-  { group: 'Navigation', items: [
-    { label: 'Dashboard',           href: '/dashboard',              icon: BarChart3, perm: 'DASHBOARD_VIEW' },
-    { label: 'Analytics & Reports', href: '/reports',                icon: BarChart3, perm: 'REPORTS_VIEW' },
-    { label: 'Notifications',       href: '/notifications',          icon: FileText },
-  ]},
-  { group: 'HRMS', items: [
-    { label: 'Employees',           href: '/hrms/employees',         icon: Users,     perm: 'EMPLOYEE_VIEW' },
-    { label: 'Attendance',          href: '/hrms/attendance',        icon: Clock,     perm: 'ATTENDANCE_VIEW' },
-    { label: 'Leave',               href: '/hrms/leave',             icon: FileText,  perm: 'LEAVE_VIEW' },
-    { label: 'Payroll',             href: '/hrms/payroll',           icon: Building2, perm: ['PAYROLL_PROCESS', 'PAYROLL_ADMIN', 'PAYROLL_REPORTS'] },
-    { label: 'Salary set-up',       href: '/hrms/payroll/setup',     icon: Building2, perm: ['PAYROLL_PROCESS', 'PAYROLL_ADMIN'] },
-    { label: 'My portal: payslips and leave', href: '/self-service', icon: Building2 },
-    { label: 'Recruitment',         href: '/recruitment',            icon: Users,     perm: 'EMPLOYEE_VIEW' },
-    { label: 'Performance reviews', href: '/performance',            icon: TrendingUp, perm: ['EMPLOYEE_VIEW', 'LEAVE_APPLY'] },
-    { label: 'Expense claims',      href: '/expense-claims',         icon: FileText,  perm: 'EXPENSE_VIEW' },
-  ]},
-  { group: 'Finance', items: [
-    { label: 'Invoices',            href: '/invoicing',              icon: FileText,  perm: 'INVOICE_VIEW' },
-    { label: 'Schedule H1 register', href: '/invoicing/h1-register', icon: FileText,  perm: 'INVOICE_VIEW', when: 'drugRegister' },
-    { label: 'Quotations',          href: '/quotations',             icon: FileText,  perm: 'INVOICE_VIEW' },
-    { label: 'Chart of accounts',   href: '/finance/accounts',       icon: Building2, perm: 'FINANCE_VIEW' },
-    { label: 'Journal entries',     href: '/finance/vouchers',       icon: FileText,  perm: ['FINANCE_VIEW', 'FINANCE_REPORTS'] },
-    { label: 'Account ledger (bank, cash, debtors…)', href: '/finance/ledger', icon: FileText, perm: ['FINANCE_VIEW', 'FINANCE_REPORTS'] },
-    { label: 'Financial reports',   href: '/finance/reports',        icon: BarChart3, perm: 'FINANCE_REPORTS' },
-    { label: 'Fixed assets',        href: '/assets',                 icon: Boxes,     perm: 'FINANCE_VIEW' },
-    { label: 'GST returns (GSTR-1, GSTR-3B)', href: '/gst-export',   icon: FileText,  perm: 'GST_RECON_VIEW' },
-    { label: 'GST credit check (GSTR-2B)', href: '/gst-reconciler',  icon: FileText,  perm: 'GST_RECON_VIEW' },
-    { label: 'Match bank payments', href: '/bank-reconciliation',    icon: Building2, perm: 'BANK_RECON_RUN' },
-    { label: 'TDS register',        href: '/tds',                    icon: FileText,  perm: 'TDS_VIEW' },
-    { label: 'CA workspace',        href: '/ca-workspace',           icon: Building2, perm: 'CA_WORKSPACE_VIEW' },
-  ]},
-  { group: 'Purchases & inventory', items: [
-    { label: 'Bills and payables',  href: '/purchases',              icon: Receipt,   perm: ['PROCUREMENT_VIEW', 'FINANCE_VIEW'] },
-    { label: 'Suppliers',           href: '/procurement/vendors',    icon: Truck,     perm: 'PROCUREMENT_VIEW' },
-    { label: 'Purchase orders',     href: '/procurement/orders',     icon: ShoppingCart, perm: 'PROCUREMENT_VIEW' },
-    { label: 'Inventory items',     href: '/inventory/items',        icon: Boxes,     perm: 'INVENTORY_VIEW' },
-    { label: 'Stock ledger',        href: '/inventory/stock',        icon: Boxes,     perm: 'INVENTORY_VIEW' },
-    { label: 'Stock scanner',       href: '/inventory/scanner',      icon: Package,   perm: ['INVENTORY_ADJUST', 'INVENTORY_ADMIN'] },
-  ]},
-  { group: 'Sales', items: [
-    { label: 'Leads pipeline',      href: '/crm/leads',              icon: TrendingUp, perm: 'CRM_VIEW' },
-    { label: 'Customers',           href: '/crm/customers',          icon: Users,     perm: 'CRM_VIEW' },
-    { label: 'WhatsApp',            href: '/whatsapp',               icon: FileText,  perm: 'WHATSAPP_VIEW' },
-  ]},
-  { group: 'Operations', items: [
-    { label: 'Projects',            href: '/projects',               icon: BarChart3, perm: 'PROJECT_VIEW' },
-    { label: 'Timesheets',          href: '/timesheet',              icon: Clock,     perm: 'ATTENDANCE_VIEW' },
-    { label: 'Tenders',             href: '/tenders',                icon: FileText,  perm: 'TENDER_VIEW' },
-    { label: 'Contracts',           href: '/contracts',              icon: FileText,  perm: ['SETTINGS_COMPANY', 'FINANCE_VIEW', 'PROCUREMENT_VIEW'] },
-    { label: 'Import from Excel',   href: '/import',                 icon: Boxes,     perm: ['CRM_CREATE', 'PROCUREMENT_CREATE', 'INVENTORY_CREATE', 'FINANCE_CREATE', 'EMPLOYEE_CREATE'] },
-    { label: 'Opening balances',    href: '/import?kind=opening-balances', icon: Building2, perm: 'FINANCE_CREATE' },
-    { label: 'Marketplace & API',   href: '/marketplace',            icon: Settings,  perm: 'SETTINGS_VIEW' },
-  ]},
-  { group: 'Settings', items: [
-    { label: 'Settings',            href: '/settings',               icon: Settings,  perm: 'SETTINGS_VIEW' },
-    { label: 'Company settings',    href: '/settings/company',       icon: Building2, perm: 'SETTINGS_VIEW' },
-    { label: 'Industry: sector templates, menus and extra fields', href: '/settings/industry', icon: Building2, perm: 'SETTINGS_VIEW' },
-    { label: 'Users',               href: '/settings/users',         icon: Users,     perm: 'SETTINGS_USERS' },
-    { label: 'Roles and permissions', href: '/settings/roles',       icon: Settings,  perm: 'SETTINGS_ROLES' },
-    { label: 'Document templates',  href: '/settings/templates',     icon: Settings,  perm: 'SETTINGS_VIEW' },
-    { label: 'Email alerts',        href: '/settings/email',         icon: Settings,  perm: 'SETTINGS_COMPANY' },
-    { label: 'Audit log',           href: '/settings/audit-log',     icon: FileText,  perm: 'AUDIT_LOG_VIEW' },
-    { label: 'Sign-in & security: password, Google sign-in, two-step sign-in, devices', href: '/settings/security', icon: Settings },
-    { label: 'Webhooks',            href: '/webhooks',               icon: Settings,  perm: 'SETTINGS_VIEW' },
-    { label: 'Recurring billing',   href: '/subscriptions',          icon: Building2, perm: 'SUBSCRIPTIONS_VIEW' },
-  ]},
+/**
+ * Pages, from the app's navigation (lib/navigation.ts): each under its section, called as in the menu, found also by
+ * its title, its section and its extra words ("GSTR-1" finds GST returns). The platform console's pages come first
+ * for its administrators.
+ */
+type Command = NavItem & { group: string; words: string }
+const ALL: Command[] = [
+  ...NAV_SECTIONS.flatMap(s => s.items.filter(i => i.platform !== 'hint')
+    .map(i => ({ ...i, group: s.id === 'platform' ? 'Platform console' : s.label, words: [i.title, s.label, i.keywords].filter(Boolean).join(' ') }))),
+  ...MORE_PAGES.map(i => ({ ...i, group: sectionOf(i.section)?.label ?? 'Pages', words: [i.title, sectionOf(i.section)?.label, i.keywords].filter(Boolean).join(' ') })),
 ]
-
-const ALL = COMMANDS.flatMap(g => g.items.map(i => ({ ...i, group: g.group })))
 
 const KIND_ICON: Record<string, LucideIcon> = {
   invoice: FileText, customer: Users, bill: Receipt, supplier: Truck, purchase_order: ShoppingCart, item: Boxes, employee: UserCheck,
@@ -140,10 +71,11 @@ export function CommandPalette({ open, onClose }: Props) {
   const router = useRouter()
   const ref = useRef<HTMLInputElement>(null)
   const list = useRef<HTMLDivElement>(null)
-  const { can, isSuperAdmin, isPlatformAdmin } = usePermissions()
+  const { can, isSuperAdmin, isPlatformAdmin, consoleHint } = usePermissions()
   const createAllowed = useCreateAllowed()
   const createLabel = useCreateLabel()
   const industry = useIndustry()
+  const { data: assistant } = useAssistantStatus()
 
   useEffect(() => { if (open) { setTimeout(() => ref.current?.focus(), 40); setQ(''); setSel(0); setHits(null) } }, [open])
   // read while rendering the open palette, so recent records are there on the very first frame
@@ -166,11 +98,10 @@ export function CommandPalette({ open, onClose }: Props) {
 
   const entries: Entry[] = useMemo(() => {
     // pages the company's industry has switched off aren't offered; the rest are called by its words ("Patients")
-    const allowed = ALL.filter(c => (!c.console || isPlatformAdmin) && shown(c.href) && industry.visible(c.href.split('?')[0]) && (!c.when || !!industry.current?.[c.when])
-        && (!c.perm || isSuperAdmin || (Array.isArray(c.perm) ? c.perm.some(p => can(p)) : can(c.perm))))
-      .map(c => ({ ...c, label: industry.name(c.href, c.label) }))
+    const access = { can, isPlatformAdmin, consoleHint, shown, visible: industry.visible, has: (w: 'drugRegister') => !!industry.current?.[w] }
+    const mine = ALL.filter(c => allowed(c, access)).map(c => ({ ...c, label: industry.name(c.href, c.label) }))
     const lower = term.toLowerCase()
-    const pages = (lower ? allowed.filter(c => c.label.toLowerCase().includes(lower) || c.group.toLowerCase().includes(lower)) : allowed)
+    const pages = (lower ? mine.filter(c => c.label.toLowerCase().includes(lower) || c.words.toLowerCase().includes(lower)) : mine)
       .map(c => ({ key: 'p:' + c.href, section: lower ? 'Pages' : c.group, label: c.label, href: c.href, icon: c.icon }))
     const creates = CREATE_ACTIONS.filter(createAllowed)
       .filter(a => !lower || `new ${createLabel(a)}`.toLowerCase().includes(lower) || (lower.length >= 3 && 'create'.startsWith(lower)))
@@ -179,13 +110,18 @@ export function CommandPalette({ open, onClose }: Props) {
       key: 'h:' + h.kind + h.id, section: g.label, label: h.title, sub: h.subtitle, badge: h.badge, href: h.link, icon: KIND_ICON[h.kind] ?? FileText,
     })))
     if (!lower) return [...recent, ...creates.slice(0, 4), ...pages]
-    return [...records, ...creates, ...pages]
+    // the assistant, for what reads like a question (first) or anything else three letters or more (last)
+    const asking = assistant?.available && term.length >= 3
+      ? [{ key: 'a:ask', section: 'Ask Finvosmart', label: `Ask the assistant: “${term}”`, href: '', icon: Sparkles }] : []
+    const question = /\?$/.test(term) || term.split(/\s+/).length >= 3
+    return question ? [...asking, ...records, ...creates, ...pages] : [...records, ...creates, ...pages, ...asking]
   // eslint-disable-next-line react-hooks/exhaustive-deps -- industry.current is what its functions read
-  }, [term, hits, recent, can, isSuperAdmin, isPlatformAdmin, createAllowed, industry.current])
+  }, [term, hits, recent, can, isSuperAdmin, isPlatformAdmin, consoleHint, createAllowed, industry.current, assistant?.available])
 
   useEffect(() => { setSel(s => Math.min(s, Math.max(0, entries.length - 1))) }, [entries.length])
 
   const go = (e: Entry) => {
+    if (e.key === 'a:ask') { onClose(); askAssistant(term); return }
     if (e.key.startsWith('h:')) {
       const hit = hits?.groups.flatMap(g => g.hits).find(h => 'h:' + h.kind + h.id === e.key)
       if (hit) remember(hit)

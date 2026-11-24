@@ -17,8 +17,7 @@ import {
   LayoutDashboard, DollarSign, FileText, ShoppingCart, Boxes,
   TrendingUp, FolderOpen, BarChart3, Brain, MessageCircle,
   Camera, Heart, RefreshCw, Mic, Building2, CreditCard,
-  Globe, Package2, PenLine, Activity, Shield
-} from 'lucide-react'
+  Globe, Package2, PenLine, Activity, Shield, Store } from 'lucide-react'
 import { STATIC_MODULES, CATEGORY_LABELS } from '@/lib/api/planModules'
 import { SoonBadge } from '@/components/marketing/SoonBadge'
 
@@ -27,7 +26,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   TrendingUp, FolderOpen, BarChart3, Brain, MessageCircle,
   Camera, Heart, RefreshCw, Mic, Building2, CreditCard,
   Globe, Package2, PenLine, Activity, Shield, Zap,
-  Users,
+  Users, Store,
 }
 
 function formatINR(n: number) {
@@ -40,10 +39,13 @@ const POPULAR_BUNDLES = [
   { name: 'HRMS + Payroll',       desc: 'HR team managing 20–200 employees', icon: '👥', modules: ['HRMS'] },
   { name: 'Sales & Commerce',     desc: 'Sales team + customer management',  icon: '🎯', modules: ['CRM','INVOICING','WHATSAPP'] },
   { name: 'Operations Pack',      desc: 'Manufacturing / trading company',   icon: '🏭', modules: ['PROCUREMENT','INVENTORY','FINANCE'] },
+  { name: 'Retail Shop',          desc: 'Shop counter, online orders, stock', icon: '🛒', modules: ['INVOICING','INVENTORY','STORE','FINANCE'] },
   { name: 'GST Compliance',       desc: 'GST returns, GSTR-2B check and TDS', icon: '🧾', modules: ['INVOICING','FINANCE','GST_RECON','TDS'] },
   { name: 'Get Paid Faster',      desc: 'Pay links, reminders, bank matching', icon: '⚡', modules: ['INVOICING','WHATSAPP','BANK_RECON'] },
 ]
 const AVAILABLE = new Set(STATIC_MODULES.filter(m => !m.coming_soon).map(m => m.module_key))
+/** The most users the builder prices (the slider and the + button agree). */
+const MAX_USERS = 500
 
 export default function CustomPlanPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set(['FINANCE','INVOICING','HRMS']))
@@ -135,14 +137,14 @@ export default function CustomPlanPage() {
             {/* Tab switcher */}
             <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '4px' }}>
               {(['ERP','AI','SMART'] as const).map(cat => (
-                <button key={cat} onClick={() => setActiveTab(cat)} style={{
+                <button key={cat} type="button" onClick={() => setActiveTab(cat)} aria-pressed={activeTab === cat} style={{
                   flex: 1, padding: '8px 0', borderRadius: '7px', border: 'none', cursor: 'pointer',
                   fontSize: '13px', fontWeight: 500, transition: 'all 0.2s', fontFamily: 'inherit',
                   background: activeTab === cat ? 'var(--btn-primary-bg)' : 'transparent',
                   color: activeTab === cat ? 'var(--text-on-gold)' : 'var(--text-secondary)',
                 }}>
                   {CATEGORY_LABELS[cat]}
-                  <span style={{ marginLeft: '6px', fontSize: '10.5px', opacity: 0.75 }}>
+                  <span style={{ marginLeft: '6px', fontSize: '11px' }}>
                     ({byCategory(cat).filter(m => selected.has(m.module_key)).length}/{byCategory(cat).filter(m => !m.coming_soon).length})
                   </span>
                 </button>
@@ -157,7 +159,12 @@ export default function CustomPlanPage() {
                 const isOn = !soon && selected.has(m.module_key)
                 const lineTotal = m.base_price_month + m.price_per_user * users
                 return (
-                  <div key={m.module_key} onClick={() => toggle(m.module_key)} aria-disabled={soon || undefined} style={{
+                  // a checkbox for the keyboard and screen readers too: Tab to it, Space or Enter to choose it
+                  <div key={m.module_key} onClick={() => toggle(m.module_key)} role="checkbox" aria-checked={isOn}
+                    aria-disabled={soon || undefined} tabIndex={soon ? -1 : 0} aria-labelledby={`cp-name-${m.module_key}`}
+                    aria-describedby={`cp-desc-${m.module_key}`} data-testid="cp-module"
+                    onKeyDown={e => { if (!soon && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); toggle(m.module_key) } }}
+                    className="cp-module" style={{
                     background: isOn ? `${m.accent_color}10` : 'var(--bg-card)',
                     border: `1px solid ${isOn ? m.accent_color : 'var(--border)'}`,
                     borderRadius: '14px', padding: '16px', cursor: soon ? 'default' : 'pointer',
@@ -186,21 +193,21 @@ export default function CustomPlanPage() {
                         <Icon size={18} />
                       </div>
                       <div style={{ flex: 1, paddingRight: soon ? '96px' : '28px' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '3px' }}>{m.display_name}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{m.description}</div>
+                        <div id={`cp-name-${m.module_key}`} style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '3px' }}>{m.display_name}</div>
+                        <div id={`cp-desc-${m.module_key}`} style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{m.description}</div>
                         <div style={{ marginTop: '10px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                          <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: '18px', color: isOn ? m.accent_color : 'var(--text-primary)' }}>
+                          <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: '18px', color: 'var(--text-primary)' }}>
                             {formatINR(m.base_price_month)}
                           </span>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/mo base</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>/mo base</span>
                           {m.price_per_user > 0 && (
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                               + {formatINR(m.price_per_user)}/user
                             </span>
                           )}
                         </div>
                         {isOn && lineTotal !== m.base_price_month && (
-                          <div style={{ marginTop: '4px', fontSize: '12px', color: m.accent_color, fontWeight: 500 }}>
+                          <div style={{ marginTop: '4px', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
                             Your price: {formatINR(lineTotal)}/mo ({users} users)
                           </div>
                         )}
@@ -249,20 +256,20 @@ export default function CustomPlanPage() {
                 {/* Users slider */}
                 <div style={{ marginBottom: '18px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Users size={14} /> Users
+                    <label htmlFor="cp-users" style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Users size={14} aria-hidden /> Users
                     </label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button onClick={() => setUsers(u => Math.max(1, u - 5))} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid var(--border-strong)', background: 'var(--bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}><Minus size={13} /></button>
-                      <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: '20px', color: 'var(--gold)', minWidth: '36px', textAlign: 'center' }}>{users}</span>
-                      <button onClick={() => setUsers(u => Math.min(500, u + 5))} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid var(--border-strong)', background: 'var(--bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}><Plus size={13} /></button>
+                      <button type="button" aria-label="5 fewer users" onClick={() => setUsers(u => Math.max(1, u - 5))} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid var(--border-strong)', background: 'var(--bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}><Minus size={13} /></button>
+                      <span aria-live="polite" style={{ fontFamily: "'Instrument Serif', serif", fontSize: '20px', color: 'var(--gold)', minWidth: '36px', textAlign: 'center' }}>{users}</span>
+                      <button type="button" aria-label="5 more users" onClick={() => setUsers(u => Math.min(MAX_USERS, u + 5))} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid var(--border-strong)', background: 'var(--bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}><Plus size={13} /></button>
                     </div>
                   </div>
-                  <input type="range" min="1" max="200" step="1" value={users}
+                  <input id="cp-users" type="range" min="1" max={MAX_USERS} step="1" value={users} aria-valuetext={`${users} users`}
                     onChange={e => setUsers(parseInt(e.target.value))}
                     style={{ width: '100%', accentColor: 'var(--gold)', height: '4px', borderRadius: '2px' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                    <span>1</span><span>50</span><span>100</span><span>200</span>
+                  <div aria-hidden style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                    <span>1</span><span>125</span><span>250</span><span>375</span><span>{MAX_USERS}</span>
                   </div>
                 </div>
 
@@ -272,9 +279,10 @@ export default function CustomPlanPage() {
                     <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Annual billing</div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Save 20% vs monthly</div>
                   </div>
-                  <div onClick={() => setAnnual(v => !v)} style={{ width: '44px', height: '24px', borderRadius: '12px', background: annual ? 'var(--gold)' : 'var(--bg-card)', border: '1px solid var(--border-strong)', cursor: 'pointer', position: 'relative', transition: 'background 0.3s' }}>
-                    <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: annual ? '23px' : '3px', transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-                  </div>
+                  <button type="button" role="switch" aria-checked={annual} aria-label="Annual billing" data-testid="cp-annual" onClick={() => setAnnual(v => !v)}
+                    style={{ width: '44px', height: '24px', padding: 0, borderRadius: '12px', background: annual ? 'var(--gold)' : 'var(--bg-card)', border: '1px solid var(--border-strong)', cursor: 'pointer', position: 'relative', transition: 'background 0.3s', flexShrink: 0 }}>
+                    <span aria-hidden style={{ display: 'block', width: '18px', height: '18px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: annual ? '23px' : '3px', transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                  </button>
                 </div>
 
                 {/* Module breakdown */}
@@ -293,7 +301,7 @@ export default function CustomPlanPage() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ fontSize: '12.5px', color: 'var(--text-primary)', fontWeight: 500 }}>{formatINR(m.lineTotal)}</span>
-                          <button onClick={(e) => { e.stopPropagation(); toggle(m.module_key) }} style={{ width: '18px', height: '18px', borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                          <button type="button" aria-label={`Remove ${m.display_name}`} onClick={(e) => { e.stopPropagation(); toggle(m.module_key) }} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--bg-surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                             <X size={10} />
                           </button>
                         </div>

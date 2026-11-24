@@ -108,7 +108,8 @@ export default function PurchasesPage() {
         ? <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>
         : <span className="font-mono text-sm font-semibold" style={{ color: Number(b.outstanding) > 0 ? 'var(--text-primary)' : '#16a34a' }}>{b.billType === 'CREDIT_NOTE' && Number(b.outstanding) > 0 ? '−' : ''}{inr(b.outstanding)}</span>,
     },
-    { header: 'Status', render: (b: Bill) => <StatusBadge status={billBadge(b)} label={billStatusLabel(b)} /> },
+    { header: 'Status', render: (b: Bill) => <span className="inline-flex flex-wrap items-center gap-1"><StatusBadge status={billBadge(b)} label={billStatusLabel(b)} />
+      {b.paymentHold && b.status !== 'CANCELLED' && <span className="badge" style={{ color: '#b91c1c', background: 'rgba(220,38,38,0.10)' }} title={b.holdReason ?? undefined} data-testid="bill-held-badge">On hold</span>}</span> },
     {
       header: 'GST credit',
       render: (b: Bill) => {

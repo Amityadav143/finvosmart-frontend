@@ -21,9 +21,9 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-8" style={{ background:'var(--bg-base)' }}>
+    <main className="min-h-screen flex items-center justify-center p-8" style={{ background:'var(--bg-base)' }}>
       <div className="text-center max-w-md">
-        <p className="font-serif" style={{ fontSize:'120px', lineHeight:1, color:'var(--border-strong)', fontWeight:400 }}>
+        <p className="font-serif" aria-hidden="true" style={{ fontSize:'120px', lineHeight:1, color:'var(--gold)', fontWeight:400 }}>
           404
         </p>
         <h1 className="font-serif text-2xl mb-3" style={{ color:'var(--text-primary)', marginTop:'-20px' }}>
@@ -32,15 +32,24 @@ export default function NotFound() {
         <p className="text-sm mb-8" style={{ color:'var(--text-muted)', lineHeight:1.7 }}>
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <div className="flex gap-3 justify-center">
-          <Link href="/dashboard" className="btn-primary h-10 px-6 text-sm" style={{ textDecoration:'none' }}>
-            <Home size={15} />Dashboard
-          </Link>
-          <Link href="/" className="btn-secondary h-10 px-6 text-sm" style={{ textDecoration:'none' }}>
+        <div className="flex gap-3 justify-center flex-wrap">
+          <Link href="/" className="btn-primary h-10 px-6 text-sm" style={{ textDecoration:'none' }}>
             <ArrowLeft size={15} />Home
           </Link>
+          <Link href="/dashboard" className="btn-secondary h-10 px-6 text-sm" style={{ textDecoration:'none' }}>
+            <Home size={15} />Your dashboard
+          </Link>
         </div>
+        {/* for a visitor who followed an old link: where people usually go */}
+        <nav aria-label="Popular pages" className="mt-8" data-testid="not-found-links">
+          <p className="text-xs mb-2" style={{ color:'var(--text-muted)' }}>Or try</p>
+          <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
+            {[['/features', 'Features'], ['/pricing', 'Pricing'], ['/free-gst-tools', 'Free GST tools'], ['/contact', 'Contact us']].map(([href, label]) => (
+              <li key={href}><Link href={href} className="font-medium" style={{ color:'var(--gold)' }}>{label}</Link></li>
+            ))}
+          </ul>
+        </nav>
       </div>
-    </div>
+    </main>
   )
 }

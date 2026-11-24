@@ -37,7 +37,7 @@ export function GstinChecker() {
                           color: 'var(--text-primary)', padding: '0 14px', fontSize: '19px', letterSpacing: '0.08em', textTransform: 'uppercase',
                           fontFamily: 'var(--font-geist-mono), ui-monospace, monospace' }} />
           <div role="status" aria-live="polite" style={{ marginTop: '16px', padding: '12px 14px', borderRadius: '12px',
-               background: r.valid ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.08)', color: r.valid ? '#16a34a' : '#dc2626', fontSize: '14.5px', fontWeight: 600 }}>
+               background: r.valid ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.08)', color: r.valid ? 'var(--ok-text)' : 'var(--danger-text)', fontSize: '14.5px', fontWeight: 600 }}>
             {r.valid ? '✓ Correctly formed GSTIN — the check digit matches' : r.problems.map(p => <div key={p}>✗ {p}</div>)}
           </div>
           {rows.length > 0 && (

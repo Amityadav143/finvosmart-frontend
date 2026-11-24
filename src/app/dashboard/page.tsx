@@ -138,7 +138,7 @@ function Actions({ actions }: { actions: DashAction[] }) {
 // ── headline figures ────────────────────────────────────────────────────
 
 function Tiles({ d }: { d: DashboardSummary }) {
-  const tiles: JSX.Element[] = []
+  const tiles: React.JSX.Element[] = []
   const s = d.sales, p = d.payables, c = d.cash, pr = d.profit, g = d.gst
   if (s) {
     tiles.push(<Tile key="rec" icon={Receipt} label="Customers owe you" value={rupees(s.receivable)} href="/invoicing"
@@ -328,6 +328,9 @@ function CashCard({ d }: { d: DashboardSummary }) {
         <Row k="Total" v={inr(c.total)} strong />
       </dl>
       <p className="text-[11px] mt-3" style={{ color: 'var(--text-muted)' }}>Per your books. Import a bank statement to match it with the bank.</p>
+      <Link href="/cash-flow" className="text-xs font-semibold inline-flex items-center gap-1 mt-2" style={{ color: 'var(--gold)' }} data-testid="open-forecast">
+        Cash for the next 13 weeks <ChevronRight size={12} />
+      </Link>
     </section>
   )
 }

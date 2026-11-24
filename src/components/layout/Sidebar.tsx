@@ -12,344 +12,256 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, Keyboard, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Star, X, Zap } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { usePermissions } from '@/lib/hooks/usePermissions'
-import { cn } from '@/lib/utils'
-import { shown } from '@/lib/previews'
 import { useIndustry } from '@/lib/hooks/useIndustry'
-import {
-  LayoutDashboard, Users, Clock, Calendar, DollarSign, FileText,
-  ShoppingCart, Boxes, FolderOpen, UserCheck, BarChart3, Settings,
-  LogOut, Building2, TrendingUp, Zap, X, MessageCircle, Camera,
-  Heart, RefreshCw, CreditCard, Globe, PenLine, Activity, Package2,
-  Bell, ClipboardList, ChevronDown, Timer, FileDown, Layers, ShieldCheck
-, Plug , Palette, Mail, Brain, ShieldAlert, Landmark, Receipt, Truck, FileCheck2, Percent, FileUp, Webhook, BookOpen, Factory } from 'lucide-react'
-import { useState } from 'react'
+import { shown } from '@/lib/previews'
+import { allowed, MENU, NAV_SECTIONS, type NavAccess, type NavItem, type NavSection } from '@/lib/navigation'
 import { PLATFORM_COLOR } from '@/components/platform/theme'
 
-/* ── Navigation structure ─────────────────────────────────────────────── */
-/** perm: one permission, or a list where any one is enough. */
-/** when: shown only to a company whose industry needs it (drugRegister: medicines with a schedule — a pharmacy) */
-/**
- * platform: 'console' — the platform console, for Finvosmart's own administrators only (the server checks every call
- * too); 'hint' — instead of it, for a login that might expect it (a Super Admin of another company, an administrator
- * of the platform company): the page then says how the console opens.
+/*
+ * The menu (lib/navigation.ts is what it lists). Sections in the order of the day's work, each opening to its pages;
+ * the section of the page you are on opens by itself, the others stay as you left them. Pages you use most can be
+ * pinned to the top. On a wide screen the menu folds to a rail of section icons, each opening its pages beside it.
+ * What is open, what is pinned and whether the menu is folded are kept in this browser (a convenience: without
+ * storage the menu works the same, it just doesn't remember).
  */
-type NavItem = { href: string; label: string; icon: any; perm: string | string[]; dot?: string; when?: 'drugRegister'; platform?: 'console' | 'hint' }
-/** accent and chip: the section's colour and the small label beside its name ("AI") */
-type NavSection = { id: string; label: string | null; items: NavItem[]; accent?: string; chip?: string }
-const NAV_SECTIONS: NavSection[] = [
-  {
-    id: 'platform',
-    label: 'Finvosmart admin',
-    accent: PLATFORM_COLOR,
-    chip: 'CONSOLE',
-    items: [
-      { href: '/platform',           label: 'Console overview', icon: Globe,         perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
-      { href: '/platform/companies', label: 'All companies',    icon: Building2,     perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
-      { href: '/platform/users',     label: 'All logins',       icon: Users,         perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
-      { href: '/platform/payments',  label: 'Plan payments',    icon: CreditCard,    perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
-      { href: '/platform/leads',     label: 'Website enquiries', icon: Mail,         perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
-      { href: '/platform/activity',  label: 'Console activity', icon: ClipboardList, perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
-      { href: '/platform/admins',    label: 'Administrators',   icon: ShieldCheck,   perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
-      { href: '/platform/settings',  label: 'Platform settings', icon: Settings,     perm: 'SETTINGS_VIEW', platform: 'console', dot: PLATFORM_COLOR },
-      { href: '/platform',           label: 'Platform console', icon: ShieldAlert,   perm: 'SETTINGS_VIEW', platform: 'hint' },
-    ],
-  },
-  {
-    id: 'main',
-    label: null,
-    items: [
-      { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard, perm: 'DASHBOARD_VIEW' },
-      { href: '/notifications', label: 'Notifications', icon: Bell, perm: 'DASHBOARD_VIEW' },
-    ],
-  },
-  {
-    id: 'ai',
-    label: 'AI Features',
-    accent: '#8b5cf6',
-    chip: 'AI',
-    items: [
-      { href: '/ai/cfo',         label: 'AI CFO',            icon: Brain,         dot: '#8b5cf6', perm: 'AI_CFO_VIEW' },
-      { href: '/ai/health-score', label: 'Health Score',     icon: Activity,      dot: '#0d9488', perm: 'AI_HEALTH_VIEW' },
-      { href: '/ai/fraud',       label: 'Fraud Detection',   icon: ShieldAlert,   dot: '#dc2626', perm: 'AI_FRAUD_VIEW' },
-      { href: '/ai/cashflow',    label: 'Cash Flow Oracle', icon: Zap,           dot: '#8b5cf6', perm: 'AI_CASHFLOW_VIEW' },
-      { href: '/ai/wellness',    label: 'Wellness AI',       icon: Heart,         dot: '#ec4899', perm: 'WELLNESS_VIEW' },
-      { href: '/ai/scanner',     label: 'Bill Scanner',      icon: Camera,        dot: '#8b5cf6', perm: 'AI_SCANNER_USE' },
-    ],
-  },
-  {
-    id: 'smart',
-    label: 'Smart Tools',
-    accent: '#f59e0b',
-    items: [
-      { href: '/bank-reconciliation', label: 'Bank Reconciliation', icon: Building2,  dot: '#2563eb', perm: 'BANK_RECON_RUN' },
-      { href: '/tenders',             label: 'Tender Management',   icon: Landmark,   dot: '#2563eb', perm: 'TENDER_VIEW' },
-      { href: '/expense-claims',      label: 'Expense Claims',      icon: CreditCard, dot: '#16a34a', perm: 'EXPENSE_VIEW' },
-      { href: '/client-portal',       label: 'Client Portal',       icon: Globe,      dot: '#7c3aed', perm: 'PORTAL_VIEW' },
-      { href: '/subscriptions',       label: 'Recurring Billing',   icon: RefreshCw,  dot: '#0d9488', perm: 'SUBSCRIPTIONS_VIEW' },
-      { href: '/demand-forecast',     label: 'Demand Forecast',     icon: Package2,   dot: '#db2777', perm: 'FORECAST_VIEW' },
-      { href: '/esign',               label: 'Digital Signing',     icon: PenLine,    dot: '#c2410c', perm: 'ESIGN_USE' },
-      { href: '/automations',         label: 'Automations',         icon: Activity,   dot: '#57534e', perm: 'AUTOMATIONS_VIEW' },
-    ],
-  },
-  {
-    id: 'people',
-    label: 'People',
-    items: [
-      { href: '/hrms/employees',  label: 'Employees',   icon: Users,      perm: 'EMPLOYEE_VIEW' },
-      { href: '/hrms/attendance', label: 'Attendance',  icon: Clock,      perm: 'ATTENDANCE_VIEW' },
-      { href: '/hrms/leave',      label: 'Leave',       icon: Calendar,   perm: 'LEAVE_VIEW' },
-      { href: '/hrms/payroll',    label: 'Payroll',     icon: DollarSign, perm: ['PAYROLL_PROCESS', 'PAYROLL_ADMIN', 'PAYROLL_REPORTS'] },
-      { href: '/timesheet',      label: 'Timesheets',  icon: Timer,      perm: 'ATTENDANCE_VIEW' },
-      { href: '/recruitment',    label: 'Recruitment', icon: Users,      perm: 'EMPLOYEE_VIEW' },
-      { href: '/performance',    label: 'Performance', icon: TrendingUp, perm: ['EMPLOYEE_VIEW', 'LEAVE_APPLY'] },
-      { href: '/self-service',    label: 'My Portal',   icon: UserCheck,  perm: 'ATTENDANCE_VIEW' },
-    ],
-  },
-  {
-    id: 'finance',
-    label: 'Finance',
-    items: [
-      { href: '/finance/accounts', label: 'Accounts', icon: Building2, perm: 'FINANCE_VIEW' },
-      { href: '/finance/ledger',   label: 'Ledgers',  icon: BookOpen,  perm: ['FINANCE_VIEW', 'FINANCE_REPORTS'] },
-      { href: '/finance/vouchers', label: 'Journal entries', icon: FileText,  perm: ['FINANCE_VIEW', 'FINANCE_REPORTS'] },
-      { href: '/finance/reports',  label: 'Reports',  icon: BarChart3, perm: 'FINANCE_REPORTS' },
-      { href: '/ca-workspace',     label: 'CA Workspace', icon: ShieldCheck, dot: '#d97706', perm: ['CA_WORKSPACE_VIEW', 'FINANCE_APPROVE'] },
-    ],
-  },
-  {
-    id: 'commerce',
-    label: 'Commerce',
-    items: [
-      { href: '/invoicing',     label: 'Invoices',   icon: FileText,  perm: 'INVOICE_VIEW' },
-      { href: '/invoicing/h1-register', label: 'Schedule H1 register', icon: ClipboardList, perm: 'INVOICE_VIEW', when: 'drugRegister' },
-      { href: '/quotations',    label: 'Quotations', icon: ClipboardList, perm: 'INVOICE_VIEW' },
-      { href: '/crm/customers', label: 'Customers',  icon: UserCheck, perm: 'CRM_VIEW' },
-      { href: '/crm/leads',     label: 'Leads',      icon: TrendingUp,perm: 'CRM_VIEW' },
-      { href: '/whatsapp',      label: 'WhatsApp',   icon: MessageCircle, perm: 'WHATSAPP_VIEW' },
-      { href: '/purchases',     label: 'Bills & expenses', icon: Receipt, perm: 'PROCUREMENT_VIEW' },
-      { href: '/procurement/vendors', label: 'Suppliers', icon: Truck, perm: 'PROCUREMENT_VIEW' },
-      { href: '/gst-export',    label: 'GST returns', icon: Landmark, perm: 'GST_RECON_VIEW' },
-      { href: '/gst-reconciler', label: 'GST credit check', icon: FileCheck2, perm: 'GST_RECON_VIEW' },
-      { href: '/tds',           label: 'TDS register', icon: Percent, perm: 'TDS_VIEW' },
-    ],
-  },
-  {
-    id: 'ops',
-    label: 'Operations',
-    items: [
-      { href: '/procurement/orders', label: 'Purchase orders', icon: ShoppingCart, perm: 'PROCUREMENT_VIEW' },
-      { href: '/inventory/items',    label: 'Inventory',  icon: Boxes,        perm: 'INVENTORY_VIEW' },
-      { href: '/projects',           label: 'Projects',   icon: FolderOpen,   perm: 'PROJECT_VIEW' },
-      { href: '/contracts',          label: 'Contracts',  icon: FileCheck2,   perm: ['SETTINGS_COMPANY', 'FINANCE_VIEW', 'PROCUREMENT_VIEW'] },
-      { href: '/reports',            label: 'Analytics',  icon: BarChart3,    perm: 'REPORTS_VIEW' },
-      { href: '/marketplace',        label: 'Marketplace & API', icon: Plug,  dot: '#7c3aed', perm: 'SETTINGS_VIEW' },
-    ],
-  },
-  {
-    id: 'admin',
-    label: 'Administration',
-    items: [
-      { href: '/settings/company',   label: 'Company',      icon: Settings,      perm: 'SETTINGS_VIEW' },
-      { href: '/settings/industry',  label: 'Industry',     icon: Factory,       perm: 'SETTINGS_VIEW' },
-      { href: '/settings/users',     label: 'Users',        icon: Users,         perm: 'SETTINGS_USERS' },
-      { href: '/settings/templates', label: 'Templates', icon: Palette, perm: 'SETTINGS_VIEW' },
-      { href: '/settings/email',     label: 'Email Alerts', icon: Mail, perm: 'SETTINGS_COMPANY' },
-      { href: '/settings/roles',     label: 'Roles',        icon: ClipboardList, perm: 'SETTINGS_ROLES' },
-      { href: '/settings/audit-log', label: 'Audit Log',    icon: ClipboardList, perm: 'AUDIT_LOG_VIEW' },
-      { href: '/webhooks',           label: 'Webhooks',     icon: Webhook,       perm: 'SETTINGS_COMPANY' },
-      { href: '/import',             label: 'Import from Excel', icon: FileUp, perm: ['CRM_CREATE', 'PROCUREMENT_CREATE', 'INVENTORY_CREATE', 'FINANCE_CREATE', 'EMPLOYEE_CREATE'] },
-    ],
-  },
-]
 
-interface SidebarProps { onClose?: () => void }
+const OPEN_KEY = 'finvo-menu-open'
+const PINS_KEY = 'finvo-menu-pins'
+const MAX_PINS = 8
 
-export function Sidebar({ onClose }: SidebarProps) {
-  const pathname              = usePathname()
-  const { user, logout }      = useAuthStore()
+function readJson<T>(key: string, fallback: T): T {
+  try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback } catch { return fallback }
+}
+function writeJson(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* storage unavailable: not remembered */ }
+}
+
+/** Who sees what: the same rules as search and the pages themselves. */
+export function useNavAccess(): NavAccess {
   const { can, isPlatformAdmin, consoleHint } = usePermissions()
-  const industry              = useIndustry()
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const industry = useIndustry()
+  return {
+    can, isPlatformAdmin, consoleHint, shown,
+    visible: industry.visible,
+    has: when => !!industry.current?.[when],
+  }
+}
+
+interface SidebarProps {
+  onClose?: () => void
+  /** folded to a rail of section icons (wide screens) */
+  rail?: boolean
+  onToggleRail?: () => void
+  onHelp?: () => void
+}
+
+export function Sidebar({ onClose, rail = false, onToggleRail, onHelp }: SidebarProps) {
+  const pathname = usePathname()
+  const { user } = useAuthStore()
+  const access = useNavAccess()
+  const industry = useIndustry()
+  const name = (i: NavItem) => industry.name(i.href, i.label)
+
+  // the entries this person sees, section by section
+  const sections = useMemo(
+    () => NAV_SECTIONS.map(s => ({ ...s, items: s.items.filter(i => allowed(i, access)) })).filter(s => s.items.length > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- access is rebuilt each render from what these read
+    [access.isPlatformAdmin, access.consoleHint, industry.current, user?.permissions, user?.roles],
+  )
 
   // the most specific entry for the page is the one lit ("Schedule H1 register", not "Invoices" too, on /invoicing/h1-register)
   const matches = (href: string) => pathname === href || pathname.startsWith(href + '/')
-  const current = NAV_SECTIONS.flatMap(s => s.items.map(i => i.href)).filter(matches).sort((a, b) => b.length - a.length)[0]
-  const isActive = (href: string) => href === current
+  const current = sections.flatMap(s => s.items.map(i => i.href)).filter(matches).sort((a, b) => b.length - a.length)[0]
+  const currentSection = sections.find(s => s.items.some(i => i.href === current))?.id
 
-  const initials = (user?.fullName ?? 'U')
-    .split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
+  // open sections: as left, else the console's and the current page's
+  const [opened, setOpened] = useState<Record<string, boolean>>({})
+  useEffect(() => { setOpened(readJson(OPEN_KEY, {})) }, [])
+  const isOpen = (id: string) => opened[id] ?? (id === 'platform' || id === currentSection)
+  const toggle = (id: string) => {
+    const next = { ...opened, [id]: !isOpen(id) }
+    setOpened(next); writeJson(OPEN_KEY, next)
+  }
 
-  const toggleSection = (id: string) =>
-    setCollapsed(prev => ({ ...prev, [id]: !prev[id] }))
+  // pinned pages, for this person
+  const pinsKey = `${PINS_KEY}:${user?.userId ?? user?.email ?? ''}`
+  const [pins, setPins] = useState<string[]>([])
+  useEffect(() => { setPins(readJson<string[]>(pinsKey, []).filter(h => typeof h === 'string')) }, [pinsKey])
+  const togglePin = (href: string) => {
+    const next = pins.includes(href) ? pins.filter(h => h !== href) : [...pins, href].slice(-MAX_PINS)
+    setPins(next); writeJson(pinsKey, next)
+  }
+  const visibleItems = sections.flatMap(s => s.items)
+  const pinned = pins.map(h => visibleItems.find(i => i.href === h && !i.platform)).filter(Boolean) as NavItem[]
 
-  return (
-    <aside
-      style={{ background: 'var(--bg-surface)', borderRight: '1px solid var(--border)', height: '100%' }}
-      className="flex flex-col w-full"
-    >
-      {/* ── Logo ──────────────────────────────────────────────────────── */}
-      <div
-        className="flex items-center justify-between px-4"
-        style={{ height: '60px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}
-      >
-        <Link href="/" className="flex items-center gap-2.5 no-underline">
-          <div
-            className="flex items-center justify-center rounded-xl flex-shrink-0"
-            style={{ width: '32px', height: '32px', background: 'var(--btn-primary-bg)' }}
-          >
-            <Zap size={15} style={{ color: 'var(--text-on-gold)' }} />
-          </div>
-          <div>
-            <p className="font-serif text-sm text-gold-grad leading-none tracking-tight">FINVOSMART</p>
-            <p style={{ fontSize: '9.5px', color: 'var(--text-muted)', marginTop: '2px' }}>by Navgrow · v1.1</p>
-          </div>
+  // the rail's flyout: the pages of one section, beside its icon
+  const [fly, setFly] = useState<{ id: string; top: number } | null>(null)
+  useEffect(() => { setFly(null) }, [pathname, rail])
+  useEffect(() => {
+    if (!fly) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFly(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fly])
+
+  const home = sections.find(s => s.id === 'home')
+  const rest = sections.filter(s => s.id !== 'home' && s.id !== 'platform')
+  const platform = sections.find(s => s.id === 'platform')
+
+  const row = (i: NavItem, opts: { pinnedRow?: boolean; top?: boolean } = {}) => {
+    const active = i.href === current
+    const isPinned = pins.includes(i.href)
+    const Icon = i.icon
+    return (
+      <div key={`${i.href}:${i.platform ?? ''}:${opts.pinnedRow ? 'pin' : ''}`} className="nav-row group relative">
+        <Link
+          href={i.href}
+          onClick={onClose}
+          {...(opts.pinnedRow ? { 'data-nav-pin': i.href } : { 'data-nav': i.href })}
+          aria-current={active ? 'page' : undefined}
+          className={`nav-link ${opts.top || opts.pinnedRow ? 'nav-link-top' : 'nav-link-sub'} ${active ? 'is-active' : ''}`}
+          style={i.platform === 'console' && active ? { color: PLATFORM_COLOR } : undefined}
+        >
+          {(opts.top || opts.pinnedRow || i.platform) && <Icon size={15} aria-hidden className="nav-icon" />}
+          <span className="truncate flex-1">{name(i)}</span>
         </Link>
-        {onClose && (
-          <button aria-label="Close" className="btn-icon w-7 h-7 border-0" style={{ background: 'transparent' }} onClick={onClose}><X size={16} />
+        {!i.platform && !opts.top && (
+          <button type="button" className="nav-pin" onClick={() => togglePin(i.href)} aria-pressed={isPinned}
+            aria-label={isPinned ? `Unpin ${name(i)}` : `Pin ${name(i)} to the top`} title={isPinned ? 'Unpin' : 'Pin to the top'}
+            data-pin={i.href}>
+            {isPinned ? <PinOff size={12} aria-hidden /> : <Pin size={12} aria-hidden />}
           </button>
         )}
       </div>
+    )
+  }
 
-      {/* ── Navigation ────────────────────────────────────────────────── */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
-        {NAV_SECTIONS.map(section => {
-          // Filter items user can access
-          // Items the user may open; features still on demo data only when previews are switched on
-          // …and only the menu entries the company's sector uses (Settings → Industry switches them on or off)
-          // …the console's entries only for its administrators, the hint about it only for those who might look for it
-          const visibleItems = section.items.filter(item => (!item.platform || (item.platform === 'console' ? isPlatformAdmin : consoleHint))
-            && shown(item.href) && industry.visible(item.href) && (!item.when || !!industry.current?.[item.when])
-            && (!item.perm || (Array.isArray(item.perm) ? item.perm.some(p => can(p)) : can(item.perm))))
-          if (!visibleItems.length) return null
+  const sectionBlock = (s: NavSection) => {
+    const open = isOpen(s.id)
+    const framed = s.id === 'platform'
+    const here = s.id === currentSection
+    const Icon = s.icon
+    return (
+      <div key={s.id} data-nav-section={s.id} className={framed ? 'nav-framed' : 'nav-section'}
+        style={framed ? { background: `${PLATFORM_COLOR}0d`, border: `1px solid ${PLATFORM_COLOR}33` } : undefined}>
+        <button type="button" onClick={() => toggle(s.id)} aria-expanded={open} aria-controls={`nav-${s.id}`}
+          className={`nav-head ${here ? 'is-here' : ''}`} style={framed ? { color: PLATFORM_COLOR } : undefined}>
+          <Icon size={16} aria-hidden className="nav-icon" />
+          <span className="flex-1 text-left truncate">{s.label}</span>
+          {framed && <span className="nav-chip" style={{ background: `${PLATFORM_COLOR}15`, color: PLATFORM_COLOR }}>CONSOLE</span>}
+          <ChevronDown size={14} aria-hidden className="nav-chevron" style={{ transform: open ? 'none' : 'rotate(-90deg)' }} />
+        </button>
+        {/* closed sections keep their links (hidden), so a page's place is always in the menu */}
+        <div id={`nav-${s.id}`} hidden={!open} className="nav-items">
+          {s.items.map(i => row(i))}
+        </div>
+      </div>
+    )
+  }
 
-          const isOpen = !collapsed[section.id]
-          // the console stands out from the company's own menu: framed in its colour, at the top
-          const framed = section.id === 'platform'
+  // ── folded: a rail of section icons ──────────────────────────────────────
+  if (rail) {
+    const flySection = fly ? sections.find(s => s.id === fly.id) : undefined
+    return (
+      <aside className="flex flex-col w-full h-full nav-shell" aria-label="Main menu">
+        <div className="flex items-center justify-center" style={{ height: '60px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <Link href="/dashboard" className="nav-logo" aria-label="FINVOSMART — dashboard"><Zap size={15} style={{ color: 'var(--text-on-gold)' }} /></Link>
+        </div>
+        <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col items-center gap-1" aria-label="Sections">
+          {home?.items.map(i => (
+            <Link key={i.href} href={i.href} data-nav={i.href} aria-label={name(i)} title={name(i)}
+              aria-current={i.href === current ? 'page' : undefined} className={`nav-rail ${i.href === current ? 'is-here' : ''}`}>
+              <i.icon size={18} aria-hidden />
+            </Link>
+          ))}
+          {pinned.length > 0 && <span className="nav-rail-rule" aria-hidden />}
+          {pinned.map(i => (
+            <Link key={'pin:' + i.href} href={i.href} data-nav-pin={i.href} aria-label={`${name(i)} (pinned)`} title={name(i)}
+              aria-current={i.href === current ? 'page' : undefined} className={`nav-rail ${i.href === current ? 'is-here' : ''}`}>
+              <i.icon size={17} aria-hidden />
+            </Link>
+          ))}
+          <span className="nav-rail-rule" aria-hidden />
+          {[...(platform ? [platform] : []), ...rest].map(s => (
+            <button key={s.id} type="button" aria-label={s.label} title={s.label} aria-expanded={fly?.id === s.id} aria-controls="nav-flyout"
+              data-nav-section={s.id} className={`nav-rail ${s.id === currentSection ? 'is-here' : ''}`}
+              style={s.id === 'platform' ? { color: PLATFORM_COLOR } : undefined}
+              onClick={e => {
+                const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                setFly(fly?.id === s.id ? null : { id: s.id, top: Math.min(r.top, window.innerHeight - 60 - s.items.length * 36) })
+              }}>
+              <s.icon size={18} aria-hidden />
+            </button>
+          ))}
+        </nav>
+        <div className="flex flex-col items-center gap-1 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+          {onHelp && <button type="button" className="nav-rail" onClick={onHelp} aria-label="Help and keyboard shortcuts" title="Help and keyboard shortcuts"><Keyboard size={17} aria-hidden /></button>}
+          {onToggleRail && <button type="button" className="nav-rail" onClick={onToggleRail} aria-label="Open the menu" title="Open the menu" data-testid="menu-expand"><PanelLeftOpen size={17} aria-hidden /></button>}
+        </div>
+        {flySection && fly && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setFly(null)} aria-hidden />
+            {/* a plain list of links beside the icon (Tab moves through them, Escape or a click outside closes it) */}
+            <nav id="nav-flyout" aria-label={flySection.label} className="nav-flyout" style={{ top: Math.max(8, fly.top) }} data-testid="menu-flyout">
+              <p className="nav-flyout-title">{flySection.label}</p>
+              {flySection.items.map(i => (
+                <Link key={i.href} href={i.href} data-nav={i.href} onClick={() => setFly(null)}
+                  aria-current={i.href === current ? 'page' : undefined} className={`nav-link nav-link-top ${i.href === current ? 'is-active' : ''}`}>
+                  <i.icon size={15} aria-hidden className="nav-icon" /><span className="truncate">{name(i)}</span>
+                </Link>
+              ))}
+            </nav>
+          </>
+        )}
+      </aside>
+    )
+  }
 
-          return (
-            <div key={section.id} className={framed ? 'mb-3 rounded-xl' : 'mb-1'} data-nav-section={section.id}
-              style={framed ? { background: `${section.accent}0d`, border: `1px solid ${section.accent}33`, padding: '4px 2px 2px' } : undefined}>
-              {/* Section header */}
-              {section.label && (
-                <button
-                  onClick={() => toggleSection(section.id)}
-                  className="w-full flex items-center justify-between px-3 py-1.5 mb-0.5 rounded-lg"
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      style={{
-                        fontSize: '9.5px',
-                        fontWeight: 700,
-                        letterSpacing: '0.1em',
-                        textTransform: 'uppercase',
-                        color: section.accent ?? 'var(--text-muted)',
-                      }}
-                    >
-                      {section.label}
-                    </span>
-                    {section.accent && section.chip && (
-                      <span
-                        className="text-xs font-bold px-1.5 rounded"
-                        style={{ fontSize: '7.5px', background: `${section.accent}15`, color: section.accent }}
-                      >
-                        {section.chip}
-                      </span>
-                    )}
-                  </div>
-                  <ChevronDown
-                    size={11}
-                    style={{
-                      color: 'var(--text-muted)',
-                      transform: isOpen ? 'none' : 'rotate(-90deg)',
-                      transition: 'transform 0.2s',
-                    }}
-                  />
-                </button>
-              )}
+  // ── open ─────────────────────────────────────────────────────────────────
+  return (
+    <aside className="flex flex-col w-full h-full nav-shell" aria-label="Main menu">
+      <div className="flex items-center justify-between px-4" style={{ height: '60px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <Link href="/dashboard" className="flex items-center gap-2.5 no-underline">
+          <span className="nav-logo"><Zap size={15} style={{ color: 'var(--text-on-gold)' }} /></span>
+          <span>
+            <span className="block font-serif text-sm text-gold-grad leading-none tracking-tight">FINVOSMART</span>
+            <span className="block" style={{ fontSize: '9.5px', color: 'var(--text-muted)', marginTop: '2px' }}>by Navgrow · v1.1</span>
+          </span>
+        </Link>
+        {onClose && <button aria-label="Close the menu" className="btn-icon w-7 h-7 border-0" style={{ background: 'transparent' }} onClick={onClose}><X size={16} /></button>}
+      </div>
 
-              {/* Items */}
-              {(isOpen || !section.label) && (
-                <div>
-                  {visibleItems.map(item => {
-                    const active = isActive(item.href)
-                    return (
-                      <Link
-                        key={`${item.href}:${item.platform ?? ''}`}
-                        href={item.href}
-                        onClick={onClose}
-                        data-nav={item.href}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg mb-0.5 no-underline transition-all"
-                        style={{
-                          background: active ? `${item.dot ?? 'var(--gold)'}15` : 'transparent',
-                          border: `1px solid ${active ? `${item.dot ?? 'var(--gold)'}30` : 'transparent'}`,
-                        }}
-                      >
-                        <item.icon
-                          size={15}
-                          style={{ color: active ? (item.dot ?? 'var(--gold)') : 'var(--text-muted)', flexShrink: 0 }}
-                        />
-                        <span
-                          style={{
-                            fontSize: '13px',
-                            fontWeight: active ? 600 : 400,
-                            color: active ? (item.dot ?? 'var(--gold)') : 'var(--text-secondary)',
-                            flex: 1,
-                          }}
-                        >
-                          {industry.name(item.href, item.label)}
-                        </span>
-                        {item.dot && !active && (
-                          <span
-                            style={{ width: '5px', height: '5px', borderRadius: '50%', background: item.dot, flexShrink: 0 }}
-                          />
-                        )}
-                        {(item as any).badge && (
-                          <span
-                            className="text-xs font-bold rounded-full px-1.5"
-                            style={{ fontSize: '10px', background: '#ef4444', color: '#fff', minWidth: '16px', textAlign: 'center' }}
-                          >
-                            {(item as any).badge}
-                          </span>
-                        )}
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )
-        })}
+      <nav className="flex-1 overflow-y-auto py-3 px-2.5" aria-label="Main">
+        {platform && sectionBlock(platform)}
+        {home && <div data-nav-section="home" className="nav-section">{home.items.map(i => row(i, { top: true }))}</div>}
+        {pinned.length > 0 && (
+          <div data-nav-section="pinned" className="nav-section">
+            <p className="nav-label"><Star size={11} aria-hidden />Pinned</p>
+            {pinned.map(i => row(i, { pinnedRow: true }))}
+          </div>
+        )}
+        {rest.map(sectionBlock)}
       </nav>
 
-      {/* ── User footer ───────────────────────────────────────────────── */}
-      <div style={{ borderTop: '1px solid var(--border)', padding: '12px', flexShrink: 0 }}>
-        <div className="flex items-center gap-3 px-2 py-2 rounded-xl" style={{ background: 'var(--bg-card)' }}>
-          <div
-            className="flex items-center justify-center rounded-full text-xs font-bold flex-shrink-0"
-            style={{ width: '32px', height: '32px', background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)' }}
-          >
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-              {user?.fullName?.split(' ')[0] ?? 'User'}
-            </p>
-            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-              {user?.roles?.[0]?.replace('_', ' ') ?? 'Employee'}
-            </p>
-          </div>
-          <button aria-label="Sign out"
-            onClick={logout}
-            className="btn-icon w-7 h-7 flex-shrink-0"
-            style={{ border: 'none', background: 'transparent' }}
-            title="Sign out"
-          ><LogOut size={14} style={{ color: 'var(--text-muted)' }} />
+      <div className="flex items-center gap-1 px-2.5 py-2.5" style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+        {onHelp && (
+          <button type="button" className="nav-foot flex-1" onClick={onHelp} title="Keyboard shortcuts, search and the setup guide">
+            <Keyboard size={15} aria-hidden />Help & shortcuts
           </button>
-        </div>
+        )}
+        {onToggleRail && (
+          <button type="button" className="nav-foot" onClick={onToggleRail} aria-label="Fold the menu to icons" title="Fold the menu to icons" data-testid="menu-collapse">
+            <PanelLeftClose size={15} aria-hidden />
+          </button>
+        )}
       </div>
     </aside>
   )
 }
+
+/** Every page in the menu, for tests and tools: what the menu can link to. */
+export const MENU_HREFS = Array.from(new Set(MENU.map(i => i.href)))

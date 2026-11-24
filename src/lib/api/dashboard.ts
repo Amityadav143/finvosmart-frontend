@@ -11,6 +11,7 @@
 import { api } from './client'
 import type { ApiResponse } from '@/types'
 import type { DashAnalytics, DashboardSummary, SetupStatus } from '@/types/dashboard'
+import type { CashForecastView } from '@/types/cashflow'
 
 export const dashboardApi = {
   /** Everything on the home dashboard; sections the person may not see come back empty. */
@@ -19,4 +20,6 @@ export const dashboardApi = {
   setup: async () => (await api.get<ApiResponse<SetupStatus>>('/dashboard/setup')).data.data!,
   /** The analytics page over the last 3, 6 or 12 months. */
   analytics: async (months: 3 | 6 | 12) => (await api.get<ApiResponse<DashAnalytics>>('/dashboard/analytics', { params: { months } })).data.data!,
+  /** Cash for the next 13 weeks, from the books (bank and cash, open invoices, bills, salaries, taxes). */
+  cashForecast: async () => (await api.get<ApiResponse<CashForecastView>>('/dashboard/cash-forecast')).data.data!,
 }

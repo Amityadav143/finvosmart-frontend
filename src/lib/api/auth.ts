@@ -11,6 +11,7 @@
 
 import { api } from './client'
 import type { ApiResponse, AuthResponse } from '@/types'
+import { attributionForRequest } from '@/lib/attribution'
 
 /**
  * Auth API — thin wrappers around the auth endpoints.
@@ -83,7 +84,8 @@ export const authApi = {
     phone?: string; gstin?: string; website?: string
     acceptTerms: boolean   // must be true — the server enforces it too
   }): Promise<AuthResponse> => {
-    const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/register', d)
+    // what brought them, as their own browser kept it (lib/attribution.ts) — nothing when it kept nothing
+    const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/register', { ...d, attribution: attributionForRequest() })
     return data.data!
   },
 
@@ -113,7 +115,7 @@ export const authApi = {
     idToken: string; companyName: string; fullName: string; phone?: string; gstin?: string; website?: string
     acceptTerms: boolean   // must be true — the server enforces it too
   }): Promise<AuthResponse> => {
-    const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/register/google', d)
+    const { data } = await api.post<ApiResponse<AuthResponse>>('/auth/register/google', { ...d, attribution: attributionForRequest() })
     return data.data!
   },
 

@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { PLANS } from '@/lib/seo'
 import { usePlatformInfo } from '@/lib/platformInfo'
+import { attributionForRequest } from '@/lib/attribution'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 const SIZES = ['1–10 employees', '11–50 employees', '51–200 employees', '200+ employees']
@@ -50,7 +51,7 @@ export function DemoRequestForm() {
     try {
       const res = await fetch(`${API_URL}/public/demo-requests`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, page: window.location.pathname }),
+        body: JSON.stringify({ ...form, page: window.location.pathname, attribution: attributionForRequest() }),
       })
       const data = await res.json().catch(() => null)
       if (res.ok && data?.success !== false) { setStatus({ kind: 'sent' }); return }

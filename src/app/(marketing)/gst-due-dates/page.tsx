@@ -33,8 +33,8 @@ const tableBox = { overflowX: 'auto' as const, border: '1px solid var(--border)'
 
 function Table({ caption, rows }: { caption: string; rows: [string, string, string][] }) {
   return (
-    <div style={tableBox}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
+    <div role="region" aria-label={caption} tabIndex={0} style={tableBox}>
+      <table className="keep-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
         <caption style={{ textAlign: 'left', padding: '14px 14px 4px', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{caption}</caption>
         <thead><tr><th scope="col" style={th}>Return or payment</th><th scope="col" style={th}>Who</th><th scope="col" style={th}>Due by</th></tr></thead>
         <tbody>{rows.map(([f, who, due]) => <tr key={f + who}><th scope="row" style={form}>{f}</th><td style={td}>{who}</td><td style={{ ...td, color: 'var(--text-primary)' }}>{due}</td></tr>)}</tbody>

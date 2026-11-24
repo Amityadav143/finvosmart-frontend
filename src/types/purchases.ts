@@ -36,6 +36,18 @@ export interface Bill {
   payableAmount: Amount; paidAmount: Amount; outstanding: Amount; daysOverdue?: number | null
   itcStatus: ItcStatus; itcPeriod?: string; itcNote?: string
   poId?: string; poNumber?: string | null; notes?: string; cancelledAt?: string; cancelReason?: string; createdAt?: string
+  /** The goods receipt it was made from (the receipt brought the stock in) */
+  grnId?: string | null; grnNumber?: string | null
+  /** For a supplier credit note: the return of rejected goods it credits */
+  purchaseReturnId?: string | null; purchaseReturnNumber?: string | null
+  /** For a supplier credit note: the warranty claim on them it settles */
+  warrantyClaimId?: string | null; warrantyClaimNumber?: string | null
+  /** Held for payment (it doesn't match its order and receipt) and not released: payments are refused */
+  paymentHold?: boolean; holdReason?: string | null
+  /** Released for payment: when, by whom, why (the reason it was held stays) */
+  holdReleasedAt?: string | null; holdReleasedBy?: string | null; holdReleaseNote?: string | null
+  /** Ordered, received and billed, item by item (a bill's own page) */
+  match?: import('@/types/purchaseStore').BillMatch | null
   /** Whether recording it moves the stock of the items on it */
   movesStock?: boolean
   warnings?: string[]; lines: BillLine[]
@@ -51,9 +63,23 @@ export interface BillInput {
   paidNow?: { mode: string; reference?: string; date?: string } | null
   /** The purchase order it is for */
   poId?: string | null
+  grnId?: string | null
+  purchaseReturnId?: string | null
+  /** A supplier credit note for a warranty claim on them (a new document only) */
+  warrantyClaimId?: string | null
   /** Bring the items into stock (a supplier credit note: take returned goods out) */
   updateStock?: boolean
   lines: BillLine[]
+}
+
+/** A file kept with a bill or expense: the supplier's invoice, the receipt (its content is fetched on its own). */
+export interface BillAttachment {
+  id: string
+  fileName: string
+  contentType: string
+  size: number
+  uploadedAt: string
+  uploadedBy?: string | null
 }
 
 export interface BillPaymentRecord {

@@ -20,6 +20,9 @@ export const procurementApi = {
     get: async (id: string) => (await api.get<ApiResponse<PurchaseOrder>>(`/procurement/purchase-orders/${id}`)).data.data!,
     updateStatus: async (id: string, status: PurchaseOrder['status']) =>
       (await api.patch<ApiResponse<PurchaseOrder>>(`/procurement/purchase-orders/${id}/status`, null, { params: { status } })).data.data!,
+    /** Closed with the rest never coming: why. */
+    close: async (id: string, note: string) =>
+      (await api.post<ApiResponse<PurchaseOrder>>(`/procurement/purchase-orders/${id}/close`, { note })).data.data!,
     /** How many orders are in each status. */
     summary: async (): Promise<Record<PurchaseOrder['status'], number>> =>
       (await api.get<ApiResponse<Record<PurchaseOrder['status'], number>>>('/procurement/purchase-orders/summary')).data.data!,

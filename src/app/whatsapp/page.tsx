@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import PlanGate from '@/components/ui/PlanGate'
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -22,7 +23,7 @@ interface InvoiceRow { id: string; invoiceNumber: string; status: string }
 const SENDABLE = (s: string) => s !== 'DRAFT' && s !== 'CANCELLED'
 const PHONE_RE = /^(\+?91[\s-]?)?0?[6-9]\d{4}[\s-]?\d{5}$|^\+?[1-9]\d{10,14}$/
 
-export default function WhatsAppPage() {
+function WhatsAppPageContent() {
   const [form, setForm] = useState({ invoiceId: '', recipientName: '', recipientPhone: '' })
   const { data: status, isLoading: statusLoading } = useQuery({
     queryKey: ['whatsapp-status'],
@@ -114,4 +115,9 @@ export default function WhatsAppPage() {
       </div>
     </div>
   )
+}
+
+/** On a plan without it (Starter): what it does and where to move, instead of a page the server would refuse. */
+export default function WhatsAppPage() {
+  return <PlanGate feature="WHATSAPP"><WhatsAppPageContent /></PlanGate>
 }

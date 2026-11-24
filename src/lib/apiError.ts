@@ -35,6 +35,8 @@ export function apiError(e: any, fallback = 'Something went wrong. Please try ag
   if (status === 403) return 'You don’t have permission to do that. Ask an administrator for access.'
   if (status === 404) return 'That record no longer exists — it may have been removed.'
   if (status === 429) return 'Too many requests just now. Wait a moment and try again.'
+  // refused by the web server (nginx) or the backend before it was read: the file was too big to send
+  if (status === 413) return 'The file is too large to upload. Use a smaller file — a shorter period, fewer rows, or a smaller picture.'
   if (status === 402) return 'This needs an active subscription. Upgrade under Settings → Subscription to continue.'
   if (status === 409) return 'Someone else changed this at the same moment. Refresh and try again.'
   if (status === 503) return 'The server is busy or restarting — nothing was saved. Please try again in a moment.'

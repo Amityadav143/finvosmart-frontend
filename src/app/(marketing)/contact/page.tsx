@@ -10,10 +10,12 @@
  */
 
 import Link from 'next/link'
-import { Mail, Linkedin, Monitor, MessageSquare, CalendarCheck, Rocket } from 'lucide-react'
+import { MessageSquare, CalendarCheck, Rocket } from 'lucide-react'
 import { DemoRequestForm } from '@/components/marketing/DemoRequestForm'
+import { CompanyCard, ContactDetails } from '@/components/marketing/PlatformContact'
+import { AskAssistantButton } from '@/components/assistant/WebsiteAssistant'
 
-// Server component; only the form runs in the browser. (Metadata and schema: ./layout.tsx.)
+// Server component; the form and the contact details (set in the platform console) run in the browser. (Metadata and schema: ./layout.tsx.)
 
 const NEXT_STEPS = [
   { icon: MessageSquare, title: 'We reply by email', text: 'Someone from the team writes back to agree a time — in English or Hindi, as you prefer.' },
@@ -43,6 +45,10 @@ export default function ContactPage() {
           <p style={{ fontSize: '16px', color: 'var(--text-secondary)', maxWidth: '560px', lineHeight: 1.7 }}>
             Book a free demo, ask about moving from Tally or Excel, check which plan fits, or discuss an enterprise deployment — we respond within 4 business hours.
           </p>
+          {/* a quick question needn't wait: the assistant answers at once (shown only when it is on) */}
+          <div style={{ marginTop: '18px' }}>
+            <AskAssistantButton label="Quick question? Ask our AI assistant" className="btn-secondary h-10 px-5 text-sm" />
+          </div>
         </div>
       </section>
 
@@ -55,25 +61,8 @@ export default function ContactPage() {
             <div>
               <h2 style={{ fontFamily: "'Instrument Serif', serif", fontWeight: 400, fontSize: '24px', color: 'var(--text-primary)', marginBottom: '14px' }}>Contact details</h2>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '28px' }}>Our team is based in India and works with Indian businesses every day.</p>
-              <ul style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '36px', listStyle: 'none' }}>
-                {[
-                  { icon: Mail, label: 'Email', val: 'contact@finvosmart.com', href: 'mailto:contact@finvosmart.com' },
-                  { icon: Linkedin, label: 'LinkedIn', val: 'linkedin.com/company/finvosmart', href: 'https://www.linkedin.com/company/finvosmart' },
-                  { icon: Monitor, label: 'Live demo', val: 'demo.finvosmart.com' },
-                ].map(({ icon: Icon, label, val, href }) => (
-                  <li key={label} style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <span style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--gold-muted)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)', flexShrink: 0 }} aria-hidden="true">
-                      <Icon size={18} />
-                    </span>
-                    <span>
-                      <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-                      {href
-                        ? <a href={href} {...(href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})} style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500, textDecoration: 'none' }}>{val}</a>
-                        : <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>{val}</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {/* the details set in the platform console (Contact details), the built-in ones until the server answers */}
+              <ContactDetails />
 
               <h2 style={{ fontFamily: "'Instrument Serif', serif", fontWeight: 400, fontSize: '24px', color: 'var(--text-primary)', marginBottom: '16px' }}>What happens next</h2>
               <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
@@ -89,12 +78,7 @@ export default function ContactPage() {
               </ol>
 
               {/* Company card */}
-              <div style={{ padding: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Navgrow Engineering Service Pvt. Ltd.</div>
-                CIN: U29302WB2025PTC281015<br />
-                Registered in West Bengal, India<br />
-                MSME Registered · ISO in process
-              </div>
+              <CompanyCard />
             </div>
 
             {/* Right: form */}

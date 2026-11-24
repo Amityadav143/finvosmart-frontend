@@ -10,7 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
-import { useMemo, useState } from 'react'
+import { use, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Download, Mail, Printer } from 'lucide-react'
@@ -27,7 +27,8 @@ const KIND: Record<string, string> = {
 }
 const n = (v: unknown) => Number(v ?? 0)
 
-export default function StatementPage({ params }: { params: { side: string; id: string } }) {
+export default function StatementPage(props: { params: Promise<{ side: string; id: string }> }) {
+  const params = use(props.params)       // the address's values come as a promise (Next.js 15 and later)
   const side: StatementSide = params.side === 'supplier' ? 'supplier' : 'customer'
   const today = todayIST()
   const options = useMemo(() => periods(today), [today])

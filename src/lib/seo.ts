@@ -38,6 +38,7 @@ export const SITE = {
 export type PageKey = 'home' | 'features' | 'pricing' | 'customPlan' | 'about' | 'contact' | 'login'
   | 'gstBilling' | 'eInvoicing' | 'gstCalculator' | 'register' | 'privacy' | 'terms' | 'tallyAlternative' | 'developers' | 'gstinChecker' | 'gstInvoiceFormat'
   | 'accountingSoftware' | 'payrollSoftware' | 'hrmsSoftware' | 'gstDueDates' | 'freeTools' | 'hindiHome'
+  | 'posBilling' | 'onlineStore' | 'inventorySoftware' | 'purchaseSoftware' | 'warrantySoftware' | 'erpSoftware'
 
 export interface PageSeo {
   path: string
@@ -68,7 +69,7 @@ export const PAGES: Record<PageKey, PageSeo> = {
     description: "All-in-one business software for Indian SMEs: GST billing and returns, accounting, payroll, HRMS, CRM and inventory. Start a free trial.",
     priority: 1.0, changeFrequency: "weekly" },
   features: { path: "/features", label: "Features", title: "Features — GST Billing, Accounting & Payroll", absoluteTitle: false,
-    description: "Every Finvosmart module: GST invoicing and returns, purchases, accounting, TDS, payroll, HRMS, CRM and inventory — and what is coming next.",
+    description: "Every Finvosmart module: GST invoicing and returns, purchases, accounting, a 13-week cash-flow forecast, TDS, payroll, HRMS, CRM and inventory.",
     priority: 0.9, changeFrequency: "monthly" },
   pricing: { path: "/pricing", label: "Pricing", title: "Pricing — GST Billing & ERP from ₹3,999/mo", absoluteTitle: false,
     description: "Simple rupee pricing for Indian businesses. Plans from ₹3,999/month billed annually — GST billing, accounting, CRM and HRMS in one. Free 7-day trial.",
@@ -77,7 +78,7 @@ export const PAGES: Record<PageKey, PageSeo> = {
     description: "Pick only the Finvosmart modules your business needs — GST billing, accounting, HRMS, CRM or inventory — and pay for nothing else.",
     priority: 0.8, changeFrequency: "monthly" },
   about: { path: "/about", label: "About", title: "About Us — Built in India for Indian Businesses", absoluteTitle: false,
-    description: "Finvosmart is built in India by Navgrow Engineering to give every Indian SME one affordable platform for GST billing, accounting, CRM and HRMS.",
+    description: "Finvosmart is built in India to give every Indian business one affordable platform for GST billing, accounting, purchasing, stock, payroll and HR.",
     priority: 0.6, changeFrequency: "monthly" },
   contact: { path: "/contact", label: "Contact", title: "Contact Us — Book a Free Demo", absoluteTitle: false,
     description: "Talk to the Finvosmart team: book a free demo, get help moving from Tally or Excel, or ask about pricing. Support available in English and Hindi.",
@@ -95,7 +96,7 @@ export const PAGES: Record<PageKey, PageSeo> = {
     description: "Free GST calculator with the latest GST 2.0 rates (5%, 18%, 40%). Add or remove GST and split it into CGST, SGST or IGST instantly. No sign-up needed.",
     ogImage: "/og/gst-calculator.png", priority: 0.9, changeFrequency: "monthly" },
   register: { path: "/register", label: "Sign Up", title: "Sign Up — Start Your 7-Day Free Trial", absoluteTitle: false,
-    description: "Create your Finvosmart account in a minute and try GST billing, accounting, inventory, CRM, HR and payroll for 14 days — free, no credit card needed.",
+    description: "Create your Finvosmart account in a minute and try GST billing, accounting, inventory, CRM, HR and payroll for 7 days — free, no credit card needed.",
     priority: 0.7, changeFrequency: "yearly" },
   privacy: { path: "/privacy", label: "Privacy Policy", title: "Privacy Policy", absoluteTitle: false,
     description: "How Finvosmart collects, uses and protects your personal data, and how to exercise your rights under India's Digital Personal Data Protection Act.",
@@ -124,6 +125,24 @@ export const PAGES: Record<PageKey, PageSeo> = {
   hrmsSoftware: { path: "/hrms-software", label: "HRMS Software", title: "HRMS Software — Attendance, Leave & Payroll", absoluteTitle: false,
     description: "Employee records, a monthly attendance register, leave approvals, payroll, hiring and performance reviews in one HR system for Indian SMEs.",
     ogImage: "/og/hrms-software.png", priority: 0.8, changeFrequency: "monthly" },
+  posBilling: { path: "/pos-billing-software", label: "POS Billing Software", title: "POS Billing Software for Retail Shops in India", absoluteTitle: false,
+    description: "Bill at the counter with a barcode scanner: cash, UPI QR and card, GST receipts on 58 or 80 mm paper, returns, and a shift close that counts the drawer.",
+    ogImage: "/og/pos-billing-software.png", priority: 0.9, changeFrequency: "monthly" },
+  onlineStore: { path: "/online-store-builder", label: "Online Store", title: "Online Store for Your Shop — Pickup & Delivery", absoluteTitle: false,
+    description: "Put your shop online with your own link: items with photos, prices with GST and live stock. Customers order for pickup or delivery; bill each in one step.",
+    ogImage: "/og/online-store-builder.png", priority: 0.8, changeFrequency: "monthly" },
+  inventorySoftware: { path: "/inventory-management-software", label: "Inventory Software", title: "Inventory Management Software with Godowns", absoluteTitle: false,
+    description: "Stock that moves with every invoice and bill, kept by godown with batches and expiry. Transfers with challans, material issues and stock counts that post.",
+    ogImage: "/og/inventory-management-software.png", priority: 0.9, changeFrequency: "monthly" },
+  purchaseSoftware: { path: "/purchase-management-software", label: "Purchase Software", title: "Purchase Management Software with GRN", absoluteTitle: false,
+    description: "Purchase orders, gate entry, goods receipts (GRN) with quality inspection, returns with challans, and supplier bills matched to the order and receipt.",
+    ogImage: "/og/purchase-management-software.png", priority: 0.9, changeFrequency: "monthly" },
+  erpSoftware: { path: "/erp-software", label: "ERP Software", title: "Cloud ERP Software for SMEs in India", absoluteTitle: false,
+    description: "One cloud ERP for Indian SMEs: GST billing, accounts, purchasing, stock by godown, POS, payroll and HR from one set of books. 7-day free trial.",
+    ogImage: "/og/erp-software.png", priority: 0.9, changeFrequency: "monthly" },
+  warrantySoftware: { path: "/warranty-management-software", label: "Warranty Software", title: "Warranty Claim Management Software", absoluteTitle: false,
+    description: "Register warranty claims against the invoice, repair, replace or credit them, and pass each claim on to the supplier, with challans and credit notes.",
+    ogImage: "/og/warranty-management-software.png", priority: 0.8, changeFrequency: "monthly" },
   freeTools: { path: "/free-gst-tools", label: "Free GST Tools", title: "Free GST Tools for Indian Businesses", absoluteTitle: false,
     description: "Free GST tools with no sign-up: GST calculator, GSTIN checker, GST invoice format in Excel and PDF, and the due dates for GST, TDS, PF and ESI.",
     ogImage: "/og/free-gst-tools.png", priority: 0.8, changeFrequency: "monthly" },
@@ -133,7 +152,7 @@ export const PAGES: Record<PageKey, PageSeo> = {
     get description() { return `Every GST return due date for FY ${fyLabel()}: GSTR-1, GSTR-3B, QRMP, CMP-08 and GSTR-9, plus TDS, PF, ESI and advance tax. Free calendar file.` },
     ogImage: "/og/gst-due-dates.png", priority: 0.8, changeFrequency: "monthly" },
   hindiHome: { path: "/hi", label: "हिंदी", lang: "hi-IN", title: "Finvosmart — GST बिलिंग, अकाउंटिंग और पेरोल सॉफ्टवेयर", absoluteTitle: true,
-    description: "भारतीय छोटे और मझोले व्यवसायों के लिए एक ही सॉफ्टवेयर: GST बिलिंग और रिटर्न, अकाउंटिंग, पेरोल, HR, CRM और इन्वेंटरी। 14 दिन मुफ़्त आज़माएँ।",
+    description: "भारतीय छोटे और मझोले व्यवसायों के लिए एक ही सॉफ्टवेयर: GST बिलिंग और रिटर्न, अकाउंटिंग, पेरोल, HR, CRM और इन्वेंटरी। 7 दिन मुफ़्त आज़माएँ।",
     ogImage: "/og/hi.png", priority: 0.7, changeFrequency: "monthly" },
 }
 
@@ -143,13 +162,14 @@ export const PAGES: Record<PageKey, PageSeo> = {
  * when the content does — not on every deploy. Privacy and terms must equal LEGAL_VERSION.
  */
 export const CONTENT_UPDATED: Record<PageKey, string> = {
-  home: '2026-10-22', features: '2026-10-22', pricing: '2026-10-22', customPlan: '2026-10-15',
-  about: '2026-10-21', contact: '2026-10-21', login: '2026-10-21', register: '2026-10-21',
-  privacy: '2026-11-04', terms: '2026-11-04',   // must equal LEGAL_VERSION (validated)
+  home: '2026-11-21', features: '2026-11-21', pricing: '2026-11-21', customPlan: '2026-11-21',
+  about: '2026-11-21', contact: '2026-10-21', login: '2026-10-21', register: '2026-11-19',
+  privacy: '2026-11-21', terms: '2026-11-21',   // must equal LEGAL_VERSION (validated)
   gstBilling: '2026-10-22', eInvoicing: '2026-10-15', gstCalculator: '2026-10-21',
   tallyAlternative: '2026-10-22', developers: '2026-10-22', gstinChecker: '2026-10-21',
   gstInvoiceFormat: '2026-10-21', accountingSoftware: '2026-10-21', payrollSoftware: '2026-10-21',
-  hrmsSoftware: '2026-10-21', freeTools: '2026-10-21', gstDueDates: '2026-10-21', hindiHome: '2026-10-21',
+  hrmsSoftware: '2026-10-21', freeTools: '2026-10-21', gstDueDates: '2026-10-21', hindiHome: '2026-11-20',
+  posBilling: '2026-11-20', onlineStore: '2026-11-20', inventorySoftware: '2026-11-21', purchaseSoftware: '2026-11-21', warrantySoftware: '2026-11-21', erpSoftware: '2026-11-21',
 }
 
 /** Plan prices (₹ per month). Must match the pricing page — a test checks this. */
@@ -161,25 +181,47 @@ export const PLANS = [
 
 /** Landing-page FAQ. Rendered by the page AND used for FAQPage schema, so they always match. */
 export const HOME_FAQ: ReadonlyArray<{ q: string; a: string }> = [
+  // first, the one-sentence answer search engines and AI assistants quote when asked what Finvosmart is
+  { q: "What is Finvosmart?", a: "Finvosmart is cloud ERP software for Indian small and medium businesses: GST billing and returns, accounting, purchasing with gate entry and goods receipts, warranty claims, stock kept by godown, counter billing, an online store, payroll and HR in one web app. Plans start at ₹3,999 a month billed annually, with a 7-day free trial and no credit card." },
   { q: "How is FINVOSMART different from Tally?", a: "Tally is desktop accounting software. FINVOSMART is a cloud business platform — accounting plus GST returns, purchases, payroll, HRMS, CRM, inventory, projects and WhatsApp billing — all connected and open from anywhere." },
   { q: "Is my data secure and GST-compliant?", a: "Invoices carry every detail GST law requires, and GSTR-1 and GSTR-3B are prepared from your own books. Data travels over HTTPS, payment-gateway keys are stored encrypted, access is controlled by roles, and every change to the books is kept in an append-only audit trail. Direct e-invoice (IRN) and e-way bill generation is coming soon." },
   { q: "Can I migrate from my existing software?", a: "Yes. Import customers, suppliers, items, employees, opening balances and unpaid invoices and bills from Excel — including what you export from Tally. Every import is checked and previewed before anything is saved, and our team can help during onboarding." },
   { q: "Do you support multiple branches and GSTINs?", a: "Branches, yes — Growth and Enterprise plans support as many branches and departments as you need. Each company in FINVOSMART files under one GSTIN, so a business registered in several states sets up each GSTIN as its own company." },
   { q: "What kind of support do I get?", a: "All plans include support in English and Hindi. Growth gets priority support; Enterprise gets a dedicated account manager with an SLA. Onboarding assistance is included for everyone." },
+  { q: "Does Finvosmart have an AI assistant?", a: "Yes — “Ask Finvosmart”, on every plan. In the app it explains how to do things, step by step with a link to the page, in English, Hindi or Hinglish. Once a company admin allows it, it also answers from the company's own figures — overdue invoices, bills to pay, cash for the next 13 weeks — and never shows anyone more than their role allows. It only reads, and Finvosmart keeps no conversation unless you email one to support. Most answers are worked out on Finvosmart's own servers, without sending your question anywhere." },
 ]
 
-const FEATURES = [
+/** What Finvosmart does, in a line each: the software's schema.org featureList, and the facts given to AI assistants (llms-full.txt). */
+export const FEATURES = [
   'GST invoicing with UPI payment links',
   'GST returns: GSTR-1, GSTR-3B and the GSTR-2B credit check',
   'Double-entry accounting: ledgers, Trial Balance, Profit & Loss and Balance Sheet',
   'Supplier bills, TDS and MSME payment dates',
+  'Supplier invoices read into bills from a PDF, a GST e-invoice QR code or a photo',
+  '13-week cash-flow forecast from your books, with the week cash would run short',
+  'AI assistant that explains how to do things and, once allowed, answers from your own figures',
   'Payroll under the labour codes: PF, ESI, professional tax, TDS on salary and payslips',
   'HRMS: attendance register, leave, recruitment and performance reviews',
   'Bank statement matching and statements of account',
   'CRM and sales pipeline, with quotations that become invoices',
-  'Inventory that moves with invoices and supplier bills; purchase orders',
+  'Inventory that moves with invoices and supplier bills, kept by godown with transfers and stock counts; purchase orders',
+  'Purchase store: gate entry, goods receipts (GRN) with quality inspection, returns to suppliers, and supplier bills matched to the order and receipt — held for payment when they don’t match',
+  'Warranty claims from customers, passed on to the supplier the goods came from, with challans and credit notes',
+  'Supplier rating from 1 to 100 on quality, delivery, price and how warranty claims are settled',
+  'Counter billing (POS) with barcode scanning, UPI QR, receipts and shift close',
+  'An online store for each business: pickup and delivery orders that become GST invoices',
   'Invoice PDFs and bulk export',
 ]
+
+/**
+ * AI assistants and answer engines, named so it is plain they are welcome (a crawler reads only the group that names it,
+ * so each group says the same): ChatGPT, Claude, Perplexity, Gemini, Copilot (Bing), Apple, Meta, Amazon, DuckDuckGo,
+ * Mistral and Cohere — their search, their answers on a person's request, and what they learn from. Finvosmart's public
+ * pages, llms.txt and llms-full.txt are written to be quoted correctly.
+ */
+export const AI_CRAWLERS = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-SearchBot', 'Claude-User', 'PerplexityBot',
+  'Perplexity-User', 'Google-Extended', 'Bingbot', 'Applebot', 'Applebot-Extended', 'Meta-ExternalAgent', 'Amazonbot', 'DuckAssistBot',
+  'MistralAI-User', 'cohere-ai', 'CCBot']
 
 const SUFFIX = ' | Finvosmart'
 
@@ -258,13 +300,13 @@ export function organizationSchema(): JsonLdNode {
     '@id': ORG_ID,
     name: SITE.name,
     alternateName: [...SITE.alternateNames],
-    legalName: SITE.legalName,
+    // The brand stands on its own here: the company's legal name and CIN are on the website's footer and legal pages
+    // (as the Companies Act asks), kept out of search snippets — so a search for Finvosmart is about Finvosmart.
     url: absoluteUrl('/'),
     logo: { '@type': 'ImageObject', url: `${SITE.url}${SITE.logo}`, width: 512, height: 512 },
     image: `${SITE.url}${SITE.ogImage.url}`,
     description: PAGES.home.description,
     foundingDate: '2025',
-    identifier: { '@type': 'PropertyValue', propertyID: 'CIN', value: SITE.cin },
     address: { '@type': 'PostalAddress', addressRegion: 'West Bengal', addressCountry: 'IN' },
     areaServed: { '@type': 'Country', name: 'India' },
     contactPoint: ['sales', 'customer support'].map(contactType => ({

@@ -42,7 +42,7 @@ const FAQ = [
   { q: 'क्या सॉफ़्टवेयर हिंदी में है?', a: 'अभी Finvosmart का ऐप अंग्रेज़ी में है। हमारी टीम हिंदी और अंग्रेज़ी, दोनों में मदद करती है — डेमो, सेटअप और डेटा इम्पोर्ट में भी।' },
   { q: 'क्या मेरा डेटा सुरक्षित है?', a: 'डेटा HTTPS पर एन्क्रिप्ट होकर आता-जाता है, भुगतान-गेटवे की चाबियाँ एन्क्रिप्ट करके रखी जाती हैं, हर व्यक्ति को उसकी भूमिका के हिसाब से ही पहुँच मिलती है, और किताबों में हुए हर बदलाव का रिकॉर्ड रहता है। अपने खाते पर आप ऑथेंटिकेटर ऐप से दो-चरण वाला साइन-इन भी चालू कर सकते हैं।' },
   { q: 'Tally या Excel से डेटा कैसे लाएँ?', a: 'ग्राहक, सप्लायर, आइटम, कर्मचारी, खातों के ओपनिंग बैलेंस और बकाया इनवॉइस व बिल Excel से इम्पोर्ट करें — Tally से निकाली गई Excel फ़ाइलें भी। सेव करने से पहले हर इम्पोर्ट की जाँच और प्रीव्यू होता है।' },
-  { q: 'कीमत कितनी है?', a: `प्लान ₹${inr(PLANS[0].annual)} प्रति माह से शुरू होते हैं (सालाना बिलिंग पर; मासिक बिलिंग पर ₹${inr(PLANS[0].monthly)})। 14 दिन का मुफ़्त ट्रायल है, और क्रेडिट कार्ड की ज़रूरत नहीं।` },
+  { q: 'कीमत कितनी है?', a: `प्लान ₹${inr(PLANS[0].annual)} प्रति माह से शुरू होते हैं (सालाना बिलिंग पर; मासिक बिलिंग पर ₹${inr(PLANS[0].monthly)})। 7 दिन का मुफ़्त ट्रायल है, और क्रेडिट कार्ड की ज़रूरत नहीं।` },
 ]
 
 const card: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }
@@ -62,7 +62,7 @@ export default function HindiHomePage() {
             Finvosmart आपके व्यवसाय का रोज़ का काम एक ही जगह संभालता है: GST वाले इनवॉइस, GSTR-1 और GSTR-3B की फ़ाइलें, डबल-एंट्री अकाउंटिंग, PF-ESI के साथ पेरोल, कर्मचारियों की हाज़िरी और छुट्टी, CRM और स्टॉक। सब कुछ ब्राउज़र में चलता है — कुछ भी इंस्टॉल नहीं करना।
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/register" className="btn-primary" style={{ height: '46px', padding: '0 26px', fontSize: '15px', textDecoration: 'none' }}>14 दिन मुफ़्त आज़माएँ <ArrowRight size={16} aria-hidden /></Link>
+            <Link href="/register" className="btn-primary" style={{ height: '46px', padding: '0 26px', fontSize: '15px', textDecoration: 'none' }}>7 दिन मुफ़्त आज़माएँ <ArrowRight size={16} aria-hidden /></Link>
             <Link href="/contact" className="btn-secondary" style={{ height: '46px', padding: '0 22px', fontSize: '15px', textDecoration: 'none' }}>डेमो बुक करें</Link>
           </div>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '14px' }}>क्रेडिट कार्ड की ज़रूरत नहीं · हिंदी और अंग्रेज़ी में सहायता · <Link href="/" lang="en" hrefLang="en" className="text-link">Read in English</Link></p>
@@ -119,7 +119,7 @@ export default function HindiHomePage() {
       </section>
 
       <FaqList items={FAQ} title="अक्सर पूछे जाने वाले सवाल" />
-      <CtaBand title="आज ही शुरू करें" text="14 दिन मुफ़्त — क्रेडिट कार्ड नहीं, कुछ इंस्टॉल नहीं करना।" label="मुफ़्त ट्रायल शुरू करें" />
+      <CtaBand title="आज ही शुरू करें" text="7 दिन मुफ़्त — क्रेडिट कार्ड नहीं, कुछ इंस्टॉल नहीं करना।" label="मुफ़्त ट्रायल शुरू करें" />
     </div>
   )
 }

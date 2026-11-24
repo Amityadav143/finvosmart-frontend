@@ -31,8 +31,12 @@ export interface InvoiceInput {
   ewayBillNumber?: string; lrNumber?: string; dcReferenceNumber?: string; rfqNumber?: string; additionalReference?: string
   /** Tax invoices and credit notes: move the stock of the items on it when issued (default yes) */
   updateStock?: boolean
+  /** the godown the goods leave from (or come back into) — left out, the main godown */
+  godownId?: string | null
   /** Tax invoices with Schedule H, H1 or X medicines: the patient and prescriber (needed to issue for H1 and X) */
   prescription?: Prescription | null
+  /** A credit note for a customer's warranty claim approved for credit (a new document only; it moves no stock) */
+  warrantyClaimId?: string | null
 }
 
 export interface SendInput { email: boolean; to?: string; cc?: string; message?: string; whatsapp: boolean; phone?: string }

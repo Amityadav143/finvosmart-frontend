@@ -38,6 +38,16 @@
     },
     {
      "method": "GET",
+     "path": "/api/v1/dashboard/cash-forecast",
+     "summary": "Cash for the next 13 weeks from the books: bank and cash today, open invoices (as late as each customer usually pays), supplier bills, salaries, PF, ESI, TDS and GST; the lowest week, the first week cash would run out, and invoices later than usual",
+     "permissions": [
+      "FINANCE_VIEW",
+      "FINANCE_REPORTS"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
      "path": "/api/v1/dashboard/sector",
      "summary": "The tiles of the company's sector template (open projects, sales today, stock to reorder…), counted from its records",
      "permissions": [],
@@ -588,22 +598,6 @@
    "intro": "Suppliers (with MSME and TDS details) and purchase orders.",
    "endpoints": [
     {
-     "method": "POST",
-     "path": "/api/v1/procurement/grn",
-     "summary": "Create g r n",
-     "permissions": [
-      "PROCUREMENT_CREATE"
-     ],
-     "public": false
-    },
-    {
-     "method": "GET",
-     "path": "/api/v1/procurement/grn/by-po/{poId}",
-     "summary": "Grns by p o",
-     "permissions": [],
-     "public": false
-    },
-    {
      "method": "GET",
      "path": "/api/v1/procurement/purchase-orders",
      "summary": "List p os",
@@ -631,6 +625,16 @@
      "path": "/api/v1/procurement/purchase-orders/{id}",
      "summary": "Get p o",
      "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/purchase-orders/{id}/close",
+     "summary": "Close p o",
+     "permissions": [
+      "PROCUREMENT_EDIT",
+      "PROCUREMENT_APPROVE"
+     ],
      "public": false
     },
     {
@@ -764,6 +768,34 @@
      "public": false
     },
     {
+     "method": "GET",
+     "path": "/api/v1/bills/{id}/attachments",
+     "summary": "The files kept with a bill or expense (the supplier's invoice, the receipt)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/bills/{id}/attachments",
+     "summary": "Keep a file with a bill or expense: a PDF or a photo (JPEG, PNG, WebP), at most 10 MB, 10 files a bill",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/bills/{id}/attachments/{attachmentId}",
+     "summary": "A kept file: shown in place, or saved with ?download=true",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/bills/{id}/attachments/{attachmentId}",
+     "summary": "Stop keeping a file with a bill",
+     "permissions": [],
+     "public": false
+    },
+    {
      "method": "POST",
      "path": "/api/v1/bills/{id}/cancel",
      "summary": "Cancel a recorded bill (its entry in the books is reversed); not possible while payments stand against it",
@@ -799,6 +831,16 @@
      "public": false
     },
     {
+     "method": "POST",
+     "path": "/api/v1/bills/{id}/release-hold",
+     "summary": "Release a bill held for payment (it doesn't match its order and receipt) — with the reason it may be paid as it is",
+     "permissions": [
+      "PROCUREMENT_APPROVE",
+      "FINANCE_APPROVE"
+     ],
+     "public": false
+    },
+    {
      "method": "GET",
      "path": "/api/v1/payables/msme",
      "summary": "Payments to micro and small suppliers in a period: on time, late and unpaid",
@@ -817,6 +859,266 @@
      "path": "/api/v1/payables/summary",
      "summary": "Totals, ageing, what is due soon and MSME payments past the legal limit",
      "permissions": [],
+     "public": false
+    }
+   ]
+  },
+  {
+   "id": "purchasestore",
+   "title": "Purchase store",
+   "intro": "Consignments at the gate, goods receipts (GRN) counted against purchase orders and inspected before they go into stock, rejected goods returned to suppliers, what waits at each step, deliveries still to come, and the reorder planner.",
+   "endpoints": [
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/gate-entries",
+     "summary": "Gate entries, newest first (status AT_GATE, RECEIVED, TURNED_AWAY or CANCELLED; dates; a search)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/gate-entries",
+     "summary": "Record a consignment at the gate (the stores are told)",
+     "permissions": [
+      "GATE_ENTRY",
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/gate-entries/{id}",
+     "summary": "One gate entry, with the receipts made from it",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/procurement/gate-entries/{id}",
+     "summary": "Correct a gate entry while the consignment is at the gate",
+     "permissions": [
+      "GATE_ENTRY",
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/gate-entries/{id}/cancel",
+     "summary": "Cancel an entry made by mistake, saying why",
+     "permissions": [
+      "GATE_ENTRY",
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/gate-entries/{id}/turn-away",
+     "summary": "Turn the consignment away at the gate, saying why",
+     "permissions": [
+      "GATE_ENTRY",
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/gate-entries/{id}/vehicle-out",
+     "summary": "Note the vehicle leaving the premises",
+     "permissions": [
+      "GATE_ENTRY",
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/grns",
+     "summary": "Goods receipts, newest first (status DRAFT, INSPECTION, POSTED or CANCELLED; supplier; order; dates; a search)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/grns",
+     "summary": "Count a consignment into a receipt (a draft): from a gate entry, against an order, or on its own",
+     "permissions": [
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/grns/counts",
+     "summary": "How many receipts are in each status",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/grns/order/{poId}",
+     "summary": "An order as receiving sees it: each line ordered, received, with quality and still to come, and its receipts",
+     "permissions": [
+      "PROCUREMENT_VIEW",
+      "PROCUREMENT_RECEIVE",
+      "GATE_ENTRY"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/grns/{id}",
+     "summary": "One receipt with its lines, its bill and its returns",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/procurement/grns/{id}",
+     "summary": "Correct a receipt still being counted",
+     "permissions": [
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/grns/{id}/cancel",
+     "summary": "Cancel a receipt (one in stock takes its goods back out — not once billed or returned against)",
+     "permissions": [
+      "PROCUREMENT_RECEIVE",
+      "PROCUREMENT_APPROVE",
+      "INVENTORY_ADMIN"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/grns/{id}/inspect",
+     "summary": "Record the inspection line by line and release the accepted goods to stock",
+     "permissions": [
+      "QUALITY_INSPECT"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/grns/{id}/submit",
+     "summary": "Submit the count: to quality when an item is inspected on receipt, else the accepted goods into stock",
+     "permissions": [
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/returns",
+     "summary": "Returns to suppliers, newest first (of one receipt, when given)",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/returns",
+     "summary": "Send rejected goods of a receipt back to the supplier",
+     "permissions": [
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/returns/{id}",
+     "summary": "One return with its lines and the supplier's credit note for it",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/returns/{id}/cancel",
+     "summary": "Cancel a return recorded by mistake (not once the supplier's credit note is in)",
+     "permissions": [
+      "PROCUREMENT_RECEIVE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/store/not-billed",
+     "summary": "Receipts in stock with no supplier bill yet",
+     "permissions": [
+      "PROCUREMENT_VIEW",
+      "FINANCE_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/store/pending",
+     "summary": "Order lines still to come, with how late each order is",
+     "permissions": [
+      "PROCUREMENT_VIEW",
+      "PROCUREMENT_RECEIVE",
+      "GATE_ENTRY"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/store/planner",
+     "summary": "What to reorder: each stock item's use, stock, what is on order, its supplier's lead time and the quantity to order",
+     "permissions": [
+      "PROCUREMENT_VIEW",
+      "INVENTORY_VIEW"
+     ],
+     "public": false
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/procurement/store/planner/orders",
+     "summary": "Make draft purchase orders from the chosen lines, one per supplier",
+     "permissions": [
+      "PROCUREMENT_CREATE"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/store/rejections",
+     "summary": "Goods rejected on receipt (waiting=true: only those not yet sent back)",
+     "permissions": [
+      "PROCUREMENT_VIEW",
+      "PROCUREMENT_RECEIVE",
+      "QUALITY_INSPECT"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/store/summary",
+     "summary": "What waits at each step: at the gate, being counted, with quality, to go back, not billed, deliveries due",
+     "permissions": [],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/store/supplier-names",
+     "summary": "Suppliers by name, GSTIN or city, as the gate and the stores pick one: no bank, tax or account details",
+     "permissions": [
+      "PROCUREMENT_VIEW",
+      "PROCUREMENT_RECEIVE",
+      "GATE_ENTRY"
+     ],
+     "public": false
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/procurement/store/suppliers",
+     "summary": "How each supplier delivered between two dates (90 days by default): on time, and how much was rejected",
+     "permissions": [
+      "PROCUREMENT_VIEW"
+     ],
      "public": false
     }
    ]

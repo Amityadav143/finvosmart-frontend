@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { AlertTriangle, CheckCircle2, Copy, PlugZap, Save, Send } from 'lucide-react'
-import { platformApi, moment, type PlatformGroup, type PlatformSetting, type PlatformSettingsView } from '@/lib/api/platform'
+import { platformApi, moment, day, type PlatformGroup, type PlatformSetting, type PlatformSettingsView } from '@/lib/api/platform'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { apiError } from '@/lib/apiError'
@@ -22,10 +22,14 @@ import { apiError } from '@/lib/apiError'
 const CHOICE_LABELS: Record<string, string> = {
   STARTTLS: 'STARTTLS (port 587)', SSL: 'SSL/TLS (port 465)', NONE: 'None — a mail server on your own network only',
   INFO: 'Information (blue)', WARNING: 'Warning (amber)',
+  IN_HOUSE_FIRST: 'In-house first — Claude only for what it can’t answer (with a key)',
+  IN_HOUSE: 'In-house only — nothing is sent to Anthropic, no key needed',
+  CLAUDE: 'Claude for every question (needs a key)',
 }
 const NOT_CHOSEN: Record<string, string> = {
   'mail.security': 'Automatic: SSL/TLS on port 465, STARTTLS on any other',
   'notice.tone': 'Information (the default)',
+  'assistant.answering': 'In-house first — Claude only for what it can’t answer (the default)',
 }
 
 /** What the box shows to start with: what is saved here (never a secret — its box starts empty). */
@@ -38,6 +42,7 @@ const SAVE_LABELS: Record<string, string> = {
   payments: 'Save the payment gateway',
   signin: 'Save Google sign-in',
   whatsapp: 'Save WhatsApp Business',
+  assistant: 'Save the AI assistant',
   access: 'Save sign-ups and notices',
 }
 
@@ -107,9 +112,20 @@ export default function PlatformSettingsPage() {
         <div role="status" className="rounded-xl px-4 py-3 text-sm flex gap-2" data-testid="no-encryption-key"
           style={{ background: 'rgba(217,119,6,0.10)', border: '1px solid rgba(217,119,6,0.35)', color: 'var(--text-primary)' }}>
           <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#b45309' }} aria-hidden />
-          <span>APP_ENCRYPTION_KEY isn&apos;t set on the server, so secrets (the SMTP password, Razorpay and WhatsApp secrets) can&apos;t be kept here —
-            they keep coming from the server&apos;s environment. Everything else saves as usual. To keep secrets here: <code>openssl rand -base64 32</code> into
-            APP_ENCRYPTION_KEY, then restart the backend.</span>
+          <span>The server has no key to seal secrets with{data.setup.encryptionProblem ? <> ({data.setup.encryptionProblem})</> : null}, so secrets (the SMTP
+            password, the Razorpay, WhatsApp and Anthropic keys) can&apos;t be kept here — they keep coming from the server&apos;s environment. Everything else saves as
+            usual. To keep secrets here: <code>openssl rand -base64 32</code> into APP_ENCRYPTION_KEY, then restart the backend.</span>
+        </div>
+      )}
+      {data.setup.encryptionReady && data.setup.encryptionSource === 'KEPT_FILE' && (
+        <div role="note" className="rounded-xl px-4 py-3 text-sm flex gap-2" data-testid="kept-encryption-key"
+          style={{ background: data.setup.encryptionProblem ? 'rgba(217,119,6,0.10)' : 'var(--bg-surface)',
+            border: `1px solid ${data.setup.encryptionProblem ? 'rgba(217,119,6,0.35)' : 'var(--border)'}`, color: 'var(--text-primary)' }}>
+          {data.setup.encryptionProblem && <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#b45309' }} aria-hidden />}
+          <span>{data.setup.encryptionProblem ? <>{data.setup.encryptionProblem}. </> : null}Secrets saved here (the SMTP password, the Razorpay, WhatsApp
+            and Anthropic keys) are kept encrypted with a key the server made and keeps in <code>{data.setup.encryptionKeyFile ?? '~/.finvosmart/encryption-key'}</code>.
+            Keep a copy of that file apart from the database&apos;s backups, and copy it along when moving to another server: without it, the secrets saved
+            here can&apos;t be read and have to be typed again.</span>
         </div>
       )}
 
@@ -143,6 +159,9 @@ export default function PlatformSettingsPage() {
           note="Razorpay is asked whether it accepts the key ID and secret as typed above (saved or not). Nothing is charged." />}
         {group.id === 'whatsapp' && <TestButton label="Check the connection" testId="test-whatsapp" run={() => platformApi.testWhatsApp(valuesOf(group))}
           note="WhatsApp is asked which number the phone number ID and token above are for. No message is sent." />}
+        {group.id === 'assistant' && <TestButton label="Check the key with Anthropic" testId="test-assistant" run={() => platformApi.testAssistant(valuesOf(group))}
+          note="Claude is asked for a one-word answer with the key and model above (saved or not) — a few tokens, billed to that key." />}
+        {group.id === 'assistant' && <AssistantUse />}
 
         {problem && <p role="alert" className="text-sm" style={{ color: '#dc2626' }} data-testid="settings-error">{problem}</p>}
         <div className="flex flex-wrap items-center justify-end gap-3 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
@@ -186,7 +205,7 @@ function Field({ s, value, encryption, removing, onChange, onRemove }: {
   } else if (s.kind === 'SECRET') {
     box = (
       <input className="input" type="password" autoComplete="new-password" maxLength={s.max} {...common} value={value} onChange={e => onChange(e.target.value)}
-        disabled={!encryption} placeholder={!encryption ? 'Needs APP_ENCRYPTION_KEY on the server' : s.value ? 'Type a new one to replace it' : 'Not set'} />
+        disabled={!encryption} placeholder={!encryption ? 'Needs an encryption key on the server' : s.value ? 'Type a new one to replace it' : 'Not set'} />
     )
   } else {
     const type = s.kind === 'EMAIL' ? 'email' : s.kind === 'PHONE' ? 'tel' : s.kind === 'DATE' ? 'date' : s.kind === 'PORT' ? 'number' : 'text'
@@ -288,5 +307,84 @@ function Answer({ answer }: { answer: { ok: boolean; text: string } | null }) {
   return (
     <p role={answer.ok ? 'status' : 'alert'} className="flex gap-2 text-sm" data-testid="test-answer" data-ok={String(answer.ok)}
       style={{ color: answer.ok ? 'var(--ok-text, #15803d)' : '#b91c1c' }}>{icon}<span>{answer.text}</span></p>
+  )
+}
+
+const n = (v: number) => v.toLocaleString('en-IN')
+/** "41 of 50 (82%)", or "None rated yet". */
+const rated = (up: number, down: number) => up + down ? `${n(up)} of ${n(up + down)} (${Math.round(up * 100 / (up + down))}%)` : 'None rated yet'
+/** "212 of 344 (62%)": the part of all questions, or "No questions yet". */
+const share = (part: number, all: number) => all ? `${n(part)} of ${n(all)} (${Math.round(part * 100 / all)}%)` : 'No questions yet'
+const ANSWERING: Record<string, string> = {
+  IN_HOUSE: 'in-house only — nothing is sent to Anthropic', IN_HOUSE_FIRST: 'in-house first, Claude for the rest', CLAUDE: 'Claude for every question',
+}
+
+/**
+ * The AI assistant's use over the last 30 days: questions asked on the website and in the app, those that failed, and
+ * the tokens Anthropic billed for them (cached reads cost a tenth). Counts only — no conversation is kept.
+ */
+function AssistantUse() {
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({ queryKey: ['platform', 'assistant-usage'], queryFn: platformApi.assistantUsage })
+  return (
+    <div className="rounded-xl p-3 space-y-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }} data-testid="assistant-usage">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium">Use over the last 30 days</p>
+        <button type="button" className="btn-ghost h-8 px-2 text-xs" onClick={() => refetch()} disabled={isFetching}>{isFetching ? 'Updating…' : 'Update'}</button>
+      </div>
+      {isLoading ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading…</p>
+        : isError || !data ? <p className="text-sm" role="alert" style={{ color: '#b91c1c' }}>{apiError(error, 'The use could not be loaded.')}</p> : (
+        <>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }} data-testid="assistant-answering">
+            Answering now — on the website: <strong>{data.available.website ? 'yes' : 'no'}</strong>; in the app: <strong>{data.available.app ? 'yes' : 'no'}</strong>;
+            {' '}<strong>{ANSWERING[data.answering] ?? data.answering}</strong>
+            {data.answering !== 'IN_HOUSE' && <>{data.claude ? <> — Claude model <code>{data.model}</code></> : ' — no API key, so in-house only'}</>}.
+            {!data.available.website && !data.available.app ? (data.answering === 'CLAUDE' ? ' Claude for every question needs a key (here or ANTHROPIC_API_KEY).' : ' The switch is off.') : ''}
+          </p>
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+            {[
+              ['Questions on the website', n(data.totals.website)],
+              ['Questions in the app', n(data.totals.app)],
+              ['Answered in-house', share(data.totals.inHouse, data.totals.website + data.totals.app)],
+              ['Answered by Claude', n(Math.max(0, data.totals.website + data.totals.app - data.totals.inHouse - data.totals.unanswered))],
+              ['No in-house answer (Claude not asked)', n(data.totals.unanswered)],
+              ['Couldn’t be answered', n(data.totals.failed)],
+              ['Tokens read (input)', n(data.totals.inputTokens)],
+              ['…of which from the cache', n(data.totals.cachedTokens)],
+              ['Tokens written (output)', n(data.totals.outputTokens)],
+              ['Figures looked up (in the app)', n(data.days.reduce((t, d) => t + d.toolCalls, 0))],
+              ['Answers rated helpful', rated(data.totals.helpful, data.totals.unhelpful)],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg px-3 py-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <dt className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</dt>
+                <dd className="font-semibold tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          {data.days.length === 0 ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No questions yet.</p> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs tabular-nums" data-testid="assistant-days">
+                <thead><tr style={{ color: 'var(--text-muted)' }}>
+                  <th className="text-left font-medium py-1 pr-3">Day</th><th className="text-right font-medium pr-3">Website</th><th className="text-right font-medium pr-3">App</th>
+                  <th className="text-right font-medium pr-3">Companies</th><th className="text-right font-medium pr-3">Input tokens</th><th className="text-right font-medium pr-3">Output tokens</th>
+                  <th className="text-right font-medium pr-3">In-house</th>
+                  <th className="text-right font-medium pr-3">Failed</th><th className="text-right font-medium">Helpful</th>
+                </tr></thead>
+                <tbody>
+                  {data.days.slice(0, 14).map(d => (
+                    <tr key={d.day} style={{ borderTop: '1px solid var(--border)' }}>
+                      <td className="py-1 pr-3 whitespace-nowrap">{day(d.day)}</td><td className="text-right pr-3">{n(d.website)}</td><td className="text-right pr-3">{n(d.app)}</td>
+                      <td className="text-right pr-3">{n(d.companies)}</td><td className="text-right pr-3">{n(d.inputTokens + d.cacheReadTokens + d.cacheWriteTokens)}</td>
+                      <td className="text-right pr-3">{n(d.outputTokens)}</td>
+                      <td className="text-right pr-3">{n(d.inHouse ?? 0)}</td><td className="text-right pr-3">{n(d.failed)}</td>
+                      <td className="text-right whitespace-nowrap">{d.helpful + d.unhelpful ? `${n(d.helpful)} of ${n(d.helpful + d.unhelpful)}` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   )
 }

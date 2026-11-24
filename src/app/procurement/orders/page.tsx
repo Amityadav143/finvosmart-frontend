@@ -14,6 +14,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { procurementApi } from '@/lib/api/procurement'
+import { grnApi } from '@/lib/api/purchaseStore'
+import { OrderReceiving } from '@/components/purchaseStore/StoreParts'
 import { allPages } from '@/lib/api/allPages'
 import { DataTable } from '@/components/ui/Table'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -40,22 +42,24 @@ const STATUS_CONFIG: Record<string,[string,string]> = {
   ORDERED:           ['#8b5cf6',             'rgba(139,92,246,.1)'],
   PARTIALLY_RECEIVED:['#f59e0b',             'rgba(245,158,11,.1)'],
   RECEIVED:          ['#22c55e',             'rgba(34,197,94,.08)'],
+  CLOSED:            ['#64748b',             'rgba(100,116,139,.12)'],
   CANCELLED:         ['#64748b',             'rgba(100,116,139,.1)'],
 }
 
 const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
   DRAFT: 'Draft', SUBMITTED: 'Awaiting approval', APPROVED: 'Approved', ORDERED: 'Ordered',
-  PARTIALLY_RECEIVED: 'Partly received', RECEIVED: 'Received', CANCELLED: 'Cancelled',
+  PARTIALLY_RECEIVED: 'Partly received', RECEIVED: 'Received', CLOSED: 'Closed', CANCELLED: 'Cancelled',
 }
 
 /** Where an order can go next — the same rules the server enforces (PoRules.java). */
 const NEXT: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
   DRAFT: ['SUBMITTED', 'CANCELLED'],
   SUBMITTED: ['APPROVED', 'DRAFT', 'CANCELLED'],
-  APPROVED: ['ORDERED', 'CANCELLED'],
-  ORDERED: ['PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED'],
-  PARTIALLY_RECEIVED: ['RECEIVED'],
+  APPROVED: ['ORDERED', 'CLOSED', 'CANCELLED'],
+  ORDERED: ['PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED', 'CANCELLED'],
+  PARTIALLY_RECEIVED: ['RECEIVED', 'CLOSED'],
   RECEIVED: [],
+  CLOSED: [],
   CANCELLED: [],
 }
 
@@ -68,6 +72,7 @@ const MOVE_PERMS: Record<PurchaseOrderStatus, string[]> = {
   DRAFT: ['PROCUREMENT_CREATE', 'PROCUREMENT_EDIT', 'PROCUREMENT_APPROVE'],
   ORDERED: ['PROCUREMENT_CREATE', 'PROCUREMENT_EDIT', 'PROCUREMENT_APPROVE'],
   CANCELLED: ['PROCUREMENT_CREATE', 'PROCUREMENT_EDIT', 'PROCUREMENT_APPROVE'],
+  CLOSED: ['PROCUREMENT_EDIT', 'PROCUREMENT_APPROVE'],
 }
 
 /** The button for moving an order to a status, and what to say when it's done. */
@@ -78,8 +83,11 @@ const ACTION: Record<PurchaseOrderStatus, { label: string; done: string }> = {
   ORDERED: { label: 'Mark ordered', done: 'marked as ordered' },
   PARTIALLY_RECEIVED: { label: 'Partly received', done: 'marked partly received' },
   RECEIVED: { label: 'Received', done: 'marked received' },
+  CLOSED: { label: 'Close the rest', done: 'closed' },
   CANCELLED: { label: 'Cancel', done: 'cancelled' },
 }
+/** Orders goods are received against (and those already in — their receipts still show). */
+const RECEIVING: PurchaseOrderStatus[] = ['APPROVED', 'ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED']
 
 interface POLine { itemId?: string; description:string; hsnSacCode:string; quantity:string; unit:string; unitPrice:string; gstRate:string }
 const BLANK_LINE: POLine = { description:'', hsnSacCode:'', quantity:'1', unit:'Nos', unitPrice:'', gstRate:'18' }
@@ -172,7 +180,21 @@ export default function PurchaseOrdersPage(){
   const openBills = openFull?.id === open?.id ? (openFull?.bills ?? []) : []
   const canBill = canAny('PROCUREMENT_CREATE', 'FINANCE_CREATE')
 
-  const actionsFor = (o: PurchaseOrder) => (NEXT[o.status] ?? []).filter(to => canAny(...MOVE_PERMS[to]))
+  // what the purchase store received against the open order (its receipts set its received status)
+  const { data: receiving } = useQuery({ queryKey: ['grn-order', open?.id], queryFn: () => grnApi.order(open!.id),
+    enabled: !!open && RECEIVING.includes(open.status) && canAny('PROCUREMENT_VIEW', 'PROCUREMENT_RECEIVE'), retry: false })
+  const receipts = receiving?.poId === open?.id ? (receiving?.receipts ?? []).filter(r => r.status !== 'CANCELLED') : []
+  const inStock = receipts.filter(r => r.status === 'POSTED')
+  const [closing, setClosing] = useState<PurchaseOrder | null>(null)
+  const [closeNote, setCloseNote] = useState('')
+  const close = useMutation({
+    mutationFn: () => procurementApi.purchaseOrders.close(closing!.id, closeNote.trim()),
+    onSuccess: updated => { refresh(); qc.invalidateQueries({ queryKey: ['grn-order'] }); setOpen(o => (o && o.id === closing?.id ? { ...o, ...updated } : o)); toast.success(`${closing?.poNumber} closed — nothing more is expected on it`); setClosing(null) },
+    onError: (e: any) => toast.error(errText(e, "Couldn't close the order")),
+  })
+  // closing asks why (its own button); receipts, once there are any, set the received status
+  const actionsFor = (o: PurchaseOrder) => (NEXT[o.status] ?? []).filter(to => to !== 'CLOSED' && canAny(...MOVE_PERMS[to])
+    && !(o.id === open?.id && receipts.length > 0 && (to === 'PARTIALLY_RECEIVED' || to === 'RECEIVED')))
   const go = (o: PurchaseOrder, to: PurchaseOrderStatus) => (to === 'CANCELLED' ? setCancelling(o) : move.mutate({ order: o, to }))
 
   const addLine = () => setLines(ls => [...ls, { ...BLANK_LINE }])
@@ -269,7 +291,7 @@ export default function PurchaseOrdersPage(){
 
       {/* Status filter chips */}
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
-        {(['','DRAFT','SUBMITTED','APPROVED','ORDERED','PARTIALLY_RECEIVED','RECEIVED','CANCELLED'] as const).map(s=>(
+        {(['','DRAFT','SUBMITTED','APPROVED','ORDERED','PARTIALLY_RECEIVED','RECEIVED','CLOSED','CANCELLED'] as const).map(s=>(
           <button key={s} onClick={()=>{ setStatusFilter(s); setPage(0) }} aria-pressed={statusFilter===s}
             className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
             style={{background:statusFilter===s?`${STATUS_CONFIG[s]?.[1]??'var(--gold-muted)'}`:'var(--bg-hover)',
@@ -349,13 +371,23 @@ export default function PurchaseOrdersPage(){
                 </ul>
               </div>
             )}
-            {BILLABLE.includes(open.status) && (
+            {receiving && receiving.poId === open.id && <OrderReceiving o={receiving} canClose={canAny('PROCUREMENT_EDIT', 'PROCUREMENT_APPROVE') && ['APPROVED', 'ORDERED', 'PARTIALLY_RECEIVED'].includes(open.status)}
+              onClose={() => { setCloseNote(''); setClosing(open) }} />}
+            {open.closeNote && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Closed: {open.closeNote}</p>}
+            {BILLABLE.includes(open.status) && receipts.length === 0 && (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
                 <p className="text-xs" style={{color:'var(--text-muted)'}}>
-                  {openBills.some(b => b.status !== 'CANCELLED') ? 'Bill recorded. Enter another if the supplier billed in parts.' : 'When the supplier’s invoice arrives, record it from this order — its lines are filled in, and recording it brings the items into stock.'}
+                  {openBills.some(b => b.status !== 'CANCELLED') ? 'Bill recorded. Enter another if the supplier billed in parts.' : 'When the supplier’s invoice arrives, record it from this order — its lines are filled in, and recording it brings the items into stock. (Receiving through a goods receipt instead? Make the bill from the receipt.)'}
                 </p>
                 {canBill && <Link href={`/purchases/bills/new?fromPo=${open.id}`} className="btn-secondary h-9 text-sm">Record the supplier&apos;s bill</Link>}
               </div>
+            )}
+            {receipts.length > 0 && (
+              <p className="text-xs rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }} data-testid="po-bill-from-receipt">
+                {inStock.length > 0
+                  ? 'Its goods came in on goods receipts: make each supplier bill from its receipt — the bill is matched to what was ordered and received, and doesn’t bring the goods into stock again.'
+                  : 'Its goods are being received on a goods receipt: once it is in stock, make the supplier’s bill from the receipt — matched to what was ordered and received.'}
+              </p>
             )}
             {actionsFor(open).length > 0 && (
               <div className="flex flex-wrap justify-end gap-2 pt-3" style={{borderTop:'1px solid var(--border)'}}>
@@ -369,6 +401,20 @@ export default function PurchaseOrdersPage(){
                 ))}
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={!!closing} onClose={() => setClosing(null)} size="sm" title={closing ? `Close ${closing.poNumber}?` : ''}
+        subtitle="Nothing more is expected on it: what has come stays, the rest won't be received.">
+        {closing && (
+          <div className="space-y-3">
+            <label className="label label-required" htmlFor="po-close-note">Why isn't the rest coming?</label>
+            <input id="po-close-note" className="input h-10" value={closeNote} onChange={e => setCloseNote(e.target.value)} placeholder="Supplier can't supply, no longer needed…" autoFocus data-testid="po-close-note" />
+            <div className="flex justify-end gap-2">
+              <button className="btn-secondary h-9" onClick={() => setClosing(null)}>Keep it open</button>
+              <button className="btn-primary h-9" disabled={!closeNote.trim() || close.isPending} onClick={() => close.mutate()} data-testid="po-close-ok">{close.isPending ? 'Closing…' : 'Close the order'}</button>
+            </div>
           </div>
         )}
       </Modal>

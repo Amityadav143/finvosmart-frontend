@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowLeft, ArrowUp, Copy, GripVertical, ImagePlus, Lock, Plus, RotateCcw, Save, Star, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiError } from '@/lib/utils'
+import { PICTURE_ACCEPT, PictureProblem, printablePicture } from '@/lib/printablePicture'
 import { PdfViewer } from '@/components/pdf/PdfViewer'
 import {
   COLUMN_LABELS, DOC_TYPES, FONT_LABELS, LAYOUT_LABELS, SECTION_LABELS, TABLE_LABELS, templatesApi,
@@ -456,12 +457,13 @@ function PictureField({ kind, label, value, onChange, assets, disabled, onUpload
   const upload = async (file: File) => {
     setBusy(true)
     try {
-      const a = await templatesApi.upload(file, kind)
+      // WebP, SVG and other pictures the server can't print are drawn into a PNG here first
+      const a = await templatesApi.upload(await printablePicture(file), kind)
       onUploaded()
       onChange(a.id)
       toast.success(`${label} added`)
     } catch (e) {
-      toast.error(apiError(e, `The ${label.toLowerCase()} could not be added`))
+      toast.error(e instanceof PictureProblem ? e.message : apiError(e, `The ${label.toLowerCase()} could not be added`))
     } finally {
       setBusy(false)
       if (input.current) input.current.value = ''
@@ -477,7 +479,7 @@ function PictureField({ kind, label, value, onChange, assets, disabled, onUpload
             : <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>None</span>}
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <input ref={input} id={`${idBase}-file`} type="file" accept="image/png,image/jpeg,image/gif,image/bmp" className="sr-only" disabled={disabled || busy}
+          <input ref={input} id={`${idBase}-file`} type="file" accept={PICTURE_ACCEPT} className="sr-only" disabled={disabled || busy}
             onChange={e => { const f = e.target.files?.[0]; if (f) upload(f) }} />
           <label htmlFor={`${idBase}-file`} className="btn-secondary h-8 text-xs" aria-disabled={disabled || busy}
             style={{ cursor: disabled || busy ? 'not-allowed' : 'pointer' }}><ImagePlus size={13} /> {busy ? 'Uploading…' : 'Upload'}</label>
@@ -490,7 +492,7 @@ function PictureField({ kind, label, value, onChange, assets, disabled, onUpload
           {mine.map(a => <option key={a.id} value={a.id}>{`${label} ${a.width}×${a.height}, added ${new Date(a.createdAt).toLocaleDateString('en-IN')}`}</option>)}
         </select>
       )}
-      <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>PNG or JPEG up to 5 MB; a transparent PNG looks best.</p>
+      <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>PNG, JPEG, WebP or SVG; a transparent PNG or an SVG looks best.</p>
     </div>
   )
 }

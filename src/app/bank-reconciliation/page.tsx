@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import PlanGate from '@/components/ui/PlanGate'
 import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -23,7 +24,7 @@ import { inr } from '@/lib/money'
 type Tab = 'suggested' | 'unmatched' | 'recorded' | 'out'
 const amountOf = (l: StatementLine) => Number(l.credit ?? l.debit ?? 0)
 
-export default function BankReconPage() {
+function BankReconPageContent() {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [data, setData] = useState<ParsedStatement | null>(null)
@@ -106,8 +107,8 @@ export default function BankReconPage() {
               {parse.isPending ? <RefreshCw className="animate-spin" style={{ color: 'var(--gold)' }} /> : <Upload style={{ color: 'var(--gold)' }} />}
             </div>
             <p className="font-semibold">{parse.isPending ? 'Reading the statement…' : 'Drop the statement here, or click to choose'}</p>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>CSV, Excel (.xlsx / .xls) or OFX, as downloaded from net banking — any bank (SBI, HDFC, ICICI, Axis, Kotak…). No need to choose the format.</p>
-            <input ref={fileRef} type="file" className="hidden" accept=".csv,.txt,.xlsx,.xls,.ofx,.qfx" onChange={e => { onFile(e.target.files?.[0]); e.target.value = '' }} />
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>CSV, Excel (.xlsx / .xls — the HTML and XML kinds some banks send too) or OFX, as downloaded from net banking — any bank (SBI, HDFC, ICICI, Axis, Kotak…). No need to choose the format.</p>
+            <input ref={fileRef} type="file" className="hidden" accept=".csv,.txt,.tsv,.xlsx,.xls,.xml,.htm,.html,.ofx,.qfx" onChange={e => { onFile(e.target.files?.[0]); e.target.value = '' }} />
           </div>
           <ul className="text-xs mt-4 space-y-1" style={{ color: 'var(--text-muted)' }}>
             <li>• Lines already recorded are recognised, so uploading the same statement again never records anything twice.</li>
@@ -216,4 +217,9 @@ function Stat({ label, value, sub, color }: { label: string; value: string; sub?
       {sub && <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
     </div>
   )
+}
+
+/** On a plan without it (Starter): what it does and where to move, instead of a page the server would refuse. */
+export default function BankReconPage() {
+  return <PlanGate feature="BANK_MATCHING"><BankReconPageContent /></PlanGate>
 }

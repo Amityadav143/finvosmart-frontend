@@ -14,10 +14,11 @@ import Link from 'next/link'
 import { Shield, Users, Globe, Code, ArrowRight, CheckCircle } from 'lucide-react'
 
 const TECH_STACK = [
-  { layer:'Frontend', tech:['Next.js 14','React 18','TypeScript 5','Tailwind CSS','Recharts 2.10','Zustand 4.4','TanStack Query 5'], color:'#2563EB' },
-  { layer:'Backend',  tech:['Spring Boot 3.2','Java 17','JWT Multi-tenant','Liquibase','BCrypt 12','OpenAPI 3.0','Role-based access','Two-step sign-in'], color:'#E9C46A' },
-  { layer:'Data',     tech:['PostgreSQL 15','Redis 7','JSONB fields','Soft delete','Append-only audit trail','Liquibase migrations'], color:'#16A34A' },
-  { layer:'Infra',    tech:['Docker Compose','5 Services','Nginx','Multi-tenant','Cloud-agnostic'], color:'#8B5CF6' },
+  // color tints the chips; ink is the same colour as words, readable on the light and the dark page
+  { layer:'Frontend', tech:['Next.js 16','React 19','TypeScript 5','Tailwind CSS','Recharts 2.10','Zustand 4.4','TanStack Query 5'], color:'#2563EB', ink:'var(--info-text)' },
+  { layer:'Backend',  tech:['Spring Boot 3.2','Java 17','JWT Multi-tenant','Liquibase','BCrypt 12','OpenAPI 3.0','Role-based access','Two-step sign-in'], color:'#E9C46A', ink:'var(--gold)' },
+  { layer:'Data',     tech:['PostgreSQL 15','Redis 7','JSONB fields','Soft delete','Append-only audit trail','Liquibase migrations'], color:'#16A34A', ink:'var(--ok-text)' },
+  { layer:'Infra',    tech:['Docker Compose','5 Services','Nginx','Multi-tenant','Cloud-agnostic'], color:'#8B5CF6', ink:'var(--violet-text)' },
 ]
 
 export default function AboutPage() {
@@ -36,7 +37,7 @@ export default function AboutPage() {
               <h1 style={{ fontFamily: "'Instrument Serif', serif", fontWeight: 400, fontSize: 'clamp(28px,4vw,44px)', color: 'var(--text-primary)', marginBottom: '20px', lineHeight: 1.2 }}>
                 Built for India.<br />By People Who Understand India.
               </h1>
-              <p style={{ fontSize: '16px', color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: '16px' }}>
+              <p style={{ fontSize: '16px', color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: '16px' }} data-nosnippet>
                 FINVOSMART is a product of Navgrow Engineering Service Pvt. Ltd., a registered Indian technology company. We built FINVOSMART because we watched Indian businesses struggle with tools that weren't designed for India's compliance environment, business culture or technology landscape.
               </p>
               <p style={{ fontSize: '16px', color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: '28px' }}>
@@ -50,14 +51,14 @@ export default function AboutPage() {
             </div>
             <div>
               <div className="auto-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
-                {[['v1.0','Production-ready release'],['14','Modules in one platform'],['2','Support languages: English & Hindi'],['63M','MSMEs in our market']].map(([n,l]) => (
+                {[['v1.1','Production-ready release'],['20+','Modules in one platform'],['2','Support languages: English & Hindi'],['63M','MSMEs in our market']].map(([n,l]) => (
                   <div key={l} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px' }}>
                     <div style={{ fontFamily: "'Instrument Serif', serif", fontSize: '28px', color: 'var(--gold)' }}>{n}</div>
                     <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>{l}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ padding: '16px 20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+              <div style={{ padding: '16px 20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.8 }} data-nosnippet>
                 <strong style={{ color: 'var(--text-primary)' }}>Navgrow Engineering Service Pvt. Ltd.</strong><br />
                 CIN: U29302WB2025PTC281015<br />
                 Registered in West Bengal, India · MSME Registered<br />
@@ -103,7 +104,7 @@ export default function AboutPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {TECH_STACK.map(layer => (
               <div key={layer.layer} style={{ display: 'flex', alignItems: 'center', gap: '20px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px 20px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: layer.color, width: '80px', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{layer.layer}</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: layer.ink, width: '80px', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{layer.layer}</div>
                 <div style={{ width: '24px', height: '2px', background: 'var(--border-strong)', flexShrink: 0 }} />
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {layer.tech.map(t => (

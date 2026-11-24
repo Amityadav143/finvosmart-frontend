@@ -73,13 +73,24 @@ export function renewSession(): Promise<Renewal> {
   return renewing
 }
 
+/** Answers that are the same for everyone (Finvosmart's public details): kept when a person's are forgotten. */
+const PUBLIC_QUERIES = new Set(['platform-info'])
+
+/** Empties the cache of everything about a person or company (every answer but the public ones, every form sent). */
+function forgetCached() {
+  const qc = queryClientRef.current
+  if (!qc) return
+  qc.removeQueries({ predicate: q => !PUBLIC_QUERIES.has(String(q.queryKey[0])) })
+  qc.getMutationCache().clear()
+}
+
 /**
  * Keeps a new session (signed in, renewed): the profile and the access token. A different person or company than
  * before in this tab means nothing cached may be shown again: the cache is emptied first.
  */
 export function takeAuth(auth: any) {
   const before = useAuthStore.getState().user
-  if (before && (before.userId !== auth.userId || before.companyId !== auth.companyId)) queryClientRef.current?.clear()
+  if (before && (before.userId !== auth.userId || before.companyId !== auth.companyId)) forgetCached()
   useAuthStore.getState().setAuth(auth)
 }
 
@@ -102,9 +113,9 @@ export async function signOut(): Promise<void> {
   tell({ type: 'signed-out' })
 }
 
-/** Forgets the person in this tab: profile, access token and every cached answer. */
+/** Forgets the person in this tab: profile, access token and every cached answer about them. */
 export function forgetHere() {
-  queryClientRef.current?.clear()
+  forgetCached()
   useAuthStore.getState().logout()
 }
 

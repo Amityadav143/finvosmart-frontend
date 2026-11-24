@@ -12,10 +12,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Chip } from '@/components/purchaseStore/StoreParts'
+import type { BillMatch } from '@/types/purchaseStore'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Ban, BookCheck, IndianRupee, Package, Pencil, Receipt, Trash2 } from 'lucide-react'
+import { ArrowLeft, Ban, BookCheck, IndianRupee, Lock, Package, Pencil, Receipt, Trash2, Unlock } from 'lucide-react'
 import { billsApi } from '@/lib/api/purchases'
 import { Modal } from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -28,13 +30,14 @@ import { expiryText } from '@/lib/inventory'
 import { BILL_TYPE_LABEL, ITC_STATUS, billBadge, billStatusLabel, errText } from '@/lib/purchases'
 import type { Bill, BillPaymentRecord } from '@/types/purchases'
 import { DocumentReview } from '@/components/ca/DocumentReview'
+import { BillAttachments } from '@/components/purchases/BillAttachments'
 
 export default function BillDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const qc = useQueryClient()
   const { canAny, can } = usePermissions()
-  const [modal, setModal] = useState<'pay' | 'credit' | 'cancel' | 'delete' | null>(null)
+  const [modal, setModal] = useState<'pay' | 'credit' | 'cancel' | 'delete' | 'release' | null>(null)
   const [voiding, setVoiding] = useState<BillPaymentRecord | null>(null)
 
   const { data: bill, isLoading, isError } = useQuery({ queryKey: ['bill', id], queryFn: () => billsApi.get(id) })
@@ -86,6 +89,10 @@ export default function BillDetailPage() {
             {BILL_TYPE_LABEL[bill.billType]} · {bill.vendorName}{bill.billNumber ? ` · their no. ${bill.billNumber}` : ''} · {formatDate(bill.billDate)}
             {bill.vendorId && <> · <Link href={`/statements/supplier/${bill.vendorId}`} style={{ color: 'var(--gold)' }}>supplier statement</Link></>}
             {bill.poId && bill.poNumber && <> · for <Link href={`/procurement/orders?open=${bill.poId}`} style={{ color: 'var(--gold)' }}>{bill.poNumber}</Link></>}
+            {bill.grnId && bill.grnNumber && <> · from <Link href={`/procurement/grn/${bill.grnId}`} style={{ color: 'var(--gold)' }}>{bill.grnNumber}</Link></>}
+            {bill.purchaseReturnId && bill.purchaseReturnNumber && <> · for return <Link href={`/procurement/returns?open=${bill.purchaseReturnId}`} style={{ color: 'var(--gold)' }}>{bill.purchaseReturnNumber}</Link></>}
+            {bill.warrantyClaimId && bill.warrantyClaimNumber && <> · for warranty claim {can('WARRANTY_CLAIMS')
+              ? <Link href={`/warranty/${bill.warrantyClaimId}`} style={{ color: 'var(--gold)' }}>{bill.warrantyClaimNumber}</Link> : bill.warrantyClaimNumber}</>}
           </p>
           {bill.status !== 'CANCELLED' && <div className="mt-2"><DocumentReview type="BILL" id={String(id)} /></div>}
         </div>
@@ -97,12 +104,23 @@ export default function BillDetailPage() {
           {open && !cn && credits.length > 0 && can('FINANCE_CREATE') && (
             <button className="btn-secondary h-9" onClick={() => setModal('credit')}><Receipt size={15} />Use credit note</button>
           )}
+          {open && bill.paymentHold && canAny('PROCUREMENT_APPROVE', 'FINANCE_APPROVE') && (
+            <button className="btn-secondary h-9" onClick={() => setModal('release')} data-testid="bill-release"><Unlock size={15} />Release for payment</button>
+          )}
           {open && can('FINANCE_CREATE') && (
-            <button className="btn-primary h-9" onClick={() => setModal('pay')}><IndianRupee size={15} />{cn ? 'Record refund' : 'Record payment'}</button>
+            <button className="btn-primary h-9" onClick={() => setModal('pay')} disabled={!!bill.paymentHold}
+              title={bill.paymentHold ? 'Held for payment: it doesn’t match its order and receipt' : undefined} data-testid="bill-pay"><IndianRupee size={15} />{cn ? 'Record refund' : 'Record payment'}</button>
           )}
         </div>
       </div>
 
+      {bill.paymentHold && bill.status !== 'CANCELLED' && (
+        <div data-testid="bill-hold"><Notice tone="red"><span className="inline-flex items-center gap-1.5 font-semibold"><Lock size={14} aria-hidden />Held for payment.</span> {bill.holdReason}.
+          {' '}{canAny('PROCUREMENT_APPROVE', 'FINANCE_APPROVE') ? 'Correct the bill, or release it if it may be paid as it is.' : 'Someone who approves purchases or finance can release it, or the bill is corrected.'}</Notice></div>
+      )}
+      {!bill.paymentHold && bill.holdReleasedAt && bill.status !== 'CANCELLED' && (
+        <div data-testid="bill-released"><Notice tone="blue">Released for payment by {bill.holdReleasedBy ?? 'someone'} on {formatDate(bill.holdReleasedAt)}{bill.holdReleaseNote ? ` — ${bill.holdReleaseNote}` : ''}. It was held: {bill.holdReason}.</Notice></div>
+      )}
       {bill.status === 'DRAFT' && <Notice tone="blue">This is a draft — it isn't in your books or payables yet. Record it when the details are final.</Notice>}
       {carried && bill.status !== 'CANCELLED' && <Notice tone="blue">A bill from before you started using Finvosmart, carried over unpaid. It is in your books as an opening balance — not a purchase, no GST credit or TDS — and is paid here like any bill.</Notice>}
       {bill.status === 'CANCELLED' && <Notice tone="red">Cancelled{bill.cancelledAt ? ` on ${formatDate(bill.cancelledAt)}` : ''}{bill.cancelReason ? ` — ${bill.cancelReason}` : ''}. Its entry in the books has been reversed.</Notice>}
@@ -110,6 +128,8 @@ export default function BillDetailPage() {
       {!bill.msmeLate && bill.msmeCovered && open && bill.msmePayBy && <Notice tone="blue">{bill.vendorName} is a {String(bill.vendorMsmeCategory).toLowerCase()} enterprise — pay by <strong>{formatDate(bill.msmePayBy)}</strong> (MSMED Act, Section 15).</Notice>}
       {(bill.warnings ?? []).filter(w => !w.startsWith('Past the MSMED')).map(w => <Notice key={w} tone="amber">{w}</Notice>)}
       {stockNote && <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}><Package size={14} aria-hidden /><Link href="/inventory/stock" className="underline">{stockNote}</Link></p>}
+      {bill.grnId && <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}><Package size={14} aria-hidden />Its goods came into stock with {bill.grnNumber}: the bill moves none.</p>}
+      {bill.match && bill.match.rows.length > 0 && <BillMatchPanel match={bill.match} />}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="xl:col-span-2 space-y-5">
@@ -180,6 +200,8 @@ export default function BillDetailPage() {
             {bill.itcStatus !== 'NA' && <Link href="/gst-reconciler" className="text-xs underline" style={{ color: 'var(--text-muted)' }}>Check against GSTR-2B</Link>}
           </div>
 
+          <BillAttachments billId={bill.id} canEdit={canEdit && bill.status !== 'CANCELLED'} />
+
           {bill.status !== 'DRAFT' && (
             <div className="card">
               <h3 className="font-semibold text-sm mb-2">{cn ? 'Used against bills and refunds' : 'Payments'}</h3>
@@ -215,6 +237,7 @@ export default function BillDetailPage() {
       {modal === 'pay' && <PayModal bill={bill} onClose={() => setModal(null)} onDone={() => refresh()} />}
       {modal === 'credit' && <CreditModal bill={bill} credits={credits} onClose={() => setModal(null)} onDone={() => refresh()} />}
       {modal === 'cancel' && <CancelModal bill={bill} onClose={() => setModal(null)} onDone={b => refresh(b)} />}
+      {modal === 'release' && <ReleaseModal bill={bill} onClose={() => setModal(null)} onDone={b => refresh(b)} />}
       {modal === 'delete' && <DeleteModal bill={bill} onClose={() => setModal(null)} onDone={() => { qc.invalidateQueries({ queryKey: ['bills'] }); router.push('/purchases') }} />}
       {voiding && <VoidModal payment={voiding} onClose={() => setVoiding(null)} onDone={() => refresh()} />}
     </div>
@@ -337,6 +360,30 @@ function CancelModal({ bill, onClose, onDone }: { bill: Bill; onClose: () => voi
   )
 }
 
+/** Releases a bill held for payment: someone who approves purchases or finance says why it may be paid as it is. */
+function ReleaseModal({ bill, onClose, onDone }: { bill: Bill; onClose: () => void; onDone: (b: Bill) => void }) {
+  const [reason, setReason] = useState('')
+  const go = useMutation({
+    mutationFn: () => billsApi.releaseHold(bill.id, reason),
+    onSuccess: b => { onDone(b); toast.success(`${b.referenceNumber} released for payment`); onClose() },
+    onError: (e: any) => toast.error(errText(e, 'Could not release it')),
+  })
+  return (
+    <Modal open onClose={onClose} title={`Release ${bill.referenceNumber} for payment?`} size="sm">
+      <div className="space-y-3">
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{bill.holdReason}. Releasing it lets it be paid as it is; the reason and your name are kept on the bill.
+          If the bill is wrong, correct it instead — it is checked again when saved.</p>
+        <div><label className="label label-required" htmlFor="rel-reason">Why may it be paid as it is?</label>
+          <input id="rel-reason" className="input h-10" value={reason} maxLength={300} onChange={e => setReason(e.target.value)} placeholder="e.g. New rate agreed with the supplier" data-testid="bill-release-reason" /></div>
+        <div className="flex justify-end gap-2">
+          <button className="btn-secondary h-10" onClick={onClose}>Back</button>
+          <button className="btn-primary h-10" disabled={!reason.trim() || go.isPending} onClick={() => go.mutate()} data-testid="bill-release-ok">{go.isPending ? 'Releasing…' : 'Release for payment'}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 function DeleteModal({ bill, onClose, onDone }: { bill: Bill; onClose: () => void; onDone: () => void }) {
   const go = useMutation({
     mutationFn: () => billsApi.remove(bill.id),
@@ -353,5 +400,32 @@ function DeleteModal({ bill, onClose, onDone }: { bill: Bill; onClose: () => voi
         </div>
       </div>
     </Modal>
+  )
+}
+
+/** Ordered, received and billed, item by item, with the order's rate against the bill's: the three-way match. */
+function BillMatchPanel({ match }: { match: BillMatch }) {
+  const q = (n?: number | null) => (n == null ? '—' : new Intl.NumberFormat('en-IN', { maximumFractionDigits: 3 }).format(Number(n)))
+  return (
+    <div className="card space-y-2" data-testid="bill-match">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="font-semibold text-sm">Matched against {match.against}</h2>
+        <Chip status={match.matched ? 'MATCHED' : 'MORE_THAN_RECEIVED'} label={match.matched ? 'Everything matches' : 'Check the differences'} />
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr style={{ color: 'var(--text-muted)' }}>{['Item', 'Ordered', 'Received', 'Billed before', 'This bill', 'Order rate', 'Bill rate', ''].map(h => <th key={h} className="text-left font-medium px-2 py-1.5">{h}</th>)}</tr></thead>
+          <tbody>{match.rows.map(r => (
+            <tr key={r.item} style={{ borderTop: '1px solid var(--border)' }}>
+              <td className="px-2 py-1.5">{r.item}</td><td className="px-2">{q(r.ordered)}</td><td className="px-2">{q(r.received)}</td>
+              <td className="px-2">{Number(r.billedBefore) ? q(r.billedBefore) : ''}</td><td className="px-2 font-semibold">{q(r.billed)}</td>
+              <td className="px-2 font-mono">{r.orderRate != null ? inr(r.orderRate) : '—'}</td><td className="px-2 font-mono">{r.billRate != null ? inr(r.billRate) : '—'}</td>
+              <td className="px-2"><Chip status={r.status} label={r.statusLabel} /></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+      {!match.matched && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Before paying, ask the supplier about each difference: billed beyond what came in, or at a rate above the order&apos;s. A credit note from them sets it right.</p>}
+    </div>
   )
 }

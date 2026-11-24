@@ -93,6 +93,10 @@ export const useAuthStore = create<AuthState>()(
       setAccessToken: (token: string | null) => set({ accessToken: token }),
 
       logout: () => {
+        // the assistant's conversation in this tab may hold the company's figures: it goes with the sign-in
+        try {
+          for (const k of Object.keys(sessionStorage)) if (k.startsWith('finvo-assistant:app') || k === 'finvo-assistant-open:app') sessionStorage.removeItem(k)
+        } catch { /* no storage here */ }
         set({ user: null, accessToken: null, isAuthenticated: false })
       },
     }),

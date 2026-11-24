@@ -44,6 +44,10 @@
   --btn-primary-bg:     linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   --btn-primary-shadow: 0 4px 14px rgba(245,158,11,0.35);
   --ok-text:            #4ade80;
+  --info-text:          #60a5fa;   /* coloured words (not only marks): 4.5:1 or more on the dark surfaces */
+  --danger-text:        #f87171;
+  --violet-text:        #a78bfa;
+  --warn-text:          #fbbf24;
   --hero-grid:          rgba(245,158,11,0.045);
   --hero-glow:          rgba(245,158,11,0.12);
   --hero-glow-2:        rgba(37,99,235,0.08);
@@ -76,6 +80,10 @@
   --btn-primary-bg:     linear-gradient(135deg, #b75808 0%, #a84e08 100%);   /* white text 4.6:1+ */
   --btn-primary-shadow: 0 4px 14px rgba(180,83,9,0.28);
   --ok-text:            #166534;
+  --info-text:          #1d4ed8;   /* coloured words: 4.5:1 or more on the light surfaces */
+  --danger-text:        #b91c1c;
+  --violet-text:        #6d28d9;
+  --warn-text:          #92400e;
   --hero-grid:          rgba(26,27,75,0.04);
   --hero-glow:          rgba(180,83,9,0.07);
   --hero-glow-2:        rgba(37,99,235,0.05);
@@ -460,7 +468,7 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
   /* 1. Any <table> stays readable by scrolling horizontally inside its container
         rather than forcing the whole page wider than the viewport. */
   @media (max-width: 768px) {
-    .card table, main table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; max-width: 100%; }
+    .card table, main table:not(.keep-table) { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; max-width: 100%; }
   }
 
   /* 2. Tailwind fixed multi-column grids (grid-cols-2/3/4/5/6) collapse sensibly
@@ -504,18 +512,20 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
    The marketing pages (about, contact, pricing, custom-plan, features, landing)
    use large desktop section padding and inline multi-column grids. This layer
    makes them reflow cleanly on phones. It lives outside @layer so it reliably
-   overrides inline styles at these breakpoints. */
+   overrides inline styles at these breakpoints. The padding and heading sizes are
+   the website's alone — never the signed-in app's <main class="app-main">, whose
+   cards and sections keep their own spacing on a phone (the reflow rules apply to both). */
 
 /* Tablet and below: trim the big vertical section padding. */
 @media (max-width: 900px) {
-  main section { padding-top: 48px !important; padding-bottom: 48px !important; }
+  main:not(.app-main) section { padding-top: 48px !important; padding-bottom: 48px !important; }
 }
 
 /* Phone: tighten horizontal gutters and stack ANY inline 2-col grid that might
    not carry an auto-grid class, so nothing stays side-by-side on a narrow screen. */
 @media (max-width: 680px) {
   /* Section inner containers: smaller side gutter, never wider than the screen. */
-  main section > div { padding-left: 18px !important; padding-right: 18px !important; max-width: 100% !important; }
+  main:not(.app-main) section > div { padding-left: 18px !important; padding-right: 18px !important; max-width: 100% !important; }
 
   /* Catch-all: any grid inside a marketing section collapses to one column.
      (Covers inline gridTemplateColumns that isn't an auto-grid-* class.) */
@@ -527,8 +537,9 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
 
   /* Reduce oversized hero/heading text so it fits a phone screen, and make sure
      long words (e.g. "Finvosmart") wrap instead of overflowing the viewport. */
-  main h1 { font-size: clamp(28px, 7.5vw, 40px) !important; line-height: 1.12 !important; overflow-wrap: break-word; word-break: break-word; }
-  main h2 { font-size: clamp(22px, 5.5vw, 30px) !important; line-height: 1.18 !important; overflow-wrap: break-word; }
+  main:not(.app-main) h1 { font-size: clamp(28px, 7.5vw, 40px) !important; line-height: 1.12 !important; overflow-wrap: break-word; word-break: break-word; }
+  main:not(.app-main) h2 { font-size: clamp(22px, 5.5vw, 30px) !important; line-height: 1.18 !important; overflow-wrap: break-word; }
+  main.app-main h1, main.app-main h2 { overflow-wrap: break-word; }
   main p, main span, main a, main li { overflow-wrap: break-word; }
 
   /* Big gaps between grid items shrink on phones. */
@@ -539,7 +550,7 @@ code, pre                   { font-family: var(--font-geist-mono), monospace; }
 
 /* Very small phones: make sure cards and padded boxes don't overflow. */
 @media (max-width: 400px) {
-  main section > div { padding-left: 14px !important; padding-right: 14px !important; }
+  main:not(.app-main) section > div { padding-left: 14px !important; padding-right: 14px !important; }
   .card { padding: 16px !important; }
 }
 
@@ -694,3 +705,167 @@ a.lp-tile:hover { transform: translateY(-4px); border-color: color-mix(in srgb, 
 @media (prefers-reduced-motion: reduce) {
   .reveal { animation: none !important; }
 }
+
+/* ── The app's menu (components/layout/Sidebar.tsx) ──────────────────────────────────────────────────────────
+   One quiet colour: the gold accent marks where you are; sections in the text colours; no rainbow of dots. */
+.nav-shell { background: var(--bg-surface); border-right: 1px solid var(--border); }
+.nav-logo { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px;
+  background: var(--btn-primary-bg); flex-shrink: 0; }
+.nav-section { margin-bottom: 2px; }
+.nav-framed { margin-bottom: 10px; border-radius: 12px; padding: 4px 2px 2px; }
+.nav-head { width: 100%; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 10px;
+  background: transparent; border: none; cursor: pointer; font-family: inherit; font-size: 13.5px; font-weight: 500;
+  color: var(--text-secondary); transition: background .15s, color .15s; }
+.nav-head:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-head .nav-icon { color: var(--text-muted); flex-shrink: 0; }
+.nav-head.is-here { color: var(--text-primary); font-weight: 600; }
+.nav-head.is-here .nav-icon { color: var(--gold); }
+.nav-chevron { color: var(--text-muted); flex-shrink: 0; transition: transform .2s; }
+.nav-chip { font-size: 8px; font-weight: 700; letter-spacing: .06em; padding: 1px 5px; border-radius: 5px; }
+.nav-items { position: relative; margin: 1px 0 6px 18px; padding-left: 10px; border-left: 1px solid var(--border); }
+.nav-row { display: flex; align-items: center; }
+.nav-link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border-radius: 9px; text-decoration: none;
+  color: var(--text-secondary); font-size: 13px; transition: background .15s, color .15s; }
+.nav-link-top { height: 36px; padding: 0 10px; font-size: 13.5px; font-weight: 500; }
+.nav-link-sub { height: 32px; padding: 0 30px 0 10px; }
+.nav-link:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-link .nav-icon { color: var(--text-muted); flex-shrink: 0; }
+.nav-link.is-active { background: var(--gold-muted); color: var(--gold); font-weight: 600; }
+.nav-link.is-active .nav-icon { color: var(--gold); }
+.nav-items .nav-link.is-active::before { content: ''; position: absolute; left: -11px; top: 7px; width: 2px; height: 18px; border-radius: 2px; background: var(--gold); }
+.nav-pin { position: absolute; right: 4px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px;
+  border-radius: 7px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; opacity: 0; transition: opacity .15s; }
+.nav-row:hover .nav-pin, .nav-pin:focus-visible, .nav-pin[aria-pressed="true"] { opacity: 1; }
+.nav-pin:hover { background: var(--bg-hover); color: var(--gold); }
+@media (hover: none) { .nav-pin { opacity: .55; } }
+.nav-label { display: flex; align-items: center; gap: 6px; margin: 8px 10px 4px; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-muted); }
+.nav-foot { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-radius: 9px; border: none;
+  background: transparent; color: var(--text-secondary); font-family: inherit; font-size: 12.5px; cursor: pointer; }
+.nav-foot:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-rail { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 40px; border-radius: 11px; border: none;
+  background: transparent; color: var(--text-muted); cursor: pointer; transition: background .15s, color .15s; }
+.nav-rail:hover, .nav-rail[aria-expanded="true"] { background: var(--bg-hover); color: var(--text-primary); }
+.nav-rail.is-here { background: var(--gold-muted); color: var(--gold); }
+.nav-rail-rule { width: 24px; height: 1px; background: var(--border); margin: 6px 0; flex-shrink: 0; }
+.nav-flyout { position: fixed; left: 76px; z-index: 50; width: 236px; max-height: calc(100vh - 24px); overflow-y: auto; padding: 6px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-md); animation: fadeIn .12s ease-out; }
+@media (prefers-reduced-motion: reduce) { .nav-flyout { animation: none; } }
+.nav-flyout-title { margin: 6px 10px 4px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+
+/* The page's place above its title: "Sales › Invoices" (components/layout/Topbar.tsx). */
+.app-trail { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.app-trail a { color: var(--text-muted); text-decoration: none; }
+.app-trail a:hover { color: var(--gold); }
+
+/* Phones: the everyday pages one tap away at the bottom (components/layout/MobileTabs.tsx). */
+.app-tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; justify-content: space-around;
+  background: var(--bg-surface); border-top: 1px solid var(--border); padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); }
+.app-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 10px; border: none;
+  background: transparent; color: var(--text-muted); font-family: inherit; font-size: 10.5px; text-decoration: none; cursor: pointer; min-width: 0; }
+.app-tab.is-here { color: var(--gold); font-weight: 600; }
+.app-tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The plan builder's modules are checkboxes: the keyboard's focus shows on them */
+.cp-module:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+
+/* A link inside a sentence is underlined — told apart from the words around it by more than its colour (WCAG 1.4.1).
+   Links styled as buttons (a class, or their own padding) keep their look. */
+p a:not([class]):not([style*="padding"]), label a:not([class]):not([style*="padding"]) { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── Ask Finvosmart: the assistant (components/assistant) ───────────────────────────────────────────────────── */
+.asst-launch { position: fixed; right: 20px; bottom: 20px; z-index: 45; display: inline-flex; align-items: center; gap: 8px; height: 48px;
+  padding: 0 18px 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--btn-primary-bg); color: var(--text-on-gold);
+  font: 600 14px/1 inherit; font-family: inherit; box-shadow: var(--shadow-lg); cursor: pointer; animation: fadeIn .3s ease-out; }
+.asst-launch:hover { filter: brightness(1.05); }
+.asst-launch:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 3px; }
+.asst-shell { position: fixed; z-index: 45; display: flex; }
+.asst-float { right: 20px; bottom: 20px; width: 392px; height: min(640px, calc(100vh - 40px)); }
+.asst-side { top: 0; right: 0; bottom: 0; width: 420px; }
+@media (min-width: 1280px) { .asst-push { margin-right: 420px; transition: margin-right .2s; } }   /* narrower: over the page */
+@media (max-width: 1023px) { .asst-side { width: 100%; left: 0; } }
+@media (max-width: 640px) {
+  /* the whole screen — the screen as it is with the keyboard up, where the browser knows it (dvh) */
+  .asst-float { inset: 0 0 auto 0; width: 100%; height: 100%; height: 100dvh; }
+  /* a round button: the words would cover the page as it scrolls under */
+  .asst-launch { right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); width: 52px; height: 52px; padding: 0; justify-content: center; }
+  .asst-launch span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+body.asst-locked { overflow: hidden; }
+.asst-panel { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; overflow: hidden;
+  background: var(--bg-elevated); border: 1px solid var(--border-strong); box-shadow: var(--shadow-lg); animation: fadeIn .16s ease-out; }
+.asst-float .asst-panel { border-radius: 18px; }
+.asst-side .asst-panel { border-width: 0 0 0 1px; border-radius: 0; }
+@media (max-width: 640px) { .asst-float .asst-panel { border-radius: 0; border-width: 0; } }
+.asst-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; border-bottom: 1px solid var(--border); }
+.asst-mark { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px;
+  background: var(--gold-muted); color: var(--gold); }
+.asst-title { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+.asst-ai { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; padding: 2px 6px; border-radius: 6px; background: var(--gold-muted); color: var(--gold); }
+.asst-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.asst-banner { padding: 8px 16px; font-size: 12.5px; color: var(--text-secondary); background: var(--bg-surface); border-bottom: 1px solid var(--border); }
+.asst-log { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; overscroll-behavior: contain; }
+.asst-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; max-width: 100%; }
+.asst-row-me { align-items: flex-end; }
+.asst-bubble { max-width: 92%; padding: 10px 13px; border-radius: 14px; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+.asst-from-me { background: var(--btn-primary-bg); color: var(--text-on-gold); border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.asst-from-them { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.asst-from-them p + p, .asst-from-them p + .asst-list, .asst-from-them .asst-list + p, .asst-from-them .asst-list + .asst-list { margin-top: 8px; }
+.asst-list { margin: 0; padding-left: 20px; }
+ul.asst-list { list-style: disc; } ol.asst-list { list-style: decimal; }
+.asst-list li + li { margin-top: 3px; }
+.asst-link { color: var(--gold); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.asst-from-me .asst-link { color: inherit; }
+.asst-typing { display: inline-flex; gap: 4px; padding: 4px 0; }
+.asst-typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: asstDot 1.2s infinite ease-in-out; }
+.asst-typing i:nth-child(2) { animation-delay: .15s; } .asst-typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes asstDot { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+.asst-status { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12.5px; color: var(--text-muted); }
+.asst-spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--gold); animation: spin .8s linear infinite; }
+.asst-note { margin-top: 6px; font-size: 12.5px; color: var(--text-muted); }
+.asst-error { margin-top: 6px; font-size: 13px; color: var(--danger-text); }
+.asst-act { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 8px; border: none; background: transparent;
+  color: var(--text-muted); font: 500 12px/1.2 inherit; font-family: inherit; cursor: pointer; }
+.asst-act:hover { background: var(--bg-hover); color: var(--text-primary); }
+.asst-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.asst-rate { padding: 6px 8px; }   /* 24px or more to tap */
+.asst-rated { padding: 3px 8px; font-size: 12px; color: var(--text-muted); }
+.asst-by { padding: 2px 8px; font-size: 11.5px; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; margin-right: 2px; }
+.asst-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 2px; }
+.asst-suggest .asst-starter { font-size: 12.5px; padding: 5px 10px; }
+.asst-ext svg { display: inline; margin-left: 3px; vertical-align: -1px; }
+.asst-code { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 12.5px; padding: 1px 5px; border-radius: 5px; background: var(--bg-hover);
+  overflow-wrap: anywhere; }
+.asst-intro { display: flex; flex-direction: column; gap: 12px; }
+.asst-starters { display: flex; flex-wrap: wrap; gap: 8px; }
+.asst-starter { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--bg-card); color: var(--text-primary);
+  font: 500 13px/1.3 inherit; font-family: inherit; cursor: pointer; text-align: left; }
+.asst-starter:hover { border-color: var(--gold); color: var(--gold); }
+.asst-foot { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--bg-elevated); }
+.asst-box { display: flex; align-items: flex-end; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--bg-input); }
+.asst-box:focus-within { border-color: var(--border-focus); }
+.asst-box textarea { flex: 1; min-width: 0; max-height: 140px; resize: none; border: none; outline: none; background: transparent; color: var(--text-primary);
+  font: 14px/1.5 inherit; font-family: inherit; padding: 6px 0; }
+.asst-send { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; border: none;
+  background: var(--btn-primary-bg); color: var(--text-on-gold); cursor: pointer; }
+.asst-send:disabled { opacity: .4; cursor: default; }
+.asst-count { margin-top: 4px; font-size: 11px; color: var(--text-muted); text-align: right; }
+.asst-meta { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.asst-handoff { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; margin-left: -8px; border-radius: 8px; border: none;
+  background: transparent; color: var(--gold); font: 600 12.5px/1.2 inherit; font-family: inherit; cursor: pointer; }
+.asst-handoff:hover:not(:disabled) { background: var(--gold-muted); }
+.asst-handoff:disabled { color: var(--text-muted); cursor: default; }
+.asst-fine { font-size: 11px; line-height: 1.45; color: var(--text-muted); }
+.asst-overlay { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; overflow-y: auto; background: var(--bg-elevated); }
+.asst-overlay-head { display: flex; align-items: center; justify-content: space-between; }
+.asst-overlay-head h3 { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.asst-form { display: flex; flex-direction: column; gap: 6px; }
+.asst-form .label { margin-top: 6px; }
+.asst-form .btn-primary { margin-top: 10px; }
+.asst-sent { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 30px 8px; text-align: center; color: var(--text-secondary); font-size: 14px; }
+.asst-sent svg { color: var(--ok-text); }
+.asst-topbtn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--gold); font: 600 13px/1 inherit; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.asst-topbtn[aria-expanded="true"] { background: var(--gold-muted); border-color: var(--gold); }
+.asst-topbtn:hover { border-color: var(--gold); }
+@media (prefers-reduced-motion: reduce) { .asst-launch, .asst-panel, .asst-typing i, .asst-spin { animation: none; } }

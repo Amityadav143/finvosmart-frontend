@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-base)' }}>
+    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-base)' }}>
       <div style={{ width: '100%', maxWidth: '420px' }}>
         {/* Logo */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '32px', textDecoration: 'none' }}>
@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
               <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(34,197,94,0.12)', color: '#22C55E', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
                 <CheckCircle2 size={28} />
               </div>
-              <h2 className="font-serif text-xl mb-2" style={{ color: 'var(--text-primary)' }}>Check your inbox</h2>
+              <h1 className="font-serif text-xl mb-2" style={{ color: 'var(--text-primary)' }}>Check your inbox</h1>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '24px' }}>
                 If an account exists for <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>, we've sent a link to reset your password, with your company code. The link expires in 30 minutes.
               </p>
@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
                   {failed}
                 </div>
               )}
-              <h2 className="font-serif text-xl mb-2" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Forgot your password?</h2>
+              <h1 className="font-serif text-xl mb-2" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Forgot your password?</h1>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '24px' }}>
                 Enter the email you sign in with. We’ll send a secure link to reset your password — and remind you of your company code.
               </p>
@@ -124,6 +124,6 @@ export default function ForgotPasswordPage() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   )
 }

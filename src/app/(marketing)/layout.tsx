@@ -11,6 +11,7 @@
 
 import MarketingNav from '@/components/marketing/MarketingNav'
 import MarketingFooter from '@/components/marketing/MarketingFooter'
+import { WebsiteAssistant } from '@/components/assistant/WebsiteAssistant'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { organizationSchema, websiteSchema } from '@/lib/seo'
 
@@ -22,6 +23,8 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <MarketingNav />
       <main>{children}</main>
       <MarketingFooter />
+      {/* Ask Finvosmart: shown only when the server's website assistant answers (asked after the page loads) */}
+      <WebsiteAssistant />
     </>
   )
 }

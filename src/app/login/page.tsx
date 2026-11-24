@@ -283,7 +283,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div
+    <main
       className="min-h-screen relative flex items-center justify-center p-4"
       style={{ background: 'var(--bg-base)' }}
     >
@@ -322,9 +322,6 @@ export default function LoginPage() {
           </p>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             India&apos;s Business Operating System
-          </p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            by Navgrow Engineering Service Pvt. Ltd.
           </p>
         </div>
 
@@ -491,38 +488,39 @@ export default function LoginPage() {
           {tab === 'password' && (
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="label">Company Code</label>
-              <input className="input" value={form.companyCode}
+              <label className="label" htmlFor="login-company">Company Code</label>
+              <input id="login-company" className="input" value={form.companyCode}
                 onChange={e => setForm(f => ({ ...f, companyCode: e.target.value.toUpperCase() }))}
                 placeholder="e.g. NVGROW001" required autoComplete="organization" />
               <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>
                 It’s in your welcome email. Don’t have it?{' '}
                 <button type="button" onClick={() => { setTab('otp'); setOtpSent(false); setDevHint('') }}
-                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--gold)', fontFamily: 'inherit', fontSize: '12px' }}>
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--gold)', fontFamily: 'inherit', fontSize: '12px',
+                    textDecoration: 'underline', textUnderlineOffset: '2px' }}>
                   {smsOn ? 'Sign in with a code sent to your mobile or email' : 'Sign in with a code sent to your email'}
                 </button>{' '}— no company code needed.
               </p>
             </div>
             <div>
-              <label className="label">Email Address</label>
-              <input className="input" type="email" value={form.email}
+              <label className="label" htmlFor="login-email">Email Address</label>
+              <input id="login-email" className="input" type="email" value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="you@company.in" required />
+                placeholder="you@company.in" required autoComplete="username" />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <label className="label">Password</label>
+                <label className="label" htmlFor="login-password">Password</label>
                 <Link href="/forgot-password" style={{ fontSize: '12.5px', color: 'var(--gold)', textDecoration: 'none', fontWeight: 500, marginBottom: '6px' }}>
                   Forgot password?
                 </Link>
               </div>
               <div style={{ position: 'relative' }}>
-                <input className="input" type={showPwd ? 'text' : 'password'} value={form.password}
+                <input id="login-password" className="input" type={showPwd ? 'text' : 'password'} value={form.password} autoComplete="current-password"
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   style={{ paddingRight: '44px' }} required />
                 <button type="button" onClick={() => setShowPwd(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '6px', lineHeight: 0 }}
                   aria-label={showPwd ? 'Hide password' : 'Show password'}>
                   {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -630,11 +628,11 @@ export default function LoginPage() {
             ← Back to website
           </Link>
           <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>·</span>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }} data-nosnippet>
             © 2026 Navgrow Engineering Service Pvt. Ltd.
           </p>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

@@ -44,8 +44,8 @@ export default function GstinCheckerPage() {
         <div style={narrow}>
           <h2 style={h2Style}>How a GSTIN is built</h2>
           <p style={pStyle}>Every GSTIN has the same 15-character structure, which is why a typo can usually be spotted without looking anything up.</p>
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '14px', background: 'var(--bg-card)', margin: '8px 0 12px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
+          <div role="region" aria-label="How a GSTIN is built" tabIndex={0} style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '14px', background: 'var(--bg-card)', margin: '8px 0 12px' }}>
+            <table className="keep-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '520px' }}>
               <thead><tr><th style={th}>Characters</th><th style={th}>What it is</th><th style={th}>Details</th></tr></thead>
               <tbody>
                 {C.parts.map(p => (

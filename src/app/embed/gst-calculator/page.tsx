@@ -21,7 +21,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 }
 
-export default function EmbedGstCalculator({ searchParams }: { searchParams: { theme?: string } }) {
+export default async function EmbedGstCalculator(props: { searchParams: Promise<{ theme?: string }> }) {
+  const searchParams = await props.searchParams
   const theme = searchParams?.theme === 'light' ? 'light' : 'dark'
   return (
     <div data-theme={theme} style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', minHeight: '100vh', padding: '16px 0 4px' }}>

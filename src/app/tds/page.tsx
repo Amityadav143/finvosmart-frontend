@@ -10,6 +10,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 
+import PlanGate from '@/components/ui/PlanGate'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
@@ -21,7 +22,7 @@ import { formatDate } from '@/lib/utils'
 import { inr, todayIST } from '@/lib/money'
 import { addDays, quarterOf } from '@/lib/purchases'
 
-export default function TdsRegisterPage() {
+function TdsRegisterPageContent() {
   const [anchor, setAnchor] = useState(todayIST())
   const q = useMemo(() => quarterOf(anchor), [anchor])
   const { data: reg, isLoading, isError } = useQuery({ queryKey: ['tds-register', q.from, q.to], queryFn: () => tdsRegisterApi.register(q.from, q.to) })
@@ -113,4 +114,9 @@ export default function TdsRegisterPage() {
       )}
     </div>
   )
+}
+
+/** On a plan without it (Starter): what it does and where to move, instead of a page the server would refuse. */
+export default function TdsRegisterPage() {
+  return <PlanGate feature="TDS_REGISTER"><TdsRegisterPageContent /></PlanGate>
 }

@@ -18,6 +18,7 @@ import toast from 'react-hot-toast'
 import { AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { crmApi } from '@/lib/api/crm'
+import { godownsApi } from '@/lib/api/store'
 import { invoicingApi, type InvoiceInput, type InvoiceLineInput } from '@/lib/api/invoicing'
 import { ItemPicker, LinkedItem, StockChoice } from '@/components/inventory/ItemPicker'
 import { BatchPicker } from '@/components/inventory/BatchPicker'
@@ -28,6 +29,7 @@ import { checkGstin } from '@/lib/gstin'
 import { DOC_LABEL, GST_RATE_OPTIONS, PLACES_OF_SUPPLY, inr, stateName, todayIST } from '@/lib/money'
 import { useDebounce } from '@/lib/hooks'
 import type { Customer, Invoice, InvoiceType, Prescription } from '@/types'
+import type { WarrantyClaim } from '@/types/warranty'
 import { AddressFields, AddressText } from '@/components/ui/AddressFields'
 import { EMPTY_ADDRESS, EMPTY_SHIP_TO, addressBody, addressEmpty, addressProblem, customerBilling, customerShipping, customerShipsToBilling,
   fromText, type AddressParts, type ShipToParts } from '@/lib/address'
@@ -83,7 +85,11 @@ const customerStateCode = (c?: Partial<Customer>, gstin?: string) => {
   return PLACES_OF_SUPPLY.find(p => p.name.toLowerCase() === s || p.code === s)?.code ?? ''
 }
 
-export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCustomerId }: { invoice?: Invoice; defaultType?: InvoiceType; defaultCustomerId?: string }) {
+export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCustomerId, fromClaim }: {
+  invoice?: Invoice; defaultType?: InvoiceType; defaultCustomerId?: string
+  /** a credit note for a customer's warranty claim approved for credit: the goods at what the customer paid, no stock moved */
+  fromClaim?: WarrantyClaim | null
+}) {
   const router = useRouter()
   const qc = useQueryClient()
   const editing = !!invoice
@@ -122,9 +128,28 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
   const [showRefs, setShowRefs] = useState(REFS.some(r => (invoice as any)?.[r.key]))
   // Tax invoices and credit notes move the stock of linked items when issued (the user can say no).
   const [updateStock, setUpdateStock] = useState(invoice ? invoice.movesStock !== false : true)
+  // with more than one godown: the one the goods leave from (or come back into) — the main one unless chosen
+  const [godownId, setGodownId] = useState<string>(invoice?.godownId ?? '')
+  const { data: godowns = [] } = useQuery({ queryKey: ['godowns'], queryFn: godownsApi.list, staleTime: 60_000, retry: false })
+  const godownChoices = godowns.filter(g => g.active || g.id === godownId)
   // a sale of Schedule H, H1 or X medicines: the patient and the prescriber (the Schedule H1 register)
   const [rx, setRx] = useState<Prescription>(() => invoice?.prescription ?? {})
   const defaultsApplied = useRef(editing)
+  // a credit note for a warranty claim: it resolves the claim when issued, and moves no stock
+  const claim = fromClaim && !editing ? fromClaim : null
+  // …and a draft of one being edited: still linked to its claim (the server keeps the link and moves no stock)
+  const linkedClaim = claim ? { id: claim.id, number: claim.number } : invoice?.warrantyClaimId ? { id: invoice.warrantyClaimId, number: invoice.warrantyClaimNumber } : null
+  const claimApplied = useRef(false)
+  useEffect(() => {
+    if (!claim || claimApplied.current) return
+    claimApplied.current = true
+    setType('CREDIT_NOTE')
+    setUpdateStock(false)
+    setLines([{ ...newLine(), itemId: claim.itemId ?? undefined, description: claim.description, hsnSacCode: claim.hsn ?? '',
+      quantity: String(Number(claim.quantity)), unit: claim.unit ?? '', unitPrice: claim.unitRate != null ? String(Number(claim.unitRate)) : '',
+      gstRate: String(Number(claim.gstRate ?? 0)) }])
+    setNotes(`Credit for warranty claim ${claim.number}${claim.invoiceNumber ? ` against invoice ${claim.invoiceNumber}` : ''}${claim.serialNo ? ` (serial ${claim.serialNo})` : ''}`)
+  }, [claim])
 
   // A new document for a given customer (e.g. "New quotation" from a lead that became a customer).
   const { data: presetCustomer } = useQuery({ queryKey: ['customer', defaultCustomerId], queryFn: () => crmApi.customers.get(defaultCustomerId!), enabled: !!defaultCustomerId && !editing })
@@ -143,7 +168,7 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
     if (!company || defaultsApplied.current) return
     defaultsApplied.current = true
     if (!terms) setTerms(company.defaultPaymentTerms || 'Net 30')
-    if (!notes && company.invoiceNotes) setNotes(company.invoiceNotes)
+    if (!notes && !claim && company.invoiceNotes) setNotes(company.invoiceNotes)
     if (!termsText && company.invoiceTerms) setTermsText(company.invoiceTerms)
   }, [company]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -233,7 +258,9 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
         })),
         paymentTerms: terms || undefined, notes, terms: termsText, discountAmount: discount || null, roundOff,
         ...Object.fromEntries(Object.entries(refs).map(([k, v]) => [k, v.trim() || undefined])),
-        ...(movesStockType ? { updateStock } : {}),
+        ...(movesStockType && !linkedClaim ? { updateStock, godownId: godownId || null } : {}),
+        // a credit note for a warranty claim: linked to it (when made), moving no stock
+        ...(linkedClaim ? { updateStock: false, godownId: null, ...(claim ? { warrantyClaimId: claim.id } : {}) } : {}),
         // kept while the bill has scheduled medicines (or while that can't be checked)
         prescription: type === 'TAX_INVOICE' && rxGiven && (codes.size > 0 || !sched) ? {
           patientName: rx.patientName?.trim() || null, prescriberName: rx.prescriberName?.trim() || null,
@@ -437,8 +464,18 @@ export function InvoiceForm({ invoice, defaultType = 'TAX_INVOICE', defaultCusto
           })}
         </div>
         <button type="button" className="btn-secondary h-9 mt-3" onClick={() => setLines(ls => [...ls, newLine()])}><Plus size={14} />Add line</button>
-        {movesStockType && linkedLines > 0 && (
+        {linkedClaim ? (
+          <p className="text-xs mt-3 rounded-xl px-3 py-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }} data-testid="invoice-claim-link">
+            For warranty claim <Link href={`/warranty/${linkedClaim.id}`} className="underline font-mono">{linkedClaim.number}</Link>: issuing it resolves the claim. Nothing comes back into stock — the faulty goods aren’t stock to sell.
+          </p>
+        ) : movesStockType && linkedLines > 0 && (
           <StockChoice direction={type === 'CREDIT_NOTE' ? 'salesReturn' : 'sale'} checked={updateStock} onChange={setUpdateStock} linked={linkedLines} />
+        )}
+        {!linkedClaim && movesStockType && linkedLines > 0 && updateStock && godownChoices.length > 1 && (
+          <div className="mt-3 max-w-sm"><label className="label" htmlFor="inv-godown">{type === 'CREDIT_NOTE' ? 'Goods come back into' : 'Goods leave from'}</label>
+            <select id="inv-godown" className="input h-10" value={godownId || (godowns.find(g => g.main)?.id ?? '')} onChange={e => setGodownId(godowns.find(g => g.id === e.target.value)?.main ? '' : e.target.value)} data-testid="invoice-godown">
+              {godownChoices.map(g => <option key={g.id} value={g.id}>{g.name}{g.main ? ' (main)' : ''}</option>)}
+            </select></div>
         )}
         {codes.size > 0 && (
           <PrescriptionBox rx={rx} set={setRxField} customerName={customer?.name} forRegister={forRegister} missing={rxMissing}

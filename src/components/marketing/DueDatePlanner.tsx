@@ -104,7 +104,7 @@ export function DueDatePlanner() {
                 <ol style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {upcoming.slice(0, 7).map(d => {
                     const left = daysBetween(today, d.date)
-                    const tone = left <= 3 ? '#DC2626' : left <= 10 ? 'var(--gold)' : 'var(--text-secondary)'
+                    const tone = left <= 3 ? 'var(--danger-text)' : left <= 10 ? 'var(--gold)' : 'var(--text-secondary)'
                     return (
                       <li key={d.date + d.title} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', paddingBottom: '10px', borderBottom: '1px solid var(--border)' }}>
                         <div style={{ flex: '0 0 128px' }}>

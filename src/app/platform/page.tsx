@@ -135,7 +135,10 @@ function SetupCard({ setup: s }: { setup: PlatformSetup }) {
     { ok: s.whatsappReady ? true : null, title: 'WhatsApp Business', text: s.whatsappReady ? 'Invoices and reminders can be sent on WhatsApp' : 'Off', tab: 'whatsapp' },
     { ok: s.signupsOpen, title: 'Sign-ups', text: s.signupsOpen ? 'Open' : 'Paused — the sign-up page says so', tab: 'access' },
     { ok: s.noticeShown ? true : null, title: 'Notice to everyone', text: s.noticeShown ? 'Shown at the top of the app' : 'None', tab: 'access' },
-    { ok: s.encryptionReady, title: 'Encryption key', text: s.encryptionReady ? 'Secrets saved in the console are kept encrypted' : 'APP_ENCRYPTION_KEY isn\'t set — secrets can only come from the server\'s environment', tab: 'email' },
+    { ok: s.encryptionReady, title: 'Encryption key',
+      text: !s.encryptionReady ? `No key to seal secrets with${s.encryptionProblem ? ` (${s.encryptionProblem})` : ''} — secrets can only come from the server's environment`
+        : s.encryptionSource === 'KEPT_FILE' ? `Secrets are kept encrypted with the key the server keeps in ${s.encryptionKeyFile ?? 'its key file'} — keep a copy of that file`
+        : 'Secrets saved in the console are kept encrypted (APP_ENCRYPTION_KEY)', tab: 'email' },
   ]
   return (
     <section className="card space-y-3" aria-labelledby="setup-heading" data-testid="platform-setup">

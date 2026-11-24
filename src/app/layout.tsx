@@ -15,6 +15,7 @@ import './globals.css'
 import { Providers } from './providers'
 import { Inter, JetBrains_Mono, Instrument_Serif } from 'next/font/google'
 import { RELEASE } from '@/lib/release'
+import { AttributionCapture } from '@/components/marketing/AttributionCapture'
 
 // Self-hosted, optimised fonts (no render-blocking external CSS request).
 // `display: swap` avoids invisible text while fonts load, improving LCP.
@@ -64,9 +65,10 @@ export const metadata: Metadata = {
   },
   description: PAGES.home.description,
   applicationName: SITE.name,
-  authors: [{ name: SITE.legalName, url: SITE.url }],
-  creator: SITE.legalName,
-  publisher: SITE.legalName,
+  // The brand, not the company behind it: search engines show these with the site, and the brand is what people search for.
+  authors: [{ name: SITE.name, url: SITE.url }],
+  creator: SITE.name,
+  publisher: SITE.name,
   category: 'Business Software',
   // Ignored by Google, used lightly by Bing. The real signals are titles,
   // descriptions and on-page content — kept to terms Indian businesses search.
@@ -136,6 +138,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body suppressHydrationWarning className="antialiased">
         <Providers>{children}</Providers>
+        <AttributionCapture />
       </body>
     </html>
   )

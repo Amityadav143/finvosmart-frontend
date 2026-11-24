@@ -23,7 +23,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { PermissionGate } from '@/components/ui/PermissionGate'
 import { usePermissions } from '@/lib/hooks/usePermissions'
-import { formatDate } from '@/lib/utils'
+import { fileNamePart, formatDate } from '@/lib/utils'
 import { inr, stateName, todayIST } from '@/lib/money'
 import { errText } from '@/lib/purchases'
 import type { PayrollItem, PayrollItemInput, PayrollRunDetail } from '@/types/payroll'
@@ -255,7 +255,7 @@ export default function PayrollRunPage() {
 
       {open && (
         <EmployeeModal item={open} runId={run.id} draft={draft} ym={ym} onClose={() => setOpen(null)}
-          onSaved={update} onDownload={() => dl('slip', () => payrollApi.payslip(run.id, open.id, `payslip_${(open.employeeCode ?? open.employeeName).replace(/[^A-Za-z0-9-]+/g, '_')}_${ym}.pdf`))} />
+          onSaved={update} onDownload={() => dl('slip', () => payrollApi.payslip(run.id, open.id, `payslip_${fileNamePart(open.employeeCode ?? open.employeeName)}_${ym}.pdf`))} />
       )}
 
       <Modal open={confirm === 'approve'} onClose={() => setConfirm(null)} title={`Approve payroll for ${run.label}?`}>
