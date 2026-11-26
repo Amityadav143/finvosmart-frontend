@@ -31,6 +31,7 @@ import { formatDate, downloadBlob, apiError } from '@/lib/utils'
 import { DOC_LABEL, STATUS_LABEL, inr, todayIST } from '@/lib/money'
 import type { Invoice } from '@/types'
 import { useIndustry } from '@/lib/hooks/useIndustry'
+import { documentsAllowed } from '@/lib/billing/documentsGate'
 
 const FILTERS: { status: string; label: string; icon: any; color: string; count: (s: any) => number }[] = [
   { status: 'OVERDUE', label: 'Overdue',   icon: AlertTriangle, color: '#dc2626', count: s => s?.overdue ?? 0 },
@@ -67,6 +68,7 @@ export default function InvoicingPage() {
   const hasMonthly = monthly.some(m => m.amount !== 0)
 
   const exportCsv = async () => {
+    if (!documentsAllowed()) return                     // exports come with a plan: the dialog says so
     try {
       const res = await api.get('/invoices/export/csv', { params: { from: fyStart(todayIST()), to: todayIST() }, responseType: 'blob' })
       downloadBlob(res.data, `invoices_${todayIST()}.csv`)

@@ -10,6 +10,7 @@
  */
 
 import { api } from './client'
+import { requireDocuments } from '@/lib/billing/documentsGate'
 
 export interface AuditEntry {
   id: string
@@ -51,6 +52,7 @@ export const auditApi = {
   types: async (): Promise<string[]> => (await api.get('/audit-trail/types')).data.data ?? [],
   /** Downloads the CSV through the authenticated client and saves it. */
   exportCsv: async (f: AuditFilter) => {
+    requireDocuments()                                   // exports come with a plan: the dialog says so
     const res = await api.get('/audit-trail/export', { params: clean(f), responseType: 'blob' })
     const url = URL.createObjectURL(res.data as Blob)
     const a = document.createElement('a')

@@ -12,10 +12,10 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Bell, CheckCheck, ArrowRight } from 'lucide-react'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Bell, CheckCheck, ArrowRight, Mail } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { NOTIFICATION_KEYS, notificationsApi, type AppNotification } from '@/lib/api/notifications'
+import { NOTIFICATION_KEYS, notificationsApi, type AppNotification, type EmailPrefs } from '@/lib/api/notifications'
 import { NOTIFICATION_TYPES, dayGroup, notificationType, safeLink, serverTime, timeAgo } from '@/lib/notifications'
 import { apiError } from '@/lib/utils'
 import { goTo } from '@/lib/hooks/useUrlParams'
@@ -88,6 +88,8 @@ export default function NotificationsPage() {
           </button>
         )}
       </div>
+
+      <EmailChoices />
 
       {all.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap mb-4" role="group" aria-label="Filter notifications">
@@ -188,5 +190,38 @@ export default function NotificationsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * What this person gets by email, beyond sign-in and plan emails (which every account gets): important alerts at once,
+ * and the morning summary of what is due. Each email carries a link that turns its kind off too.
+ */
+function EmailChoices() {
+  const qc = useQueryClient()
+  const { data: prefs, isError } = useQuery({ queryKey: NOTIFICATION_KEYS.emailPrefs, queryFn: notificationsApi.emailPrefs, retry: false })
+  const save = useMutation({
+    mutationFn: (p: Partial<EmailPrefs>) => notificationsApi.saveEmailPrefs(p),
+    onSuccess: p => { qc.setQueryData(NOTIFICATION_KEYS.emailPrefs, p); toast.success('Saved') },
+    onError: (e: unknown) => toast.error(apiError(e, 'Your choice could not be saved')),
+  })
+  if (isError || !prefs) return null
+  const row = (key: keyof EmailPrefs, title: string, text: string) => (
+    <label className="flex items-start gap-3 py-2 cursor-pointer" data-testid={`email-pref-${key}`}>
+      <input type="checkbox" className="mt-1" checked={prefs[key]} disabled={save.isPending}
+        onChange={e => save.mutate({ [key]: e.target.checked })} style={{ width: 16, height: 16, accentColor: 'var(--gold)' }} />
+      <span>
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{text}</span>
+      </span>
+    </label>
+  )
+  return (
+    <section className="card mb-4" aria-labelledby="email-choices" data-testid="email-choices">
+      <h2 id="email-choices" className="font-semibold text-sm flex items-center gap-2"><Mail size={15} aria-hidden /> Emails to you</h2>
+      {row('alerts', 'Important alerts, at once', 'A supplier’s, customer’s or employee’s bank account changed; urgent approvals waiting for you; a customer’s order or acceptance; MSME payment dates.')}
+      {row('summary', 'Morning summary of what is due', 'GST, TDS, PF/ESI and advance-tax dates three days ahead and on the day, for your work — and what came in since yesterday. Only on days with something to say.')}
+      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Sign-in, password and plan emails always come. Your administrator can turn any email off for everyone under Settings → Email Notifications.</p>
+    </section>
   )
 }

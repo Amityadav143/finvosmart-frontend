@@ -15,7 +15,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Ban, CalendarPlus, CreditCard, KeyRound, Unlock, Pencil, Power, PowerOff, RotateCcw, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Ban, CalendarPlus, CircleStop, CreditCard, KeyRound, Unlock, Pencil, Power, PowerOff, RotateCcw, ShieldCheck, Tag } from 'lucide-react'
 import {
   platformApi, accessLabel, day, lastDayOf, moment, PLAN_NAMES,
   type CompanyDetail, type CompanyDetailsForm, type CompanyUser,
@@ -29,17 +29,22 @@ import { apiError } from '@/lib/apiError'
 import { useAuthStore } from '@/lib/store/slices/authStore'
 import { NoteDialog, Problem, ResetDialog } from '@/components/platform/ConsoleKit'
 
-type Dialog = null | 'details' | 'suspend' | 'reactivate' | 'trial' | 'plan' | 'full' | { reset: CompanyUser } | { off: CompanyUser } | { on: CompanyUser }
+type Dialog = null | 'details' | 'suspend' | 'reactivate' | 'trial' | 'start-trial' | 'plan' | 'full' | 'end' | { reset: CompanyUser } | { off: CompanyUser } | { on: CompanyUser }
 
 const EVENT_LABELS: Record<string, string> = {
   TRIAL_STARTED: 'Free trial started', TRIAL_REFUSED: 'No free trial (one was had before)', TRIAL_REMINDER: 'Trial reminder sent',
   TRIAL_EXTENDED: 'Trial extended by support', PLAN_SET_BY_SUPPORT: 'Plan recorded by support', FULL_ACCESS_BY_SUPPORT: 'Full access given by support',
   PLAN_ACTIVATED: 'Plan paid online', CHECKOUT_STARTED: 'Checkout started', PAYMENT_FAILED: 'Payment failed',
+  TRIAL_ENDED_NOTICE: 'Told the trial has ended', RENEWAL_REMINDER: 'Renewal reminder sent', PLAN_ENDED_NOTICE: 'Told the plan has ended',
+  PAYMENT_FAILED_NOTICE: 'Told a payment didn\'t go through',
   PAYMENT_SIGNATURE_REFUSED: 'A payment confirmation was refused (signature didn\'t match)',
   SUPPORT_DETAILS_CHANGED: 'Contact details changed by support', SUPPORT_SUSPENDED: 'Suspended by support', SUPPORT_REACTIVATED: 'Reopened by support',
   SUPPORT_TRIAL_EXTENDED: 'Trial extended by support', SUPPORT_PLAN_RECORDED: 'Plan recorded by support', SUPPORT_FULL_ACCESS: 'Full access given by support',
   SUPPORT_RESET_LINK_SENT: 'Password-reset link sent by support', SUPPORT_LOGIN_UNLOCKED: 'Login unlocked by support',
   SUPPORT_LOGIN_SWITCHED_OFF: 'Login switched off by support', SUPPORT_LOGIN_SWITCHED_ON: 'Login switched on again by support',
+  TRIAL_STARTED_BY_SUPPORT: 'Free trial started by support', ENDED_BY_SUPPORT: 'Plan or trial ended by support',
+  SUPPORT_TRIAL_STARTED: 'Free trial started by support', SUPPORT_PLAN_ENDED: 'Plan or trial ended by support',
+  USERS_ADDED: 'Users added to the plan (paid online)',
 }
 
 /** "{"days":5,"note":"…"}" → "days 5 · note …" (the trail's details, readable). */
@@ -59,6 +64,9 @@ export default function PlatformCompanyPage() {
   const [dialog, setDialog] = useState<Dialog>(null)
   const me = useAuthStore(st => st.user?.userId)
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['platform', 'company', id], queryFn: () => platformApi.company(id) })
+  // the plans' names as the console keeps them (an older server has none: the built-in names)
+  const { data: catalogue } = useQuery({ queryKey: ['platform', 'plans'], queryFn: platformApi.plans, staleTime: 30_000, retry: false })
+  const planNames: Record<string, string> = Object.fromEntries((catalogue?.plans ?? []).map(x => [x.code, x.name]))
 
   const done = (d: CompanyDetail, message: string) => {
     qc.setQueryData(['platform', 'company', id], d)
@@ -85,9 +93,11 @@ export default function PlatformCompanyPage() {
   const p = data.profile, s = data.plan
   const a = accessLabel({ access: s.access, status: s.status, active: p.active })
   const onTrial = s.status === 'TRIAL'
+  // a paid period running now (support records a plan instead of a trial then)
+  const paidRunning = s.status === 'PAID' && s.access === 'FULL'
   const history = [
     ...data.history.map(h => ({ what: EVENT_LABELS[h.event] ?? h.event, details: readable(h.details), by: h.actorName, at: h.at })),
-    ...data.support.filter(x => !['SUPPORT_TRIAL_EXTENDED', 'SUPPORT_PLAN_RECORDED', 'SUPPORT_FULL_ACCESS'].includes(x.action))
+    ...data.support.filter(x => !['SUPPORT_TRIAL_EXTENDED', 'SUPPORT_PLAN_RECORDED', 'SUPPORT_FULL_ACCESS', 'SUPPORT_TRIAL_STARTED', 'SUPPORT_PLAN_ENDED'].includes(x.action))
       .map(x => ({ what: EVENT_LABELS[x.action] ?? x.action, details: readable(x.details), by: x.byName, at: x.at })),
   ].sort((x, y) => (y.at ?? '').localeCompare(x.at ?? ''))
 
@@ -109,8 +119,11 @@ export default function PlatformCompanyPage() {
         <div className="flex flex-wrap gap-2" data-testid="company-actions">
           <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => setDialog('details')} data-action="details"><Pencil size={14} /> Contact details</button>
           {!p.platform && onTrial && <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => setDialog('trial')} data-action="trial"><CalendarPlus size={14} /> Extend trial</button>}
+          {!p.platform && !onTrial && !paidRunning && <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => setDialog('start-trial')} data-action="start-trial"><CalendarPlus size={14} /> Start a free trial</button>}
           {!p.platform && <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => setDialog('plan')} data-action="plan"><CreditCard size={14} /> Record a plan</button>}
           {!p.platform && s.status !== 'LEGACY' && <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => setDialog('full')} data-action="full"><ShieldCheck size={14} /> Full access</button>}
+          {!p.platform && s.access !== 'READ_ONLY' && <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => setDialog('end')} data-action="end"><CircleStop size={14} /> {s.access === 'TRIAL' ? 'End the trial' : 'End the plan'}</button>}
+          {!p.platform && p.companyCode && <Link href={`/platform/discounts?company=${encodeURIComponent(p.companyCode)}`} className="btn-secondary h-9 px-3 text-sm" style={{ textDecoration: 'none' }} data-action="coupon"><Tag size={14} /> Make a coupon</Link>}
           {!p.platform && (p.active
             ? <button key="suspend" type="button" className="btn-danger h-9 px-3 text-sm" onClick={() => setDialog('suspend')} data-action="suspend"><Ban size={14} /> Suspend</button>
             : <button key="reactivate" type="button" className="btn-primary h-9 px-3 text-sm" onClick={() => setDialog('reactivate')} data-action="reactivate"><RotateCcw size={14} /> Reopen</button>)}
@@ -140,6 +153,7 @@ export default function PlatformCompanyPage() {
           <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
             <dt style={{ color: 'var(--text-muted)' }}>Set up as</dt>
             <dd>{s.status === 'LEGACY' ? 'Full access (no plan needed)' : s.status === 'PAID' ? `${s.planName ?? PLAN_NAMES[s.plan ?? ''] ?? 'Paid'}, ${s.billingCycle === 'ANNUAL' ? 'yearly' : 'monthly'}` : 'Free trial'}</dd>
+            {s.status === 'PAID' && s.planPricing === 'USER' && <><dt style={{ color: 'var(--text-muted)' }}>Users paid for</dt><dd data-testid="company-seats">{s.seats ?? '—'}{s.limits ? ` (${s.limits.activeUsers} switched on)` : ''}</dd></>}
             {s.trialStartedAt && <><dt style={{ color: 'var(--text-muted)' }}>Trial</dt><dd>{day(s.trialStartedAt)} – {lastDayOf(s.trialEndsAt)}{onTrial && s.access === 'TRIAL' ? ` (day ${s.trialDay} of ${s.trialDays ?? 7})` : ''}</dd></>}
             {s.paidUntil && <><dt style={{ color: 'var(--text-muted)' }}>Paid until</dt><dd>{lastDayOf(s.paidUntil)}</dd></>}
           </dl>
@@ -230,8 +244,10 @@ export default function PlatformCompanyPage() {
                 {data.payments.map(x => (
                   <tr key={x.id} className="table-row">
                     <td className="table-cell text-xs">{moment(x.paidAt ?? x.createdAt)}</td>
-                    <td className="table-cell">{PLAN_NAMES[x.plan] ?? x.plan}, {x.billingCycle === 'ANNUAL' ? 'yearly' : 'monthly'}{x.periodEnd ? <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>until {lastDayOf(x.periodEnd)}</span> : null}</td>
-                    <td className="table-cell text-right tabular-nums">{rupeesFromPaise(x.amountPaise)}</td>
+                    <td className="table-cell">{planNames[x.plan] ?? PLAN_NAMES[x.plan] ?? x.plan}, {x.purpose === 'USERS' ? `more users (${x.seats} in all)` : `${x.billingCycle === 'ANNUAL' ? 'yearly' : 'monthly'}${x.seats ? `, ${x.seats} users` : ''}`}
+                      {x.periodEnd ? <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>until {lastDayOf(x.periodEnd)}</span> : null}</td>
+                    <td className="table-cell text-right tabular-nums">{rupeesFromPaise(x.amountPaise)}
+                      {(x.discountPaise ?? 0) > 0 && <span className="block text-xs" style={{ color: 'var(--text-muted)' }} data-payment-discount>{rupeesFromPaise(x.discountPaise!)} off{x.discountCode ? ` · ${x.discountCode}` : ''}</span>}</td>
                     <td className="table-cell"><Badge variant={x.status === 'PAID' ? 'success' : x.status === 'FAILED' ? 'danger' : 'default'}>{x.status.toLowerCase()}</Badge>
                       {x.failureReason && <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{x.failureReason}</span>}</td>
                     <td className="table-cell text-xs">{x.paymentId ?? x.orderId}</td>
@@ -261,7 +277,12 @@ export default function PlatformCompanyPage() {
 
       {dialog === 'details' && <DetailsDialog detail={data} onClose={() => setDialog(null)} onDone={d => done(d, 'Contact details saved')} />}
       {dialog === 'trial' && <TrialDialog detail={data} onClose={() => setDialog(null)} onDone={d => done(d, 'Trial extended')} />}
+      {dialog === 'start-trial' && <StartTrialDialog detail={data} onClose={() => setDialog(null)} onDone={d => done(d, 'Free trial started')} />}
       {dialog === 'plan' && <PlanDialog detail={data} onClose={() => setDialog(null)} onDone={d => done(d, 'Plan recorded')} />}
+      {dialog === 'end' && <NoteDialog title={s.access === 'TRIAL' ? 'End the free trial now' : 'End the plan now'} testId="end-dialog" danger
+        action={s.access === 'TRIAL' ? 'End the trial' : 'End the plan'} label="Why (kept with the company's history)"
+        text={`${p.name} becomes read-only at once: everything it made is kept and can be seen, and choosing a plan restores it. Its administrators are told in the app. Nothing is refunded here — a refund is made in Razorpay.`}
+        run={note => platformApi.setPlan(id, { mode: 'END', note })} onClose={() => setDialog(null)} onDone={d => done(d, 'Ended — the company is read-only now')} />}
       {dialog === 'full' && <NoteDialog title="Give full access" testId="full-dialog" action="Give full access" label="Why (kept with the company's history)"
         text="The company gets full access with no end date and no plan to pay, like the companies from before plans (a partner, a test company)."
         run={note => platformApi.setPlan(id, { mode: 'FULL', note })} onClose={() => setDialog(null)} onDone={d => done(d, 'Full access given')} />}
@@ -372,32 +393,78 @@ function TrialDialog({ detail, onClose, onDone }: { detail: CompanyDetail; onClo
   )
 }
 
-function PlanDialog({ detail, onClose, onDone }: { detail: CompanyDetail; onClose: () => void; onDone: (d: CompanyDetail) => void }) {
-  const s = detail.plan
-  const [plan, setPlan] = useState(s.plan && PLAN_NAMES[s.plan] ? s.plan : 'GROWTH')
-  const [cycle, setCycle] = useState(s.billingCycle ?? 'ANNUAL')
-  const [until, setUntil] = useState('')
+function StartTrialDialog({ detail, onClose, onDone }: { detail: CompanyDetail; onClose: () => void; onDone: (d: CompanyDetail) => void }) {
+  const [days, setDays] = useState(7)
   const [note, setNote] = useState('')
   const [problem, setProblem] = useState('')
-  const m = useMutation({ mutationFn: () => platformApi.setPlan(detail.profile.id, { mode: 'PAID', plan, billingCycle: cycle, paidUntil: until, note }),
-    onSuccess: onDone, onError: (e: unknown) => setProblem(apiError(e, 'The plan could not be recorded.')) })
+  const s = detail.plan
+  const m = useMutation({ mutationFn: () => platformApi.setPlan(detail.profile.id, { mode: 'TRIAL', days, note }), onSuccess: onDone,
+    onError: (e: unknown) => setProblem(apiError(e, 'The trial could not be started.')) })
   return (
-    <Modal open onClose={onClose} title="Record a plan paid outside the app" size="md" footer={
+    <Modal open onClose={onClose} title="Start a free trial" size="sm" footer={
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary h-9 px-4" onClick={onClose}>Cancel</button>
-        <button type="button" className="btn-primary h-9 px-4" disabled={m.isPending || !until || note.trim().length < 5}
+        <button type="button" className="btn-primary h-9 px-4" disabled={m.isPending || note.trim().length < 5 || days < 1 || days > 30}
+          onClick={() => { setProblem(''); m.mutate() }} data-action="confirm">{m.isPending ? 'Saving…' : `Start a ${days}-day trial`}</button>
+      </div>}>
+      <div className="space-y-3" data-testid="start-trial-dialog">
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          {s.status === 'LEGACY'
+            ? 'The company has full access with no end date. It moves to a free trial starting today (today is day 1), and is read-only after it until it subscribes.'
+            : 'A new free trial starts today (today is day 1): the company can make and see everything again; downloading, printing and sending come with a plan.'}
+          {' '}This is beyond the one trial per business, as you decide. The company&apos;s administrators are told in the app.
+        </p>
+        <div>
+          <label className="label" htmlFor="pst-days">Days (1 to 30)</label>
+          <input id="pst-days" type="number" min={1} max={30} className="input" value={days} onChange={e => setDays(Number(e.target.value))} data-field="days" />
+        </div>
+        <div>
+          <label className="label" htmlFor="pst-note">Why (kept with the company&apos;s history)</label>
+          <textarea id="pst-note" className="input" rows={2} maxLength={300} value={note} onChange={e => setNote(e.target.value)} data-field="note" />
+        </div>
+        <Problem text={problem} />
+      </div>
+    </Modal>
+  )
+}
+
+function PlanDialog({ detail, onClose, onDone }: { detail: CompanyDetail; onClose: () => void; onDone: (d: CompanyDetail) => void }) {
+  const s = detail.plan
+  // the plans in the console — retired ones too, to keep a company on its old plan (an older server: the built-in ones)
+  const { data: view } = useQuery({ queryKey: ['platform', 'plans'], queryFn: platformApi.plans, staleTime: 30_000, retry: false })
+  const options = view?.plans.map(x => ({ code: x.code, name: x.name, perUser: x.pricing === 'USER', maxUsers: x.maxUsers, active: x.active }))
+    ?? Object.entries(PLAN_NAMES).map(([code, name]) => ({ code, name, perUser: false, maxUsers: null as number | null, active: true }))
+  const [plan, setPlan] = useState(s.status === 'PAID' && s.plan ? s.plan : 'GROWTH')
+  const chosen = options.find(o => o.code === plan)
+  const perUserPlan = !!chosen?.perUser
+  const [seats, setSeats] = useState<number>(s.seats ?? Math.max(1, s.limits?.activeUsers ?? 1))
+  const [cycle, setCycle] = useState(s.billingCycle ?? 'ANNUAL')
+  const [until, setUntil] = useState('')
+  const [free, setFree] = useState(false)
+  const [note, setNote] = useState('')
+  const [problem, setProblem] = useState('')
+  const m = useMutation({
+    mutationFn: () => platformApi.setPlan(detail.profile.id, { mode: 'PAID', plan, billingCycle: cycle, paidUntil: until, note,
+      seats: perUserPlan ? seats : null, complimentary: free }),
+    onSuccess: onDone, onError: (e: unknown) => setProblem(apiError(e, 'The plan could not be recorded.')) })
+  return (
+    <Modal open onClose={onClose} title="Record a plan" subtitle="Paid outside the app, or given at no charge" size="md" footer={
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary h-9 px-4" onClick={onClose}>Cancel</button>
+        <button type="button" className="btn-primary h-9 px-4" disabled={m.isPending || !until || note.trim().length < 5 || (perUserPlan && seats < 1)}
           onClick={() => { setProblem(''); m.mutate() }} data-action="confirm">{m.isPending ? 'Saving…' : 'Record the plan'}</button>
       </div>}>
       <div className="space-y-3" data-testid="plan-dialog">
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          For a plan paid by bank transfer or agreed with sales (Enterprise): the company has full access until the end of the last day, India time.
-          Say in the note how it was paid. Online payments record themselves.
+          For a plan paid by bank transfer or agreed with sales (Enterprise) — or given at no charge (a partner, a pilot): the company is on it
+          until the end of the last day, India time, with what that plan includes. Say in the note how it was paid, or why it is free. Online
+          payments record themselves.
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label className="label" htmlFor="pp-plan">Plan</label>
             <select id="pp-plan" className="input" value={plan} onChange={e => setPlan(e.target.value)} data-field="plan">
-              {Object.entries(PLAN_NAMES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {options.map(o => <option key={o.code} value={o.code}>{o.name}{o.perUser ? ' (per user)' : ''}{o.active ? '' : ' — retired'}</option>)}
             </select>
           </div>
           <div>
@@ -411,10 +478,22 @@ function PlanDialog({ detail, onClose, onDone }: { detail: CompanyDetail; onClos
             <input id="pp-until" type="date" className="input" value={until} onChange={e => setUntil(e.target.value)} data-field="until" />
           </div>
         </div>
+        {perUserPlan && (
+          <div>
+            <label className="label" htmlFor="pp-seats">Users paid for{chosen?.maxUsers != null ? ` (up to ${chosen.maxUsers})` : ''}</label>
+            <input id="pp-seats" type="number" min={1} max={chosen?.maxUsers ?? undefined} className="input w-40" value={seats}
+              onChange={e => setSeats(Math.max(0, Number.parseInt(e.target.value || '0', 10) || 0))} data-field="seats" />
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>The most users who can be switched on.{s.limits ? ` ${s.limits.activeUsers} are switched on now.` : ''}</p>
+          </div>
+        )}
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" checked={free} onChange={e => setFree(e.target.checked)} data-field="complimentary" className="mt-1" />
+          <span>Given at no charge (complimentary) — recorded as such in the company&apos;s history</span>
+        </label>
         <div>
-          <label className="label" htmlFor="pp-note">How it was paid (kept with the company&apos;s history)</label>
+          <label className="label" htmlFor="pp-note">{free ? 'Why it is free' : 'How it was paid'} (kept with the company&apos;s history)</label>
           <textarea id="pp-note" className="input" rows={2} maxLength={300} value={note} onChange={e => setNote(e.target.value)} data-field="note"
-            placeholder="e.g. NEFT on 3 Nov, UTR 123456789012, invoice FS/26-27/014" />
+            placeholder={free ? 'e.g. Pilot with the CA firm until March' : 'e.g. NEFT on 3 Nov, UTR 123456789012, invoice FS/26-27/014'} />
         </div>
         <Problem text={problem} />
       </div>

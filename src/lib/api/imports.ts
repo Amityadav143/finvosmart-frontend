@@ -23,7 +23,7 @@ export const importsApi = {
   /** What can be imported, the columns of each file, and which the signed-in person may import. */
   kinds: async () => data<ImportKindInfo[]>(await api.get('/import/kinds')),
   /** Our CSV template (opens in Excel). */
-  template: (kind: ImportKind, fileName: string) => download(`/import/${kind}/template`, {}, fileName),
+  template: (kind: ImportKind, fileName: string) => download(`/import/${kind}/template`, {}, fileName, { always: true }),   // an empty template: every company
   /** What importing the file would do, row by row. Saves nothing. */
   preview: async (kind: ImportKind, file: File, asOf?: string) =>
     data<ImportPreview>(await api.post(`/import/${kind}/preview`, form(file), { params: asOf ? { asOf } : {}, headers: MULTIPART, timeout: 180000 })),

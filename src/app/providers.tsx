@@ -11,10 +11,24 @@
  */
 
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Toaster } from 'react-hot-toast'
+import toast, { Toaster } from 'react-hot-toast'
 import { useState } from 'react'
 import { ThemeProvider, useTheme } from '@/lib/context/ThemeContext'
 import { queryClientRef } from '@/lib/queryClientRef'
+import { useDocumentsGate } from '@/lib/billing/documentsGate'
+
+// A download, print or send refused for want of a plan opens the dialog that says why (lib/api/client.ts); the page's
+// own error toast with the same words would only say it twice — it is left out while the dialog shows them.
+if (typeof window !== 'undefined' && !(toast.error as any).__documentsAware) {
+  const plain = toast.error
+  const aware = ((message: any, opts?: any) => {
+    const g = useDocumentsGate.getState()
+    if (g.open && typeof message === 'string' && message === g.message) return ''
+    return plain(message, opts)
+  }) as typeof toast.error
+  ;(aware as any).__documentsAware = true
+  toast.error = aware
+}
 
 function ToasterThemed() {
   const { isDark } = useTheme()

@@ -24,6 +24,7 @@ import { inr, todayIST } from '@/lib/money'
 import { exportToCsv } from '@/lib/utils'
 import { fmtDate } from '@/components/godown/GodownParts'
 import { Chip, qty } from '@/components/purchaseStore/StoreParts'
+import { documentsAllowed } from '@/lib/billing/documentsGate'
 
 const ANY = ['PROCUREMENT_VIEW', 'PROCUREMENT_RECEIVE', 'QUALITY_INSPECT', 'FINANCE_VIEW']
 type Tab = 'not-billed' | 'rejections' | 'suppliers' | 'register'
@@ -192,13 +193,14 @@ function RegisterReport() {
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['grn-register', from, to, page], queryFn: () => grnApi.list({ from, to, page, size: 50 }), enabled: ok })
   const rows = data?.content ?? []
   const download = async () => {
+    if (!documentsAllowed()) return
     try {
       const all = await grnApi.list({ from, to, page: 0, size: 200 })
       const n = exportToCsv(`goods-receipts-${from}-to-${to}`, all.content.map(g => ({ Receipt: g.number, Date: g.date, Status: g.statusLabel, Supplier: g.vendorName,
         Order: g.poNumber ?? '', 'Their invoice': g.invoiceNumber ?? '', Godown: g.godown ?? '', Lines: g.lines, 'Rejected quantity': g.rejectedQty,
         Billed: g.status === 'POSTED' ? (g.billed ? 'Yes' : 'No') : '', ...(g.acceptedValue != null ? { 'Accepted value (₹, before GST)': g.acceptedValue } : {}) })))
       if (!n) none('Nothing to download')
-      else if (all.totalElements > all.content.length) toast(`The first ${all.content.length} of ${all.totalElements} receipts were downloaded: choose fewer days for the rest.`)
+      else if (n > 0 && all.totalElements > all.content.length) toast(`The first ${all.content.length} of ${all.totalElements} receipts were downloaded: choose fewer days for the rest.`)
     } catch (e) { toast.error(apiError(e, 'The register could not be downloaded.')) }
   }
   return (

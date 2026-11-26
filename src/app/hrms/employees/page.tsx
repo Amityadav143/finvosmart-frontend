@@ -32,6 +32,7 @@ import { Plus, Download, Users, UserCheck, UserX, Briefcase, LayoutGrid, List, F
 import toast from 'react-hot-toast'
 import { apiError } from '@/lib/apiError'
 import { cn } from '@/lib/utils'
+import { documentsAllowed } from '@/lib/billing/documentsGate'
 
 export default function EmployeesPage() {
   const qc = useQueryClient()
@@ -113,6 +114,7 @@ export default function EmployeesPage() {
   ]
 
   const exportEmployees = async () => {
+    if (!documentsAllowed()) return                     // exports come with a plan: the dialog says so
     try {
       // every employee matching the search, not only the first 1,000 (the most one answer holds)
       const people = await allPages(n => hrmsApi.employees.list({ page: n, size: 1000, query: dq || undefined, status: status || undefined }))

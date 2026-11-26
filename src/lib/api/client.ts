@@ -16,6 +16,8 @@ import { renewSession, forgetHere, SESSION_HEADERS } from '@/lib/auth/session'
 import { queryClientRef } from '@/lib/queryClientRef'
 import { sealBody, replyKey, openReply, forgetServerKey, warmUp, SEALED_HEADER, REPLY_KEY_HEADER, SEAL_AGAIN } from '@/lib/security/seal'
 import { readFileError } from './fileErrors'
+import { DOCUMENTS_REASON, showDocumentsRefusal } from '@/lib/billing/documentsGate'
+import { apiError } from '@/lib/apiError'
 
 export { isPublicAuth }
 
@@ -112,6 +114,11 @@ export function createApiClient(): AxiosInstance {
       // read-only (the trial is over) or a paid-only feature: the plan banners ask the server again
       if (err.response?.status === 402) {
         try { queryClientRef.current?.invalidateQueries({ queryKey: ['subscription'] }) } catch { /* no cache yet */ }
+        // a download, print or send without a plan: the dialog says why and how to get one (the page needn't)
+        if (err.response?.data?.reason === DOCUMENTS_REASON) {
+          showDocumentsRefusal(apiError(err, ''))
+          err.documentsRefused = true
+        }
       }
       if (err.response?.status === 401 && original && !original._retry && !isPublicAuth(original.url)) {
         // "No sign-in came with the request" for a request sent without one is an ordinary ending

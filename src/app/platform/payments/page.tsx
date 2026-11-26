@@ -40,6 +40,9 @@ export default function PlatformPaymentsPage() {
     placeholderData: keepPreviousData,
   })
   const t = data?.totals
+  // the plans' names as the console keeps them (an older server: the built-in names)
+  const { data: catalogue } = useQuery({ queryKey: ['platform', 'plans'], queryFn: platformApi.plans, staleTime: 30_000, retry: false })
+  const planNames: Record<string, string> = Object.fromEntries((catalogue?.plans ?? []).map(x => [x.code, x.name]))
   const tiles = t ? [
     { id: 'month', label: 'Paid this month', value: rupeesFromPaise(t.monthPaise), sub: `${t.monthCount} payment${t.monthCount === 1 ? '' : 's'} (with GST)` },
     { id: 'last30', label: 'Paid in 30 days', value: rupeesFromPaise(t.last30Paise), sub: `${t.last30Count} payment${t.last30Count === 1 ? '' : 's'}` },
@@ -90,12 +93,14 @@ export default function PlatformPaymentsPage() {
                 </div>
               ) },
               { header: 'Plan', render: r => (
-                <span className="text-sm">{PLAN_NAMES[r.plan] ?? r.plan}, {r.billingCycle === 'ANNUAL' ? 'yearly' : 'monthly'}
+                <span className="text-sm">{planNames[r.plan] ?? PLAN_NAMES[r.plan] ?? r.plan}, {r.purpose === 'USERS' ? `more users (${r.seats} in all)` : `${r.billingCycle === 'ANNUAL' ? 'yearly' : 'monthly'}${r.seats ? `, ${r.seats} users` : ''}`}
                   {r.periodEnd && r.status === 'PAID' && <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>until {lastDayOf(r.periodEnd)}</span>}</span>
               ) },
               { header: 'Amount', className: 'text-right', render: r => (
                 <span className="tabular-nums">{rupeesFromPaise(r.amountPaise)}
-                  <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>GST {rupeesFromPaise(r.gstPaise)}</span></span>
+                  <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>GST {rupeesFromPaise(r.gstPaise)}</span>
+                  {(r.discountPaise ?? 0) > 0 && <span className="block text-xs" style={{ color: 'var(--text-muted)' }} data-payment-discount>
+                    {rupeesFromPaise(r.discountPaise!)} off{r.discountCode ? ` · ${r.discountCode}` : ''}</span>}</span>
               ) },
               { header: 'Status', render: r => {
                 const s = STATUS[r.status] ?? { text: r.status.toLowerCase(), tone: 'default' as const }

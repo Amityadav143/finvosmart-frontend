@@ -20,8 +20,8 @@
  *  • Have a lawyer review before relying on these documents.
  */
 
-export const LEGAL_VERSION = '2026-11-21'
-export const LEGAL_UPDATED = '21 November 2026'
+export const LEGAL_VERSION = '2026-11-26'
+export const LEGAL_UPDATED = '26 November 2026'
 
 export const LEGAL_ENTITY = {
   name: 'Navgrow Engineering Service Pvt. Ltd.',
@@ -53,7 +53,7 @@ export const PRIVACY: LegalDoc = {
       'Records you add while using Finvosmart, such as invoices, customer and vendor details, and employee records.',
       'Security and usage data: IP address, browser type, sign-in times and server logs of requests to our service. For each signed-in device we keep its browser, IP address and when it was last used, so you can see your devices and sign any of them out.',
       'To give each business and person one free trial: a one-way hash (SHA-256) of the sign-up email address, mobile number and PAN — not the details themselves.',
-      'If you subscribe: the plan, amounts and Razorpay\'s reference for each payment. Card, UPI and bank details are entered with Razorpay, not with us, and we never see them.',
+      'If you subscribe: the plan, the users paid for on a plan priced for each user, the amounts, any discount code used, and Razorpay\'s reference for each payment. Card, UPI and bank details are entered with Razorpay, not with us, and we never see them.',
       'Messages you send us, such as support requests.',
       'How you found us, if you sign up or ask for a demo: the campaign tags of the link that brought you (utm_source, utm_medium and the like), an ad\'s click ID, the name of the website you came from (not the page) and the page you landed on — see "Cookies and tracking".',
       'Questions you ask the AI assistant, "Ask Finvosmart", and its answers. We pass them on to answer them and don\'t keep them — see "The AI assistant" below.',
@@ -61,7 +61,7 @@ export const PRIVACY: LegalDoc = {
     { id: 'use', h2: 'Why we use it', bullets: [
       'To create your account and company, and to sign you in securely.',
       'To provide the features you use — GST invoicing, e-invoicing, inventory, CRM, HR and the rest of Finvosmart.',
-      'To send emails about your account: welcome messages, sign-in codes, password resets and important service updates.',
+      'To send emails about your account: welcome messages, sign-in codes, password resets, your plan (trial and renewal reminders, payments) and important service updates — and, unless you turn them off, alerts that need you now (such as a bank account changed in your records) and a morning summary of what is due. Each alert and summary email has a link that turns it off, and you can choose on the Notifications page.',
       'To answer your questions and give support.',
       'To answer questions you ask the AI assistant.',
       'To keep the service secure: to detect abuse, prevent fraud and investigate incidents.',
@@ -158,12 +158,15 @@ export const TERMS: LegalDoc = {
     ]},
     { id: 'plans', h2: 'Free trial, plans and payment', paragraphs: [
       'New businesses get a 7-day free trial, with no credit card required. One free trial is given per business (its PAN) and per person (their email address and phone number).',
-      'When the trial ends without a paid plan, your account stays open read-only: you can sign in, view and export your records, and subscribe, but not add or change anything. Your data is not deleted. Choosing a paid plan restores full access straight away.',
-      'Paid plans are billed monthly or yearly in advance through our payment partner, Razorpay. Some features, such as customising document templates, are only in the paid plans.',
+      'During the trial you can create and view everything in Finvosmart. Downloading, printing and exporting documents, and sending them to customers or suppliers (by email, WhatsApp or a link), need a paid plan; in the trial an invoice’s on-screen preview is marked “Free trial”. Subscribing during the trial keeps its remaining free days: the paid period starts when the trial ends.',
+      'When the trial, or a paid period, ends without a paid plan, your account stays open read-only: you can sign in, view your records and subscribe, but not add, change, download or send anything. Your data is not deleted. Links you sent to customers while you had a paid plan keep working, so they can still view and pay. Choosing a paid plan restores full access straight away.',
+      'Paid plans are billed monthly or yearly in advance through our payment partner, Razorpay, and do not renew by themselves: we remind you by email before a period ends. Some features, such as customising document templates, are only in the paid plans.',
+      'Some plans are priced for each user: you choose how many users to pay for — at least the users switched on in your account — and that number is the most who can be switched on at a time. You can add users during a paid period; they are charged for the paid days left in it.',
+      'We may give discount codes, or a coupon for one business only. A code takes the percentage or amount it states off a plan\'s price before GST, for the plans, billing, dates and number of uses it states; it is checked when you pay and applies only to the period paid for with it. If a code takes off the whole price, the plan starts without a payment.',
       'Plans and prices are shown on our pricing page and may change. We will give you advance notice before a price change applies to you. Applicable taxes, such as GST, are charged as required by law.',
     ]},
     { id: 'your-data', h2: 'Your data', paragraphs: [
-      'You own the data you put into Finvosmart. You permit us to store and process it only to provide the service to you, as described in our Privacy Policy. While your account is active, you can export your records, such as invoices and GST return files.',
+      'You own the data you put into Finvosmart. You permit us to store and process it only to provide the service to you, as described in our Privacy Policy. While you have a paid plan, you can export your records, such as invoices and GST return files, at any time. Without one, ask us and we will send you a copy of your data.',
     ]},
     { id: 'compliance', h2: 'Your responsibilities, including tax compliance', paragraphs: [
       'Finvosmart helps you prepare invoices, GST returns and other records, but you remain responsible for:',
@@ -196,7 +199,7 @@ export const TERMS: LegalDoc = {
     ]},
     { id: 'termination', h2: 'Ending your account', paragraphs: [
       'You can stop using Finvosmart at any time. We may suspend or close an account that breaches these terms, is not paid for, or puts the service or other people at risk; where reasonable, we will warn you first.',
-      'After an account closes, we will give you a reasonable opportunity to export your data, unless the law prevents it, and then delete it as described in our Privacy Policy.',
+      'After an account closes, we will give you a reasonable opportunity to get a copy of your data, unless the law prevents it, and then delete it as described in our Privacy Policy.',
     ]},
     { id: 'ip', h2: 'Our software and brand', paragraphs: [
       `Finvosmart, its software and its brand belong to ${LEGAL_ENTITY.name}. These terms give you the right to use the service; they do not transfer any ownership.`,

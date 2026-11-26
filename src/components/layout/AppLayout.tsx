@@ -19,6 +19,7 @@ import { Sidebar } from './Sidebar'
 import { MobileTabs } from './MobileTabs'
 import { Topbar } from './Topbar'
 import { TrialBanner } from '../billing/TrialBanner'
+import { DocumentsDialog, DocumentsGate } from '../billing/DocumentsDialog'
 import { PlatformNotice } from './PlatformNotice'
 import { CommandPalette } from '../ui/CommandPalette'
 import { ShortcutsHelp } from './ShortcutsHelp'
@@ -185,6 +186,8 @@ function Shell({ children }: { children: React.ReactNode }) {
         <Topbar onSearchOpen={() => setCmdOpen(true)} onShortcuts={() => setHelpOpen(true)}
           assistant={assistant?.available ? { open: asstOpen, toggle: () => setAsstOpen(v => !v) } : undefined} />
         <TrialBanner />
+        <DocumentsGate />
+        <DocumentsDialog />
         <PlatformNotice />
         <main className="app-main flex-1 overflow-y-auto p-5 md:p-6 pb-24 lg:pb-6 page-enter" style={{ background: 'var(--bg-base)' }}>
           <div className="max-w-screen-2xl mx-auto">{children}</div>

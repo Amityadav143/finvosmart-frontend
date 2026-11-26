@@ -18,7 +18,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { ConsoleHeading, FilterChips, useConsoleList } from '@/components/platform/ConsoleKit'
 import { apiError } from '@/lib/apiError'
 
-const KINDS: ActivityKind[] = ['SUPPORT', 'SETTINGS', 'ADMINS', 'LEADS']
+const KINDS: ActivityKind[] = ['SUPPORT', 'SETTINGS', 'ADMINS', 'LEADS', 'PLANS']
 
 /**
  * What Finvosmart's administrators did, newest first, in every company: support's actions (suspend, trial, plan,
@@ -43,6 +43,7 @@ export default function PlatformActivityPage() {
       <FilterChips value={list.filter} onChange={list.setFilter} options={[
         { value: '', label: 'Everything' }, { value: 'SUPPORT', label: 'Support for companies' }, { value: 'SETTINGS', label: 'Platform settings' },
         { value: 'ADMINS', label: 'Console access' }, { value: 'LEADS', label: 'Website enquiries' },
+        { value: 'PLANS', label: 'Plans and discount codes' },
       ]} />
 
       {isError ? (

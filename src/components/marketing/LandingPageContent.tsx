@@ -14,6 +14,7 @@ import Link from 'next/link'
 import { HOME_FAQ, PAGES, PLANS } from '@/lib/seo'
 import { SOLUTIONS_MENU, TOOLS_MENU, link } from '@/lib/siteNav'
 import { AskAssistantButton } from '@/components/assistant/WebsiteAssistant'
+import { LivePer, LivePrice, LiveShown, LiveUsers, MorePlans } from '@/components/marketing/LivePlans'
 import {
   ArrowRight, Play, Zap, LineChart, MessageCircle, Camera, RefreshCw, Building2,
   CreditCard, Globe, Package2, CheckCircle, Check, X, ChevronDown, TrendingUp,
@@ -391,14 +392,15 @@ export default function LandingPageContent() {
           </div>
           <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '22px', alignItems: 'stretch' }}>
             {[
-              { name:'Starter', monthly:'4,999', annual:'3,999', users:'Up to 10 users · 1 branch', featured: false,
+              { code:'STARTER', name:'Starter', monthly:'4,999', annual:'3,999', users:'Up to 10 users · 1 branch', featured: false,
                 feats:['Core ERP modules','HRMS + Finance','Invoicing + GST','CRM + Procurement','13-week cash-flow forecast','AI assistant (Ask Finvosmart)','Standard support'] },
-              { name:'Growth', monthly:'12,999', annual:'10,399', users:'Up to 50 users · Multi-branch', featured: true,
+              { code:'GROWTH', name:'Growth', monthly:'12,999', annual:'10,399', users:'Up to 50 users · Multi-branch', featured: true,
                 feats:['Everything in Starter','WhatsApp invoices & reminders','GST credit check (GSTR-2B)','Bank payment matching','TDS register','Priority support'] },
-              { name:'Enterprise', monthly:'29,999', annual:'23,999', users:'Unlimited users & branches', featured: false,
+              { code:'ENTERPRISE', name:'Enterprise', monthly:'29,999', annual:'23,999', users:'Unlimited users & branches', featured: false,
                 feats:['Everything in Growth','All modules, unlimited users','White-labelling','Dedicated SLA support','On-premise option'] },
-            ].map(({ name, monthly, annual, users, featured, feats }) => (
-              <div key={name} style={{
+            ].map(({ code, name, monthly, annual, users, featured, feats }) => (
+              <LiveShown key={code} code={code}>
+              <div data-plan={code} style={{
                 position: 'relative',
                 background: 'var(--bg-card)',
                 border: featured ? '1.5px solid var(--gold)' : '1px solid var(--border)',
@@ -411,12 +413,12 @@ export default function LandingPageContent() {
                   <div style={{ position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)', background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', padding: '5px 16px', borderRadius: '100px', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>Most Popular</div>
                 )}
                 <h3 style={{ fontFamily: "'Instrument Serif', serif", fontSize: '24px', fontWeight: 400, color: featured ? 'var(--gold)' : 'var(--text-primary)', marginBottom: '6px' }}>{name}</h3>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '18px' }}>{users}</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '18px' }}><LiveUsers code={code} fallback={users} /></div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '4px' }}>
                   <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: '46px', color: featured ? 'var(--gold)' : 'var(--text-primary)', lineHeight: 1 }}>
-                    <span className="price-annual">₹{annual}</span><span className="price-monthly">₹{monthly}</span>
+                    <LivePrice code={code} annual={annual} monthly={monthly} />
                   </span>
-                  <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>/mo</span>
+                  <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}><LivePer code={code} text="/mo" /></span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '24px', height: '16px' }}>
                   <span className="price-annual">billed annually</span><span className="price-monthly">billed monthly</span>
@@ -437,7 +439,9 @@ export default function LandingPageContent() {
                   ))}
                 </ul>
               </div>
+              </LiveShown>
             ))}
+            <MorePlans known={['STARTER', 'GROWTH', 'ENTERPRISE']} />
           </div>
 
           {/* Build-your-own / custom plan callout */}

@@ -12,13 +12,14 @@
 import Link from 'next/link'
 import { CheckCircle, X, ArrowRight, Clock } from 'lucide-react'
 import { SoonBadge } from '@/components/marketing/SoonBadge'
+import { LiveLimit, LivePer, LivePrice, LiveShown, LiveUsers, MorePlans } from '@/components/marketing/LivePlans'
 
 /** A plan feature that is still being built starts with this marker: shown with "Coming soon", never as included. */
 const SOON = 'SOON:'
 
 const PLANS = [
   {
-    name: 'Starter', monthly: '4,999', annual: '3,999',
+    code: 'STARTER', name: 'Starter', monthly: '4,999', annual: '3,999',
     users: 'Up to 10 users', branches: '1 branch', featured: false,
     cta: 'Start Free Trial', ctaHref: '/register?plan=starter',
     feats: [
@@ -41,7 +42,7 @@ const PLANS = [
     ],
   },
   {
-    name: 'Growth', monthly: '12,999', annual: '10,399',
+    code: 'GROWTH', name: 'Growth', monthly: '12,999', annual: '10,399',
     users: 'Up to 50 users', branches: 'Multi-branch', featured: true,
     cta: 'Start Free Trial', ctaHref: '/register?plan=growth',
     feats: [
@@ -59,7 +60,7 @@ const PLANS = [
     ],
   },
   {
-    name: 'Enterprise', monthly: '29,999', annual: '23,999',
+    code: 'ENTERPRISE', name: 'Enterprise', monthly: '29,999', annual: '23,999',
     users: 'Unlimited users', branches: 'Unlimited branches', featured: false,
     cta: 'Contact Sales', ctaHref: '/contact',
     feats: [
@@ -110,7 +111,9 @@ function Cell({ val }: { val: string | boolean }) {
 }
 
 // Server component: both prices are in the HTML; two radio buttons and CSS (globals.css,
-// .billing-toggle) switch between them, so the switch works without JavaScript.
+// .billing-toggle) switch between them, so the switch works without JavaScript. In the browser the prices, users and
+// branches become the server's — the plans kept in the console — and plans added there follow the standard ones
+// (components/marketing/LivePlans).
 export default function PricingPage() {
   return (
     <div style={{ background: 'var(--bg-base)', paddingTop: '88px' }}>
@@ -130,6 +133,10 @@ export default function PricingPage() {
           <p style={{ fontSize: '17px', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0 auto 32px', lineHeight: 1.7 }}>
             All plans include full source of truth, unlimited transaction history, and India compliance built in.
           </p>
+          <p data-testid="pricing-trial-terms" style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '560px', margin: '-18px auto 28px', lineHeight: 1.6 }}>
+            Every plan starts with a 7-day free trial, no card needed: make and see everything. Downloading, printing and sending documents
+            come with a plan — subscribe during the trial and its free days are kept.
+          </p>
 
           {/* Monthly / annual switch (radio buttons above + CSS) */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
@@ -147,7 +154,8 @@ export default function PricingPage() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
           <div className="auto-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '24px', alignItems: 'start' }}>
             {PLANS.map(p => (
-              <div key={p.name} style={{
+              <LiveShown key={p.code} code={p.code}>
+              <div data-plan={p.code} style={{
                 background: 'var(--bg-card)', border: p.featured ? '2px solid var(--gold)' : '1px solid var(--border)',
                 borderRadius: '20px', padding: '32px', position: 'relative',
                 transform: p.featured ? 'scale(1.02)' : 'none',
@@ -157,15 +165,15 @@ export default function PricingPage() {
                   <div style={{ position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', padding: '5px 20px', borderRadius: '20px', background: 'var(--btn-primary-bg)', color: 'var(--text-on-gold)', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>MOST POPULAR</div>
                 )}
                 <h2 style={{ fontFamily: "'Instrument Serif', serif", fontWeight: 400, fontSize: '22px', color: p.featured ? 'var(--gold)' : 'var(--text-primary)', marginBottom: '4px' }}>{p.name}</h2>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>{p.users} · {p.branches}</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}><LiveUsers code={p.code} fallback={`${p.users} · ${p.branches}`} /></div>
                 <div style={{ marginBottom: '4px' }}>
                   <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: '44px', color: p.featured ? 'var(--gold)' : 'var(--text-primary)' }}>
-                    <span className="price-annual">₹{p.annual}</span><span className="price-monthly">₹{p.monthly}</span>
+                    <LivePrice code={p.code} annual={p.annual} monthly={p.monthly} />
                   </span>
-                  <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginLeft: '4px' }}>/month</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginLeft: '4px' }}><LivePer code={p.code} text="/month" /></span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '24px' }}>
-                  + 18% GST · <span className="price-annual">billed annually (₹{p.monthly} billed monthly)</span><span className="price-monthly">billed monthly (₹{p.annual} billed annually)</span>
+                  + 18% GST · <span className="price-annual">billed annually</span><span className="price-monthly">billed monthly</span>
                 </div>
                 <div style={{ height: '1px', background: 'var(--border)', marginBottom: '24px' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', marginBottom: '28px' }}>
@@ -188,8 +196,16 @@ export default function PricingPage() {
                   color: p.featured ? 'var(--text-on-gold)' : 'var(--text-primary)',
                   border: p.featured ? 'none' : '1px solid var(--border-strong)',
                 }}>{p.cta} <ArrowRight size={15} /></Link>
+                {p.ctaHref.startsWith('/register?plan=') && (
+                  <p style={{ textAlign: 'center', fontSize: '13px', margin: '10px 0 0' }}>
+                    <span className="price-annual"><Link href={`${p.ctaHref}&cycle=annual&start=pay`} className="text-link">or subscribe now, billed yearly</Link></span>
+                    <span className="price-monthly"><Link href={`${p.ctaHref}&cycle=monthly&start=pay`} className="text-link">or subscribe now, billed monthly</Link></span>
+                  </p>
+                )}
               </div>
+              </LiveShown>
             ))}
+            <MorePlans known={PLANS.map(p => p.code)} />
           </div>
 
           {/* Add-ons */}
@@ -230,7 +246,9 @@ export default function PricingPage() {
                     <th scope="row" style={{ padding: '11px 20px', fontSize: '13.5px', fontWeight: 400, textAlign: 'left', color: 'var(--text-secondary)' }}>{row.feature}{'soon' in row && row.soon && <SoonBadge style={{ marginLeft: '8px' }} />}</th>
                     {(['starter','growth','enterprise'] as const).map(k => (
                       <td key={k} style={{ padding: '11px 20px', textAlign: 'center', background: k==='growth' ? 'rgba(233,196,106,0.03)' : undefined }}>
-                        <div style={{ display: 'flex', justifyContent: 'center' }}><Cell val={row[k]} /></div>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>{(row.feature === 'Users' || row.feature === 'Branches') && typeof row[k] === 'string'
+                          ? <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}><LiveLimit code={k.toUpperCase()} kind={row.feature === 'Users' ? 'users' : 'branches'} fallback={row[k] as string} /></span>
+                          : <Cell val={row[k]} />}</div>
                       </td>
                     ))}
                   </tr>

@@ -20,7 +20,7 @@ import { itcApi } from '@/lib/api/purchases'
 import { PermissionGate } from '@/components/ui/PermissionGate'
 import { Modal } from '@/components/ui/Modal'
 import { Notice } from '@/components/invoicing/InvoiceForm'
-import { formatDate } from '@/lib/utils'
+import { apiError, formatDate } from '@/lib/utils'
 import { inr } from '@/lib/money'
 import { IMS_LABEL, ITC_LINE, errText } from '@/lib/purchases'
 import type { ItcLine, ItcLineStatus, ItcReport } from '@/types/purchases'
@@ -90,7 +90,7 @@ function GstCreditCheckPageContent() {
             <PermissionGate permission="GST_RECON_RUN">
               <button className="btn-secondary h-9" disabled={!period || recheck.isPending} onClick={() => recheck.mutate()} title="After recording or correcting bills"><RefreshCw size={14} />{recheck.isPending ? 'Checking…' : 'Check again'}</button>
             </PermissionGate>
-            <button className="btn-secondary h-9" disabled={!period} onClick={() => itcApi.csv(period).catch(() => toast.error('Export failed'))}><Download size={14} />CSV with IMS actions</button>
+            <button className="btn-secondary h-9" disabled={!period} onClick={() => itcApi.csv(period).catch((e: unknown) => toast.error(apiError(e, 'Export failed')))}><Download size={14} />CSV with IMS actions</button>
             <PermissionGate permission="GST_RECON_RUN">
               <button className="btn-icon w-9 h-9" aria-label="Remove this month's statement" disabled={!period} onClick={() => setConfirmDelete(true)}><Trash2 size={14} /></button>
             </PermissionGate>

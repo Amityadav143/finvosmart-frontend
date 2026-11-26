@@ -9,6 +9,7 @@
  * via any medium, is strictly prohibited without prior written permission.
  */
 import { api } from './client'
+import { requireDocuments } from '@/lib/billing/documentsGate'
 import type { ApiResponse, PageResponse, Vendor } from '@/types'
 import type {
   AccountOption, Bill, BillAttachment, BillInput, BillPaymentRecord, ItcDocument, ItcReport, ItcStatement, PayablesSummary,
@@ -17,8 +18,13 @@ import type {
 
 const data = <T,>(r: { data: ApiResponse<T> }) => r.data.data as T
 
-/** Downloads a file the API returns (CSV) under the given name. */
-export async function download(path: string, params: Record<string, any>, fileName: string) {
+/**
+ * Downloads a file the API returns (CSV) under the given name. Documents leave Finvosmart with a plan: without one the
+ * dialog says so and nothing is asked of the server (lib/billing/documentsGate) — except files every company gets
+ * (always: the empty templates for importing).
+ */
+export async function download(path: string, params: Record<string, any>, fileName: string, opts?: { always?: boolean }) {
+  if (!opts?.always) requireDocuments()
   const res = await api.get(path, { params, responseType: 'blob' })
   const url = URL.createObjectURL(res.data)
   const a = document.createElement('a'); a.href = url; a.download = fileName; a.click()

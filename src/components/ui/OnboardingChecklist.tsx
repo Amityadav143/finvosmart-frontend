@@ -23,6 +23,7 @@ import { useAuthStore } from '@/lib/store/slices/authStore'
 import type { SetupStatus } from '@/types/dashboard'
 import type { IndustryStep } from '@/types/industry'
 import { useIndustry } from '@/lib/hooks/useIndustry'
+import { useDocumentsGate } from '@/lib/billing/documentsGate'
 
 interface Step {
   id: string; label: string; why: string; href: string; icon: LucideIcon
@@ -88,6 +89,7 @@ export function OnboardingChecklist({ companyName }: { companyName?: string }) {
   const perms = usePermissions()
   const { user } = useAuthStore()
   const industry = useIndustry()
+  const docsLocked = useDocumentsGate(g => g.locked)
   const who = `${user?.companyId ?? ''}:${user?.userId ?? ''}`
   const [dismissed, setDismissed] = useState(true)          // until the saved choice is read, show nothing
   useEffect(() => {
@@ -100,7 +102,11 @@ export function OnboardingChecklist({ companyName }: { companyName?: string }) {
   const { data } = useQuery({ queryKey: ['setup-status'], queryFn: dashboardApi.setup, staleTime: 60_000, enabled: !dismissed })
   if (dismissed || !data) return null
 
+  // without a plan an invoice is made and seen, not sent (documents leave Finvosmart with a plan)
   const steps = stepsFor(industry.current?.steps ?? [], industry.name('/crm/customers', 'Customers')).filter(s => s.allowed(perms))
+    .map(s => s.id === 'invoice' && docsLocked
+      ? { ...s, label: 'Make your first GST invoice', why: 'See it as your customer will. Sending it, with its pay-online link and UPI QR, comes with a plan.' }
+      : s)
   const done = steps.filter(s => s.done(data)).length
   if (steps.length === 0 || done === steps.length) return null
   const next = steps.find(s => !s.done(data))

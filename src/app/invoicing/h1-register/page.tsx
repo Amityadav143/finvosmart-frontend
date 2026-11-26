@@ -22,6 +22,7 @@ import { downloadBlob, formatDate, apiError } from '@/lib/utils'
 import { expiryText, qty } from '@/lib/inventory'
 import { todayIST } from '@/lib/money'
 import type { DrugRegisterEntry } from '@/types'
+import { documentsAllowed } from '@/lib/billing/documentsGate'
 
 const SCHEDULES = [
   { value: '', label: 'Schedule H1 and X' },
@@ -47,6 +48,7 @@ export default function DrugRegisterPage() {
   })
   const rows = data?.entries ?? []
   const save = async (kind: 'pdf' | 'csv') => {
+    if (!documentsAllowed()) return
     setBusy(kind)
     try {
       downloadBlob(await drugRegisterApi.file(kind, params), `schedule-h1-register-${from}-to-${to}.${kind}`)

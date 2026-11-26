@@ -16,6 +16,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { ChevronDown, ChevronRight, Download, History, Lock } from 'lucide-react'
 import { auditApi, type AuditEntry, type AuditFilter } from '@/lib/api/audit'
+import { apiError } from '@/lib/apiError'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Pagination } from '@/components/ui/Pagination'
 
@@ -73,7 +74,7 @@ export default function AuditLogPage() {
   const { data: types = [] } = useQuery({ queryKey: ['audit-trail-types'], queryFn: auditApi.types })
   const exporter = useMutation({
     mutationFn: () => auditApi.exportCsv(filter),
-    onError: () => toast.error('Could not export the audit trail'),
+    onError: (e: any) => { if (!e?.documentsRefused) toast.error(apiError(e, 'Could not export the audit trail')) },
   })
 
   const filtered = data?.content ?? []

@@ -13,6 +13,7 @@ import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { format, parseISO, isValid } from 'date-fns'
 import { csvCell } from '../csv'
+import { documentsAllowed } from '../billing/documentsGate'
 
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs))
 
@@ -62,19 +63,36 @@ export function hashColor(seed: string): { bg: string; text: string } {
   return { bg: `hsl(${hue}deg 50% 20%)`, text: `hsl(${hue}deg 80% 75%)` }
 }
 
-export function downloadBlob(blob: Blob, filename: string) {
+/**
+ * A name, as part of a file name: letters, marks and digits of any script and '-' kept (रमेश कुमार → रमेश_कुमार), every
+ * run of anything else one '_', none at either end; at most 60 characters — as the server names files (DownloadNames).
+ */
+export function fileNamePart(s: string | null | undefined): string {
+  const p = (s ?? '').replace(/[^\p{L}\p{M}\p{N}-]+/gu, '_').replace(/^_+|_+$/g, '')
+  return p.length > 60 ? p.slice(0, 60).replace(/_+$/, '') : p
+}
+
+/**
+ * Saves a file the browser holds. Documents leave Finvosmart with a plan: without one the dialog says so and nothing is
+ * saved (false) — except what is the company's own already (always: a supplier's bill as it was uploaded).
+ */
+export function downloadBlob(blob: Blob, filename: string, opts?: { always?: boolean }): boolean {
+  if (!opts?.always && !documentsAllowed()) return false
   const url = URL.createObjectURL(blob)
   const a   = document.createElement('a')
   a.href = url; a.download = filename; a.click()
   // let go of a second after the download starts, as the app's other downloads do
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+  return true
 }
 
 /**
  * Export an array of objects to a downloadable CSV file (client-side), with a byte-order mark so Excel reads ₹ and
- * names in any script correctly. Returns how many rows went into the file (0: nothing to export, no file made).
+ * names in any script correctly. Returns how many rows went into the file (0: nothing to export, no file made; -1: held
+ * back without a plan — the dialog has said why).
  */
 export function exportToCsv(filename: string, rows: Record<string, any>[]): number {
+  if (!documentsAllowed()) return -1
   if (!rows || rows.length === 0) return 0
   const headers = Object.keys(rows[0])
   const csv = [

@@ -239,7 +239,7 @@
     {
      "method": "GET",
      "path": "/api/v1/invoices/{id}/pdf",
-     "summary": "The invoice as a PDF (inline for preview; ?download=true to save)",
+     "summary": "The invoice as a PDF (inline for preview; ?download=true to save — with a plan)",
      "permissions": [
       "INVOICE_VIEW"
      ],

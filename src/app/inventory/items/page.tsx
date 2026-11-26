@@ -36,6 +36,7 @@ import type { InventoryItem, InventoryItemInput, ItemBatch, BatchState } from '@
 import type { ItemPreset } from '@/types/industry'
 import { useExtraFields, ExtraFields } from '@/components/industry/ExtraFields'
 import { useIndustry } from '@/lib/hooks/useIndustry'
+import { documentsAllowed } from '@/lib/billing/documentsGate'
 
 type Form = { itemCode: string; itemName: string; category: string; hsnSacCode: string; unit: string; purchasePrice: string
   sellingPrice: string; gstRate: string; reorderLevel: string; description: string; active: boolean; openingStock: string
@@ -137,6 +138,7 @@ export default function InventoryItemsPage() {
   /** Every item matching the search and category — not only the page on screen. */
   const [exporting, setExporting] = useState(false)
   const exportCsv = async () => {
+    if (!documentsAllowed()) return                     // exports come with a plan: the dialog says so
     setExporting(true)
     try {
       const items = await allPages(n => inventoryApi.items.list({ page: n, size: 200, q: q || undefined, category: category || undefined }))
@@ -145,8 +147,8 @@ export default function InventoryItemsPage() {
         'Purchase price': i.purchasePrice ?? '', 'Selling price': i.sellingPrice ?? '', 'In stock': i.currentStock, 'Reorder level': i.reorderLevel,
         'By batch': i.trackBatchNumbers ? 'Yes' : 'No',
       })))
-      if (made) toast.success(`${made.toLocaleString('en-IN')} ${made === 1 ? thing.toLowerCase() : things.toLowerCase()} exported`)
-      else toast(`No ${things.toLowerCase()} to export`)
+      if (made > 0) toast.success(`${made.toLocaleString('en-IN')} ${made === 1 ? thing.toLowerCase() : things.toLowerCase()} exported`)
+      else if (made === 0) toast(`No ${things.toLowerCase()} to export`)   // -1: held back without a plan (the dialog says so)
     } catch (e) {
       toast.error(apiError(e, 'The list could not be exported'))
     } finally {

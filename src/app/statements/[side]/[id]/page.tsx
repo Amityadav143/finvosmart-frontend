@@ -20,6 +20,7 @@ import { inr, todayIST } from '@/lib/money'
 import { apiError, formatDate } from '@/lib/utils'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { periods, statementsApi, type StatementLine, type StatementSide } from '@/lib/api/statements'
+import { documentsAllowed } from '@/lib/billing/documentsGate'
 
 const KIND: Record<string, string> = {
   INVOICE: 'Invoice', DEBIT_NOTE: 'Debit note', CREDIT_NOTE: 'Credit note', OPENING: 'Carried over', PAYMENT: 'Payment',
@@ -76,7 +77,7 @@ export default function StatementPage(props: { params: Promise<{ side: string; i
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button className="btn-secondary h-9" onClick={() => window.print()} disabled={!v}><Printer size={15} />Print</button>
+          <button className="btn-secondary h-9" onClick={() => { if (documentsAllowed()) window.print() }} disabled={!v}><Printer size={15} />Print</button>
           <button className="btn-secondary h-9" onClick={pdf} disabled={!v || downloading}><Download size={15} />{downloading ? 'Preparing…' : 'PDF'}</button>
           {canMail && (
             <button className="btn-primary h-9" disabled={!v} onClick={() => { setMail({ to: v?.party.email ?? '', cc: '', message: '' }); setMailing(true) }}>

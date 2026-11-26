@@ -10,6 +10,7 @@
  */
 
 import type { GodownKind, OrderStatus, PayMode, Receipt, ShiftReport } from '@/types/store'
+import { documentsAllowed } from './billing/documentsGate'
 
 /** The store module's words and the receipt a counter prints. */
 
@@ -127,16 +128,21 @@ export function shiftReportHtml(rep: ShiftReport, company: string, width: 58 | 8
   <hr><div class="c muted">Printed ${esc(when(new Date().toISOString()))}</div></body></html>`
 }
 
-/** Prints a page through a hidden frame (the receipt printer is the browser's printer), then removes the frame. */
-export function printHtml(html: string) {
+/**
+ * Prints a page through a hidden frame (the receipt printer is the browser's printer), then removes the frame. Printing
+ * comes with a plan: without one the dialog says so and nothing prints (false).
+ */
+export function printHtml(html: string): boolean {
+  if (!documentsAllowed()) return false
   const f = document.createElement('iframe')
   f.setAttribute('aria-hidden', 'true')
   f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
   document.body.appendChild(f)
   const doc = f.contentWindow?.document
-  if (!doc) { f.remove(); return }
+  if (!doc) { f.remove(); return false }
   doc.open(); doc.write(html); doc.close()
   const go = () => { try { f.contentWindow?.focus(); f.contentWindow?.print() } finally { setTimeout(() => f.remove(), 1500) } }
   // the QR code is inline SVG: nothing to wait for but layout
   setTimeout(go, 120)
+  return true
 }

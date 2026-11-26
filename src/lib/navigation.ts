@@ -12,7 +12,7 @@
 import {
   ArrowLeftRight, BarChart3, BookOpen, Boxes, Brain, Briefcase, Building, Building2, CalendarDays, ClipboardList, Clock,
   CreditCard, Factory, FileCheck2, FileSpreadsheet, FileText, FileUp, FolderOpen, Gavel, Globe, HeartPulse, History,
-  IndianRupee, Landmark, LayoutDashboard, LineChart, ListTree, Mail, MessageCircle, PackageCheck, Palette,
+  IndianRupee, Landmark, Layers, LayoutDashboard, LineChart, ListTree, Mail, MessageCircle, PackageCheck, Palette,
   PenLine, Percent, Plug, Receipt, Repeat, Scale, ScanLine, Settings, ShieldAlert, ShieldCheck, ShieldPlus, ShoppingCart, Sparkles,
   Timer, TrendingUp, Truck, UserCheck, Users, Wallet, Webhook, Zap, Activity, Camera, Bell, Lock, Wrench, UserCircle,
   Monitor, ShoppingBag, Store, Warehouse, ListChecks, ClipboardCheck, Settings2, DoorOpen, RotateCcw, CalendarClock,
@@ -71,6 +71,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: '/platform/companies', label: 'All companies',     icon: Building2,     perm: CONSOLE, platform: 'console', keywords: 'suspend trial plan' },
       { href: '/platform/users',     label: 'All logins',        icon: Users,         perm: CONSOLE, platform: 'console', keywords: 'users across companies' },
       { href: '/platform/payments',  label: 'Plan payments',     icon: CreditCard,    perm: CONSOLE, platform: 'console', keywords: 'subscription payments of every company' },
+      { href: '/platform/plans',     label: 'Plans on offer',    icon: Layers,        perm: CONSOLE, platform: 'console', title: 'Plans', keywords: 'pricing prices per user subscription catalogue retire' },
+      { href: '/platform/discounts', label: 'Discount codes',    icon: Percent,       perm: CONSOLE, platform: 'console', keywords: 'coupons promo codes offers' },
       { href: '/platform/leads',     label: 'Website enquiries', icon: Mail,          perm: CONSOLE, platform: 'console' },
       { href: '/platform/acquisition', label: 'Where sign-ups come from', icon: TrendingUp, perm: CONSOLE, platform: 'console', keywords: 'acquisition marketing campaigns utm google ads SEO AI search channels' },
       { href: '/platform/activity',  label: 'Console activity',  icon: ClipboardList, perm: CONSOLE, platform: 'console', keywords: 'log' },

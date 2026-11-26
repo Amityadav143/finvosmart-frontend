@@ -29,6 +29,8 @@ export interface CompanyRow {
   users: number; invoices: number; lastSignIn?: string
   /** the company that runs Finvosmart */
   platform: boolean
+  /** the plan's name as the console keeps it (absent from an older server) */
+  planName?: string | null
 }
 
 export interface CompanyPage { items: CompanyRow[]; total: number; page: number; size: number; filter?: string; search?: string }
@@ -74,6 +76,9 @@ export interface LoginRow {
   id: string; fullName?: string; email: string; phone?: string; roles: string[]; active: boolean; locked: boolean; lockedUntil?: string
   failedAttempts: number; twoStep: boolean; google: boolean; lastSignIn?: string; createdAt?: string
   companyId: string; companyName: string; companyCode?: string; companyActive: boolean; console: boolean
+  /** the company's plan: how it is set up (TRIAL, PAID, LEGACY), the plan's name, what it may do now, and when its trial or
+   *  paid period ends (absent from an older server) */
+  planStatus?: string | null; planName?: string | null; access?: CompanyAccess | null; planEnds?: string | null
 }
 export interface LoginPage { items: LoginRow[]; total: number; page: number; size: number; filter?: string; search?: string; counts: LoginCounts }
 
@@ -82,6 +87,9 @@ export interface PaymentRow {
   id: string; companyId: string; companyName: string; companyCode?: string; plan: string; billingCycle: string
   basePaise: number; gstPaise: number; amountPaise: number; status: string; orderId?: string; paymentId?: string
   periodStart?: string; periodEnd?: string; createdAt?: string; paidAt?: string; failureReason?: string
+  /** the price before a discount code, what it took off and the code; the users paid for on a per-user plan; PLAN, or USERS
+   *  (more users during a period) — absent from an older server */
+  listPaise?: number; discountPaise?: number; discountCode?: string | null; seats?: number | null; purpose?: 'PLAN' | 'USERS'
 }
 export interface PaymentPage { items: PaymentRow[]; total: number; page: number; size: number; filter?: string; search?: string; totals: PaymentTotals }
 
@@ -93,7 +101,7 @@ export interface LeadRow {
 }
 export interface LeadPage { items: LeadRow[]; total: number; page: number; size: number; filter?: string; search?: string; counts: LeadCounts }
 
-export type ActivityKind = 'SUPPORT' | 'SETTINGS' | 'ADMINS' | 'LEADS'
+export type ActivityKind = 'SUPPORT' | 'SETTINGS' | 'ADMINS' | 'LEADS' | 'PLANS'
 /** One thing support or the console did. what: in words; details: the audit entry's JSON. */
 export interface ActivityRow { action: string; what: string; details?: string; at?: string; byName?: string; byEmail?: string; companyId?: string; companyName?: string }
 export interface ActivityPage { items: ActivityRow[]; total: number; page: number; size: number; kind?: string }
@@ -116,6 +124,7 @@ export interface CompanyUser {
 export interface PlanPayment {
   id: string; plan: string; billingCycle: string; basePaise: number; gstPaise: number; amountPaise: number; status: string
   orderId?: string; paymentId?: string; periodStart?: string; periodEnd?: string; createdAt?: string; paidAt?: string; failureReason?: string
+  listPaise?: number; discountPaise?: number; discountCode?: string | null; seats?: number | null; purpose?: 'PLAN' | 'USERS'
 }
 
 export interface PlanEvent { event: string; details?: string; actorName?: string; at?: string }
@@ -169,6 +178,61 @@ function need<T>(r: { data: ApiResponse<T> }): T {
 
 export interface ActionResult { result: string }
 
+/** How a plan is priced: one price for the company, or a price for each user (the users paid for are its limit). */
+export type CataloguePricing = 'COMPANY' | 'USER'
+
+/**
+ * A plan on offer, as the console keeps it (GET /platform/plans): prices in paise before GST (for the company, or each
+ * user), users and branches (null: no limit), the features it includes, sold online (selfServe), on the pricing page,
+ * still offered (active), its place; builtIn: one of the three Finvosmart starts with (never removed); the companies
+ * on it — paid and running now, and all set up on it.
+ */
+export interface CataloguePlan {
+  code: string; name: string; description?: string | null; pricing: CataloguePricing
+  monthlyPaise: number; annualMonthlyPaise: number; maxUsers: number | null; maxBranches: number | null; features: string[]
+  selfServe: boolean; onPricingPage: boolean; active: boolean; sortOrder: number; builtIn: boolean
+  companiesRunning: number; companiesOnIt: number
+}
+export type CataloguePlanForm = Omit<CataloguePlan, 'builtIn' | 'companiesRunning' | 'companiesOnIt'>
+/** The plans, the features a plan may include (code → what the customer reads) and the GST rate. */
+export interface PlansView { plans: CataloguePlan[]; features: Record<string, string>; gstPercent: number }
+
+export type DiscountKind = 'PERCENT' | 'AMOUNT'
+/**
+ * A discount code or coupon (GET /platform/discount-codes): PERCENT (value 1–100) or AMOUNT (value in paise) off a plan's
+ * price before GST; for some plans and billing (none: any); for one company (a coupon) or any; its first and last days;
+ * the uses in all (null: no limit); once per company; for a company's first plan only; switched on or off — and how often
+ * it was used, and what it took off in all.
+ */
+export interface DiscountCode {
+  id: string; code: string; description?: string | null; kind: DiscountKind; value: number; label: string
+  plans: string[]; cycles: string[]; companyId?: string | null; companyName?: string | null; companyCode?: string | null
+  validFrom?: string | null; validUntil?: string | null; maxUses?: number | null
+  oncePerCompany: boolean; firstPlanOnly: boolean; active: boolean; createdAt?: string; createdBy?: string | null
+  timesUsed: number; discountGivenPaise: number
+}
+export interface DiscountCodeForm {
+  code: string; description?: string | null; kind: DiscountKind; value: number; plans: string[]; cycles: string[]; companyCode?: string | null
+  validFrom?: string | null; validUntil?: string | null; maxUses?: number | null; oncePerCompany: boolean; firstPlanOnly: boolean; active: boolean
+}
+/** Where a code was used. paidPaise: what the company paid with it (0 when it took the whole price off). */
+export interface DiscountUse {
+  at?: string; companyId: string; companyName: string; companyCode?: string | null; plan?: string | null; billingCycle?: string | null
+  listPaise: number; discountPaise: number; paidPaise?: number | null; paymentId?: string | null
+}
+
+/** What support sets a company up as (POST /platform/companies/{id}/plan). */
+export interface SetPlanRequest {
+  /** PAID — a plan until a last day, FULL — full access with no end, TRIAL — a free trial of days (a running one gets more), END — ended now */
+  mode: 'PAID' | 'FULL' | 'TRIAL' | 'END'
+  plan?: string; billingCycle?: string; paidUntil?: string; note: string
+  /** the users paid for, on a plan priced for each user */
+  seats?: number | null
+  /** given at no charge (recorded as such) */
+  complimentary?: boolean
+  days?: number
+}
+
 /**
  * Why the console is open or closed to the Super Admin asking, as the backend sees it (ConsoleAccessController):
  * configured is PLATFORM_COMPANY_ID as the backend got it (configuredSet: it is set in its environment; otherwise
@@ -212,8 +276,20 @@ export const platformApi = {
   reactivate: async (id: string, note: string) => need(await api.post<ApiResponse<CompanyDetail>>(`/platform/companies/${id}/reactivate`, { note })),
   extendTrial: async (id: string, days: number, note: string) =>
     need(await api.post<ApiResponse<CompanyDetail>>(`/platform/companies/${id}/extend-trial`, { days, note })),
-  setPlan: async (id: string, body: { mode: 'PAID' | 'FULL'; plan?: string; billingCycle?: string; paidUntil?: string; note: string }) =>
+  setPlan: async (id: string, body: SetPlanRequest) =>
     need(await api.post<ApiResponse<CompanyDetail>>(`/platform/companies/${id}/plan`, body)),
+  /** the plans on offer (a server older than 26 November 2026 answers 404) */
+  plans: async () => need(await api.get<ApiResponse<PlansView>>('/platform/plans')),
+  addPlan: async (form: CataloguePlanForm) => need(await api.post<ApiResponse<PlansView>>('/platform/plans', form)),
+  changePlan: async (code: string, form: CataloguePlanForm) =>
+    need(await api.put<ApiResponse<PlansView>>(`/platform/plans/${encodeURIComponent(code)}`, form)),
+  removePlan: async (code: string) => need(await api.delete<ApiResponse<PlansView>>(`/platform/plans/${encodeURIComponent(code)}`)),
+  discountCodes: async () => (await api.get<ApiResponse<DiscountCode[]>>('/platform/discount-codes')).data.data ?? [],
+  addDiscountCode: async (form: DiscountCodeForm) => need(await api.post<ApiResponse<DiscountCode>>('/platform/discount-codes', form)),
+  changeDiscountCode: async (id: string, form: DiscountCodeForm) =>
+    need(await api.put<ApiResponse<DiscountCode>>(`/platform/discount-codes/${id}`, form)),
+  removeDiscountCode: async (id: string) => need(await api.delete<ApiResponse<ActionResult>>(`/platform/discount-codes/${id}`)).result,
+  discountCodeUses: async (id: string) => (await api.get<ApiResponse<DiscountUse[]>>(`/platform/discount-codes/${id}/uses`)).data.data ?? [],
   resetLink: async (id: string, userId: string) =>
     need(await api.post<ApiResponse<ActionResult>>(`/platform/companies/${id}/users/${userId}/reset-link`)).result,
   unlock: async (id: string, userId: string) => need(await api.post<ApiResponse<CompanyDetail>>(`/platform/companies/${id}/users/${userId}/unlock`)),
@@ -287,7 +363,14 @@ export const FILTERS: { value: '' | CompanyFilter; label: string }[] = [
   { value: 'SUSPENDED', label: 'Suspended' },
 ]
 
+/** The built-in plans' names — for rows from an older server, which send no plan name (the console's plans have their own). */
 export const PLAN_NAMES: Record<string, string> = { STARTER: 'Starter', GROWTH: 'Growth', ENTERPRISE: 'Enterprise' }
+
+/** "₹4,999" or "₹499.50" from paise (whole rupees without paise). */
+export function rupees(paise: number): string {
+  const r = paise / 100
+  return '₹' + (paise % 100 === 0 ? r.toLocaleString('en-IN') : r.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+}
 
 /** "Asia/Kolkata" dates for the console: "4 Nov 2026" and "4 Nov 2026, 7:02 pm". */
 export function day(iso?: string | null): string {

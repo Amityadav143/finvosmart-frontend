@@ -21,6 +21,7 @@ import { inr, todayIST } from '@/lib/money'
 import { apiError, formatDate } from '@/lib/utils'
 import { PermissionGate } from '@/components/ui/PermissionGate'
 import type { Account } from '@/types'
+import { documentsAllowed } from '@/lib/billing/documentsGate'
 
 const TYPES: { type: string; label: string }[] = [
   { type: 'ASSET', label: 'Assets' }, { type: 'LIABILITY', label: 'Liabilities' }, { type: 'EQUITY', label: 'Capital and reserves' },
@@ -92,7 +93,7 @@ export default function LedgerPage() {
             <p className="page-subtitle">Every entry on an account, with a running balance — the detail behind each figure in your reports.</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <button className="btn-secondary h-9" onClick={() => window.print()} disabled={!v}><Printer size={15} />Print</button>
+            <button className="btn-secondary h-9" onClick={() => { if (documentsAllowed()) window.print() }} disabled={!v}><Printer size={15} />Print</button>
             <button className="btn-secondary h-9" onClick={() => download('csv')} disabled={!v || !!busy}><FileSpreadsheet size={15} />{busy === 'csv' ? 'Preparing…' : 'Excel (CSV)'}</button>
             <button className="btn-secondary h-9" onClick={() => download('pdf')} disabled={!v || !!busy}><Download size={15} />{busy === 'pdf' ? 'Preparing…' : 'PDF'}</button>
           </div>

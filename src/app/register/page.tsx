@@ -28,6 +28,8 @@ import { SectorPicker } from '@/components/onboarding/SectorPicker'
 import { lastDay } from '@/lib/hooks/useSubscription'
 import { apiError } from '@/lib/utils'
 import { ServerNotice } from '@/components/auth/ServerNotice'
+import { FALLBACK_PLANS, checkoutHref, cycleFrom, planFrom, priceLine, webPlans, type BillingCycle, type SelfServePlan, type WebPlan } from '@/lib/billing/plans'
+import { billingApi } from '@/lib/api/billing'
 
 type Field = 'companyName' | 'fullName' | 'email' | 'phone' | 'password' | 'gstin' | 'acceptTerms'
 type Form = Record<Exclude<Field, 'acceptTerms'> | 'website', string>
@@ -89,6 +91,35 @@ export default function RegisterPage() {
   const [sectorOther, setSectorOther] = useState('')
   const [sectorSaved, setSectorSaved] = useState<SectorChoice | null>(null)
   const [savingSectors, setSavingSectors] = useState(false)
+  // how they start: the 7-day free trial, or a plan paid for right after the account is made (the trial's days kept).
+  // From the pricing page: ?plan=growth (&cycle=monthly) picks the plan; &start=pay (or checkout=1) picks paying now;
+  // &code=WELCOME20 brings a discount code (checked by the server when they pay).
+  const [start, setStart] = useState<'trial' | 'pay'>('trial')
+  const [plan, setPlan] = useState<SelfServePlan>('GROWTH')
+  const [cycle, setCycle] = useState<BillingCycle>('ANNUAL')
+  const [offered, setOffered] = useState<WebPlan[]>(FALLBACK_PLANS)
+  const [users, setUsers] = useState(1)
+  const [discount, setDiscount] = useState('')
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const asked = q.get('plan')
+    const chosen = planFrom(asked)
+    if (chosen) setPlan(chosen)
+    setCycle(cycleFrom(q.get('cycle')))
+    if (q.get('start') === 'pay' || q.get('checkout') === '1') setStart('pay')
+    const code = (q.get('code') ?? '').replace(/\s+/g, '').toUpperCase().slice(0, 24)
+    if (code) setDiscount(code)
+    // the plans kept in the console (their prices, and plans added there); while they can't be had, the built-in ones stand
+    billingApi.publicPlans().then(r => {
+      const live = webPlans(r.plans ?? [])
+      if (!live.length) return
+      setOffered(live)
+      setPlan(planFrom(asked, live) ?? planFrom('GROWTH', live) ?? live[0].code)
+    }).catch(() => setOffered(FALLBACK_PLANS))
+  }, [])
+  const chosenPlan = offered.find(p => p.code === plan) ?? offered[0]
+  const [paying, setPaying] = useState<{ plan: SelfServePlan; cycle: BillingCycle; users: number; discount: string } | null>(null)
+  const payingPlan = paying ? offered.find(p => p.code === paying.plan) : undefined
 
   // ── Sign up with Google ─────────────────────────────────────────────────
   // Google's window says who the person is (checked by the server); the form then asks only for the
@@ -161,6 +192,7 @@ export default function RegisterPage() {
       announceSignIn(auth)
       setDone({ code: auth.companyCode ?? '', name: auth.companyName ?? f.companyName.trim(), withGoogle: !!g,
         trialEndsAt: (auth as any).trialEndsAt, trialDaysLeft: (auth as any).trialDaysLeft, access: (auth as any).access })
+      setPaying(start === 'pay' ? { plan: chosenPlan.code, cycle, users: chosenPlan.perUser ? users : 1, discount } : null)
       sectorsApi.get().then(c => setSectorCatalog(c.catalog)).catch(() => setSectorCatalog([]))
     } catch (err: any) {
       setServerError(apiError(err, 'We could not create your account. Please try again.'))
@@ -205,12 +237,31 @@ export default function RegisterPage() {
               ? <>Next time, use <strong>Continue with Google</strong> on the sign-in page — no code needed. Keep the code for your team, and for signing in with a password if you add one.</>
               : <>Save it somewhere safe — you&apos;ll need it, with your email and password, every time you sign in.</>}
           </p>
+          {(paying || done.access === 'READ_ONLY') && (
+            <div data-testid="register-pay" style={{ textAlign: 'left', margin: '0 0 18px', padding: '14px', borderRadius: '12px',
+                                                  background: 'var(--gold-muted)', border: '1px solid var(--gold)' }}>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px' }}>
+                {paying ? `Your plan: ${payingPlan?.name ?? paying.plan}` : 'Choose a plan to start working'}
+              </p>
+              {paying && <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 10px' }}>{payingPlan ? `${priceLine(payingPlan, paying.cycle, paying.users)}.` : ''}
+                {paying.discount && ` Your discount code ${paying.discount} is checked and taken off when you pay.`}
+                {done.access !== 'READ_ONLY' && ' Your 7 free days are kept: the paid period starts when the trial ends.'}</p>}
+              <button type="button" className="btn-primary w-full" style={{ height: '44px' }} data-testid="register-pay-now"
+                      onClick={() => router.push(paying ? checkoutHref(paying.plan, paying.cycle, { discount: paying.discount || null, users: paying.users }) : '/settings/subscription')}>
+                {paying ? 'Pay now' : 'See the plans'} <ArrowRight size={16} />
+              </button>
+              {paying && done.access !== 'READ_ONLY' && (
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '8px 0 0' }}>Or explore first — pay any time under Settings → Subscription.</p>
+              )}
+            </div>
+          )}
           {done.trialEndsAt && (
             <p data-testid="register-trial" style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 18px', padding: '10px 12px', borderRadius: '10px',
                         background: done.access === 'READ_ONLY' ? 'rgba(220,38,38,0.08)' : 'var(--bg-surface)', border: '1px solid var(--border)', textAlign: 'left' }}>
               {done.access === 'READ_ONLY'
                 ? <>A free trial was already used with these details, so this company opens read-only. Choose a plan under <strong>Settings → Subscription</strong> to start working.</>
-                : <>Your <strong>7-day free trial</strong> has started — its last day is <strong>{lastDay(done.trialEndsAt)}</strong>. Everything is included except customising invoice designs.</>}
+                : <>Your <strong>7-day free trial</strong> has started — its last day is <strong>{lastDay(done.trialEndsAt)}</strong>. Make and see everything in
+                    Finvosmart; downloading, printing and sending documents — and customising invoice designs — come with a plan.</>}
             </p>
           )}
           {!sectorSaved && sectorCatalog.length > 0 && (
@@ -290,7 +341,8 @@ export default function RegisterPage() {
           7 days free · No credit card · Set up in a minute
         </p>
         <p data-testid="register-trial-terms" style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginBottom: '22px', lineHeight: 1.5 }}>
-          After the 7 days your data stays: Finvosmart turns read-only until you choose a plan. One free trial per business.
+          Make and see everything during the trial; downloading, printing and sending documents come with a plan. After the 7 days your data
+          stays: Finvosmart turns read-only until you choose one. One free trial per business.
         </p>
 
         {/* Sign up with Google — only where the server has Google sign-in switched on */}
@@ -365,6 +417,55 @@ export default function RegisterPage() {
             <input id="su-website" name="website" tabIndex={-1} autoComplete="off" value={f.website} onChange={set('website')} />
           </div>
 
+          <fieldset data-testid="register-start" style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '12px 14px', margin: '0 0 14px' }}>
+            <legend style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 4px' }}>How do you want to start?</legend>
+            {([['trial', '7-day free trial', 'Try everything, no card needed. Downloading, printing and sending documents come with a plan.'],
+               ['pay', 'Subscribe now', 'Pay right after your account is made, and use everything from day one. The 7 free days are kept.']] as const).map(([v, title, text]) => (
+              <label key={v} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '6px 0', cursor: 'pointer' }}>
+                <input type="radio" name="start" value={v} checked={start === v} onChange={() => setStart(v)} data-testid={`register-start-${v}`}
+                       style={{ marginTop: '3px', width: '16px', height: '16px', flexShrink: 0, accentColor: 'var(--gold)' }} />
+                <span>
+                  <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</span>
+                  <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.45 }}>{text}</span>
+                </span>
+              </label>
+            ))}
+            {start === 'pay' && (
+              <div style={{ marginTop: '8px', display: 'grid', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }} role="group" aria-label="Plan">
+                  {offered.map(p => (
+                    <button key={p.code} type="button" aria-pressed={plan === p.code} onClick={() => setPlan(p.code)} data-plan={p.code}
+                            className={plan === p.code ? 'btn-primary' : 'btn-secondary'} style={{ flex: '1 1 0', minWidth: '96px', height: '38px', fontSize: '13px' }}>
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }} role="group" aria-label="Billing">
+                  {(['ANNUAL', 'MONTHLY'] as const).map(c => (
+                    <button key={c} type="button" aria-pressed={cycle === c} onClick={() => setCycle(c)} data-cycle={c}
+                            className={cycle === c ? 'btn-primary' : 'btn-secondary'} style={{ flex: 1, height: '34px', fontSize: '12.5px' }}>
+                      {c === 'ANNUAL' ? 'Yearly (save 20%)' : 'Monthly'}
+                    </button>
+                  ))}
+                </div>
+                {chosenPlan?.perUser && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    Users to pay for
+                    <input className="input" type="number" inputMode="numeric" min={1} value={users} data-testid="register-users" style={{ width: '90px', height: '34px' }}
+                           onChange={e => setUsers(Math.max(1, Number.parseInt(e.target.value || '1', 10) || 1))} />
+                  </label>
+                )}
+                <input className="input" value={discount} maxLength={24} placeholder="Discount code (optional)" aria-label="Discount code" data-testid="register-discount"
+                       style={{ height: '36px', fontFamily: 'var(--font-geist-mono), monospace' }}
+                       onChange={e => setDiscount(e.target.value.replace(/\s+/g, '').toUpperCase())} />
+                <p data-testid="register-price" style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>
+                  {chosenPlan ? `${chosenPlan.users} · ${priceLine(chosenPlan, cycle, users)}` : ''}. Paid by Razorpay — UPI, cards or net banking.
+                  {discount && ' The code is checked and taken off when you pay.'}
+                </p>
+              </div>
+            )}
+          </fieldset>
+
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, cursor: 'pointer' }}>
               <input type="checkbox" checked={accepted} style={{ marginTop: '3px', width: '16px', height: '16px', flexShrink: 0, accentColor: 'var(--gold)' }}
@@ -383,7 +484,7 @@ export default function RegisterPage() {
                                        borderRadius: '10px', padding: '10px 12px', marginBottom: '14px' }}>{serverError}</div>
           )}
           <button type="submit" className="btn-primary w-full" style={{ height: '46px', marginTop: '6px' }} disabled={loading}>
-            {loading ? 'Creating your account…' : <>Create my account <ArrowRight size={16} /></>}
+            {loading ? 'Creating your account…' : <>{start === 'pay' ? 'Create my account and pay' : 'Create my account'} <ArrowRight size={16} /></>}
           </button>
           {g && (
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '10px', lineHeight: 1.5 }}>

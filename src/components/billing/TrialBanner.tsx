@@ -24,8 +24,26 @@ import { rupeesFromPaise } from '@/lib/api/billing'
 export function TrialBanner() {
   const { data: s } = useSubscription()
   const { can } = usePermissions()
-  if (!s || s.access === 'FULL') return null
+  if (!s) return null
   const admin = can('SETTINGS_COMPANY')
+  // a paid plan in its last week: its administrators are reminded (nothing renews by itself)
+  if (s.access === 'FULL') {
+    const left = s.paidDaysLeft
+    if (!admin || s.status !== 'PAID' || left == null || left < 0 || left > 7) return null
+    return (
+      <div role="status" data-testid="renewal-banner" className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 text-sm"
+        style={{ background: 'rgba(217,119,6,0.12)', borderBottom: '1px solid rgba(217,119,6,0.40)', color: '#b45309' }}>
+        <Clock size={15} aria-hidden />
+        <span className="flex-1 min-w-0">
+          <strong>Your {s.planName ?? ''} plan {left === 0 ? 'ends today' : `ends in ${left} day${left === 1 ? '' : 's'}`}</strong>
+          {s.paidUntil ? ` (last day ${lastDay(s.paidUntil)})` : ''}. Renew to keep working without a break — the new period starts when this one ends.
+        </span>
+        <Link href="/settings/subscription" className="btn-primary h-8 px-3 text-xs" style={{ textDecoration: 'none' }} data-testid="renewal-renew">
+          <Sparkles size={13} /> Renew
+        </Link>
+      </div>
+    )
+  }
   const readOnly = s.access === 'READ_ONLY'
   const urgent = readOnly || (s.trialDaysLeft ?? 9) <= 1
   const tone = readOnly ? { bg: 'rgba(220,38,38,0.10)', border: 'rgba(220,38,38,0.35)', ink: '#b91c1c' }
@@ -38,13 +56,14 @@ export function TrialBanner() {
       {readOnly ? <Lock size={15} aria-hidden /> : <Clock size={15} aria-hidden />}
       {readOnly ? (
         <span className="flex-1 min-w-0">
-          <strong>Your free trial has ended — Finvosmart is read-only.</strong> You can see and export everything; choose a plan to add
-          and change records again. All your data is kept.
+          <strong>{s.everPaid ? `Your ${s.planName ?? ''} plan has ended` : 'Your free trial has ended'} — Finvosmart is read-only.</strong> You
+          can see everything you made; choose a plan to add, change, download and send again. All your data is kept.
         </span>
       ) : (
         <span className="flex-1 min-w-0">
           <strong>Free trial · day {s.trialDay} of {s.trialDays ?? 7}</strong> — {s.trialDaysLeft === 0 ? 'it ends today' : `${s.trialDaysLeft} day${s.trialDaysLeft === 1 ? '' : 's'} left`}
           {s.trialEndsAt ? ` (started ${dayOf(s.trialStartedAt)}, last day ${lastDay(s.trialEndsAt)})` : ''}.
+          {s.documentsAllowed === false ? ' Downloading, printing and sending documents come with a plan.' : ''}
         </span>
       )}
       {admin ? (
@@ -92,7 +111,7 @@ export function TrialCard() {
       </dl>
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
         {readOnly ? 'Nothing has been deleted: subscribe and carry on where you left off.'
-          : `After the trial, Finvosmart stays open read-only until you subscribe. Plans from ${cheapest ? rupeesFromPaise(cheapest) : ''} a month + ${s.gstPercent}% GST, billed yearly.`}
+          : `Make and see everything during the trial; downloading, printing and sending documents come with a plan — and subscribing now keeps the trial's free days. Plans from ${cheapest ? rupeesFromPaise(cheapest) : ''} a month + ${s.gstPercent}% GST, billed yearly.`}
       </p>
     </div>
   )

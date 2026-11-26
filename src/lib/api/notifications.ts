@@ -29,6 +29,15 @@ export interface AppNotification {
 export const NOTIFICATION_KEYS = {
   list: ['notifications'] as const,
   count: ['notif-count'] as const,
+  emailPrefs: ['notification-email-prefs'] as const,
+}
+
+/** What the signed-in person gets by email beyond sign-in and plan emails. */
+export interface EmailPrefs {
+  /** important alerts at once (a bank account changed, urgent approvals, customers' orders, MSME dates) */
+  alerts: boolean
+  /** the morning summary of what is due (statutory dates, what came in and is unread) */
+  summary: boolean
 }
 
 export const notificationsApi = {
@@ -36,4 +45,14 @@ export const notificationsApi = {
   unreadCount: async () => (data<{ count: number }>(await api.get('/notifications/unread-count'))?.count ?? 0),
   markRead: async (id: string) => { await api.patch(`/notifications/${id}/read`) },
   markAllRead: async () => (data<{ marked: number }>(await api.post('/notifications/mark-all-read'))?.marked ?? 0),
+  emailPrefs: async () => data<EmailPrefs>(await api.get('/notifications/email-preferences')),
+  saveEmailPrefs: async (p: Partial<EmailPrefs>) => data<EmailPrefs>(await api.put('/notifications/email-preferences', p)),
+}
+
+/** The one-click links at the foot of alert and summary emails: no sign-in, the token is the key. */
+export const emailLinksApi = {
+  unsubscribe: async (token: string) => data<{ kind: 'ALERTS' | 'SUMMARY'; on: boolean }>(
+    await api.post('/public/email-preferences/unsubscribe', null, { params: { token } })),
+  resubscribe: async (token: string) => data<{ kind: 'ALERTS' | 'SUMMARY'; on: boolean }>(
+    await api.post('/public/email-preferences/resubscribe', null, { params: { token } })),
 }

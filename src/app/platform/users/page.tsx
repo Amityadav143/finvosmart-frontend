@@ -15,7 +15,7 @@ import Link from 'next/link'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { KeyRound, Power, PowerOff, Unlock } from 'lucide-react'
-import { platformApi, moment, roleWords, type LoginFilter, type LoginRow } from '@/lib/api/platform'
+import { platformApi, lastDayOf, moment, roleWords, type LoginFilter, type LoginRow } from '@/lib/api/platform'
 import { DataTable } from '@/components/ui/Table'
 import { Pagination } from '@/components/ui/Pagination'
 import { SearchInput } from '@/components/ui/SearchInput'
@@ -94,6 +94,14 @@ export default function PlatformLoginsPage() {
                 <div className="min-w-0">
                   <Link href={`/platform/companies/${r.companyId}`} className="block text-sm font-medium" style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>{r.companyName}</Link>
                   <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{r.companyCode}{!r.companyActive && ' · company suspended'}</span>
+                </div>
+              ) },
+              { header: 'Plan', render: r => r.planStatus === undefined ? <span className="text-xs">—</span> : (
+                <div className="min-w-0 text-xs" data-login-plan={r.planStatus ?? ''}>
+                  <span className="block">{r.planStatus === 'LEGACY' ? 'Full access' : r.planStatus === 'PAID' ? (r.planName ?? 'Paid') : 'Free trial'}
+                    {r.access === 'READ_ONLY' && <span style={{ color: '#b45309' }}> · read-only</span>}</span>
+                  {r.planEnds && <span className="block" style={{ color: 'var(--text-muted)' }}>{r.access === 'READ_ONLY' ? 'ended' : 'until'} {lastDayOf(r.planEnds)}</span>}
+                  <Link href={`/platform/companies/${r.companyId}`} className="text-link" data-action="company-plan">Change the plan</Link>
                 </div>
               ) },
               { header: 'Roles', render: r => <span className="text-xs">{r.roles.map(roleWords).join(', ') || '—'}</span> },

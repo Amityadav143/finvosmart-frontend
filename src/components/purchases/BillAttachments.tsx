@@ -47,7 +47,7 @@ export function BillAttachments({ billId, canEdit }: { billId: string; canEdit: 
     onError: (e: unknown) => toast.error(apiError(e, 'The file could not be removed')),
   })
   const save = async (a: BillAttachment) => {
-    try { downloadBlob(await billsApi.attachment(billId, a.id), a.fileName) }
+    try { downloadBlob(await billsApi.attachment(billId, a.id), a.fileName, { always: true }) }   // the company's own file, as uploaded
     catch (e) { toast.error(apiError(e, 'The file could not be downloaded')) }
   }
 

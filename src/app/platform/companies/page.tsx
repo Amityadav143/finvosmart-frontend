@@ -24,7 +24,7 @@ import { apiError } from '@/lib/apiError'
 function standing(r: CompanyRow): string {
   if (!r.active) return r.suspendedAt ? `since ${day(r.suspendedAt)}` : ''
   if (r.access === 'TRIAL') return r.trialDaysLeft === 0 ? 'ends today' : `${r.trialDaysLeft} day${r.trialDaysLeft === 1 ? '' : 's'} left`
-  if (r.access === 'FULL' && r.status !== 'LEGACY' && r.paidUntil) return `${PLAN_NAMES[r.plan ?? ''] ?? 'Paid'} until ${lastDayOf(r.paidUntil)}`
+  if (r.access === 'FULL' && r.status !== 'LEGACY' && r.paidUntil) return `${r.planName ?? PLAN_NAMES[r.plan ?? ''] ?? 'Paid'} until ${lastDayOf(r.paidUntil)}`
   if (r.access === 'READ_ONLY') return r.status === 'PAID' ? `plan ended ${lastDayOf(r.paidUntil)}` : r.trialEndsAt ? `trial ended ${lastDayOf(r.trialEndsAt)}` : ''
   return ''
 }

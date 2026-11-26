@@ -31,6 +31,7 @@ import { fromText } from '@/lib/address'
 import type { Invoice, InvoicePaymentRecord } from '@/types'
 import { DocumentReview } from '@/components/ca/DocumentReview'
 import { PdfViewer } from '@/components/pdf/PdfViewer'
+import { documentsAllowed, useDocumentsGate } from '@/lib/billing/documentsGate'
 
 const errText = (e: any, fallback: string) => apiError(e, fallback)
 
@@ -85,7 +86,7 @@ function InvoiceDetail() {
     return () => { cancelled = true }
   }, [inv?.id, inv?.status, inv?.outstanding, inv?.totalAmount]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { if (search.get('send') === '1' && inv) setModal('send') }, [search, inv])
+  useEffect(() => { if (search.get('send') === '1' && inv && documentsAllowed()) setModal('send') }, [search, inv])
 
   const refresh = (updated?: Invoice) => {
     if (updated) qc.setQueryData(['invoice', id], updated)
@@ -109,6 +110,9 @@ function InvoiceDetail() {
   })
   const rzp = useMutation({ mutationFn: () => invoicingApi.paymentLink(id), onSuccess: url => { navigator.clipboard?.writeText(url).catch(() => {}); toast.success('Card / net-banking link copied'); window.open(url, '_blank', 'noopener') }, onError: (e: any) => toast.error(errText(e, 'Could not create the payment link')) })
 
+  // without a plan, no links go to customers (the server keeps them closed too): the card says so instead
+  const linksLocked = useDocumentsGate(g => g.locked)
+
   if (isLoading) return <SkeletonCard lines={8} />
   if (isError || !inv) return <div className="card text-sm" style={{ color: '#dc2626' }}>This invoice couldn't be loaded. It may not exist, or you may not have access.</div>
 
@@ -124,6 +128,7 @@ function InvoiceDetail() {
   const payable = PAYABLE.includes(inv.invoiceType) && issued && Number(inv.outstanding) > 0
   const active = payments.filter(p => !p.voided)
   const download = async () => {
+    if (!documentsAllowed()) return                     // downloads come with a plan: the dialog says so
     try {
       const blob = await invoicingApi.pdf(inv.id, true)
       const url = URL.createObjectURL(blob)
@@ -173,7 +178,7 @@ function InvoiceDetail() {
             </button>
           )}
           {inv.status !== 'CANCELLED' && can('INVOICE_SEND') && (
-            <button className="btn-secondary h-9" onClick={() => setModal('send')}><Send size={15} />{inv.status === 'DRAFT' ? 'Issue and send' : 'Send'}</button>
+            <button className="btn-secondary h-9" onClick={() => { if (documentsAllowed()) setModal('send') }} data-testid="invoice-send"><Send size={15} />{inv.status === 'DRAFT' ? 'Issue and send' : 'Send'}</button>
           )}
           {payable && canAny('INVOICE_EDIT', 'FINANCE_CREATE') && (
             <button className="btn-primary h-9" onClick={() => setModal('pay')}><IndianRupee size={15} />Record payment</button>
@@ -236,7 +241,17 @@ function InvoiceDetail() {
             </div>
           </div>
 
-          {issued && inv.payUrl && (
+          {issued && inv.payUrl && linksLocked && (
+            <div className="card space-y-2" data-testid="pay-link-locked">
+              <h3 className="font-semibold text-sm">Customer's view-and-pay link</h3>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Sending invoices and links to customers comes with a plan. Once you choose one, you can send this invoice's
+                link: your customer opens it to see the invoice and pay you by UPI or bank transfer.
+              </p>
+              <button type="button" className="btn-secondary h-8 text-xs" onClick={() => documentsAllowed()}>Why, and how to get it</button>
+            </div>
+          )}
+          {issued && inv.payUrl && !linksLocked && (
             <div className="card space-y-3">
               <div>
                 <h3 className="font-semibold text-sm">Customer's view-and-pay link</h3>
@@ -249,10 +264,10 @@ function InvoiceDetail() {
               </div>
               <div className="flex gap-2 flex-wrap">
                 {payable && can('INVOICE_SEND') && (
-                  <button className="btn-secondary h-8 text-xs" disabled={remind.isPending} onClick={() => remind.mutate()}><Bell size={13} />{remind.isPending ? 'Sending…' : 'Email a reminder now'}</button>
+                  <button className="btn-secondary h-8 text-xs" disabled={remind.isPending} onClick={() => { if (documentsAllowed()) remind.mutate() }}><Bell size={13} />{remind.isPending ? 'Sending…' : 'Email a reminder now'}</button>
                 )}
                 {payable && can('INVOICE_SEND') && (
-                  <button className="btn-secondary h-8 text-xs" disabled={rzp.isPending} onClick={() => rzp.mutate()} title="Uses your own Razorpay account (Settings → Company → Payments)">
+                  <button className="btn-secondary h-8 text-xs" disabled={rzp.isPending} onClick={() => { if (documentsAllowed()) rzp.mutate() }} title="Uses your own Razorpay account (Settings → Company → Payments)">
                     {rzp.isPending ? 'Creating…' : 'Card / net-banking link'}
                   </button>
                 )}

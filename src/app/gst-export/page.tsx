@@ -64,6 +64,7 @@ export default function GstReturnsPage() {
     try {
       await gstReturnsApi.download(file, month, year)
     } catch (e: any) {
+      if (e?.documentsRefused) return                     // without a plan: the dialog has said why
       toast.error(await downloadError(e, 'The file could not be prepared'))
     } finally {
       setBusy(null)

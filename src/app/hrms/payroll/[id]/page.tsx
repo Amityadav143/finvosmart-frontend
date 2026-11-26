@@ -58,6 +58,7 @@ export default function PayrollRunPage() {
   const dl = async (what: string, fn: () => Promise<void>) => {
     setBusy(what)
     try { await fn() } catch (e: any) {
+      if (e?.documentsRefused) return                     // without a plan: the dialog has said why
       // file downloads come back as blobs; read the message out of the blob
       let msg = 'Download failed'
       try { const t = await e?.response?.data?.text?.(); const j = t ? JSON.parse(t) : null; msg = j?.message ?? j?.error ?? msg } catch { /* keep default */ }
